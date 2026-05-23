@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChevronRight, ChevronLeft, X, Sparkles } from 'lucide-react';
+import { AccentColor } from './themeUtils';
 
 interface OnboardingTourProps {
   tourType: 'landing' | 'player' | null;
@@ -8,6 +9,7 @@ interface OnboardingTourProps {
   onNext: () => void;
   onBack: () => void;
   onSkip: () => void;
+  accentColor?: AccentColor;
 }
 
 interface TourStep {
@@ -48,10 +50,67 @@ export function OnboardingTour({
   onNext,
   onBack,
   onSkip,
+  accentColor = 'emerald',
 }: OnboardingTourProps) {
   const [rect, setRect] = useState<DOMRect | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ left: 0, top: 0 });
   const [isMounted, setIsMounted] = useState(false);
+
+  const themeSpotlightGlow = {
+    emerald: 'rgba(16, 185, 129, 0.3)',
+    sand: 'rgba(245, 158, 11, 0.3)',
+    wine: 'rgba(244, 63, 94, 0.3)',
+    navy: 'rgba(99, 102, 241, 0.3)'
+  }[accentColor];
+
+  const themeSpotlightShadow = {
+    emerald: 'rgba(16, 185, 129, 0.35)',
+    sand: 'rgba(245, 158, 11, 0.35)',
+    wine: 'rgba(244, 63, 94, 0.35)',
+    navy: 'rgba(99, 102, 241, 0.35)'
+  }[accentColor];
+
+  const borderClass = {
+    emerald: 'border-emerald-500/10',
+    sand: 'border-amber-500/10',
+    wine: 'border-rose-500/10',
+    navy: 'border-slate-500/15'
+  }[accentColor];
+
+  const glowBgClass = {
+    emerald: 'bg-emerald-500/10',
+    sand: 'bg-amber-500/10',
+    wine: 'bg-rose-500/10',
+    navy: 'bg-slate-500/10'
+  }[accentColor];
+
+  const iconContainerClass = {
+    emerald: 'bg-emerald-500/10 border-emerald-500/20',
+    sand: 'bg-amber-500/10 border-amber-500/20',
+    wine: 'bg-rose-500/10 border-rose-500/20',
+    navy: 'bg-slate-500/10 border-slate-500/20'
+  }[accentColor];
+
+  const iconTextClass = {
+    emerald: 'text-emerald-400',
+    sand: 'text-amber-300',
+    wine: 'text-rose-400',
+    navy: 'text-slate-400'
+  }[accentColor];
+
+  const badgeTextClass = {
+    emerald: 'text-emerald-400/80',
+    sand: 'text-amber-300/80',
+    wine: 'text-rose-300/80',
+    navy: 'text-slate-400/80'
+  }[accentColor];
+
+  const nextBtnClass = {
+    emerald: 'bg-emerald-500/10 hover:bg-emerald-500/15 border-emerald-500/20 text-emerald-300 hover:text-emerald-200',
+    sand: 'bg-amber-500/10 hover:bg-amber-500/15 border-amber-500/20 text-amber-300 hover:text-amber-200',
+    wine: 'bg-rose-500/10 hover:bg-rose-500/15 border-rose-500/20 text-rose-300 hover:text-rose-200',
+    navy: 'bg-slate-500/10 hover:bg-slate-500/15 border-slate-500/20 text-slate-300 hover:text-slate-200'
+  }[accentColor];
 
   const activeSteps = tourSteps;
   const activeStep = activeSteps[currentStep];
@@ -208,10 +267,10 @@ export function OnboardingTour({
               }}
               transition={{ type: 'spring', stiffness: 130, damping: 20 }}
               fill="none"
-              stroke="rgba(16, 185, 129, 0.3)"
+              stroke={themeSpotlightGlow}
               strokeWidth="2"
               style={{
-                filter: 'drop-shadow(0 0 8px rgba(16, 185, 129, 0.35))'
+                filter: `drop-shadow(0 0 8px ${themeSpotlightShadow})`
               }}
             />
           </motion.svg>
@@ -239,18 +298,18 @@ export function OnboardingTour({
           top: tooltipPos.top,
           position: 'fixed'
         }}
-        className="fixed w-[380px] z-[110] pointer-events-auto select-none rounded-[28px] border border-emerald-500/10 bg-[#121214]/65 backdrop-blur-3xl shadow-[0_30px_70px_rgba(0,0,0,0.7)] p-6 overflow-hidden flex flex-col"
+        className={`fixed w-[380px] z-[110] pointer-events-auto select-none rounded-[28px] border ${borderClass} bg-[#121214]/65 backdrop-blur-3xl shadow-[0_30px_70px_rgba(0,0,0,0.7)] p-6 overflow-hidden flex flex-col`}
       >
         {/* Decorative subtle emerald radial glow in corner */}
-        <div className="absolute -top-10 -right-10 w-24 h-24 rounded-full bg-emerald-500/10 blur-xl pointer-events-none animate-pulse" />
+        <div className={`absolute -top-10 -right-10 w-24 h-24 rounded-full ${glowBgClass} blur-xl pointer-events-none animate-pulse`} />
 
         {/* Top Header */}
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-              <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+            <div className={`p-1.5 rounded-lg ${iconContainerClass}`}>
+              <Sparkles className={`w-3.5 h-3.5 ${iconTextClass}`} />
             </div>
-            <span className="text-[10px] text-emerald-400/80 uppercase tracking-[0.2em] font-medium">Guide • Step {currentStep + 1} of {activeSteps.length}</span>
+            <span className={`text-[10px] ${badgeTextClass} uppercase tracking-[0.2em] font-medium`}>Guide • Step {currentStep + 1} of {activeSteps.length}</span>
           </div>
           <button
             onClick={onSkip}
@@ -287,7 +346,7 @@ export function OnboardingTour({
 
             <button
               onClick={onNext}
-              className="bg-emerald-500/10 hover:bg-emerald-500/15 active:scale-95 border border-emerald-500/20 px-5 py-2.5 rounded-full text-xs font-medium tracking-wide transition-all text-emerald-300 hover:text-emerald-200 flex items-center gap-1.5 cursor-pointer"
+              className={`${nextBtnClass} active:scale-95 px-5 py-2.5 rounded-full text-xs font-medium tracking-wide transition-all flex items-center gap-1.5 cursor-pointer`}
             >
               <span>{currentStep === activeSteps.length - 1 ? 'Finish' : 'Next'}</span>
               <ChevronRight className="w-3.5 h-3.5" />

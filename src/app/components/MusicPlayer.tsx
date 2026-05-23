@@ -60,6 +60,20 @@ interface MusicPlayerProps {
   onAccentColorChange?: (color: AccentColor) => void;
   textureStyle?: 'paper' | 'dots' | 'none';
   onTextureStyleChange?: (style: 'paper' | 'dots' | 'none') => void;
+  backgroundStyle?: 'default' | 'particles' | 'liquid' | 'mesh';
+  onBackgroundStyleChange?: (style: 'default' | 'particles' | 'liquid' | 'mesh') => void;
+  themePreset?: 'dynamic' | 'cyberpunk' | 'obsidian' | 'aurora' | 'sunset';
+  onThemePresetChange?: (theme: 'dynamic' | 'cyberpunk' | 'obsidian' | 'aurora' | 'sunset') => void;
+  showVisualizer?: boolean;
+  onShowVisualizerChange?: (show: boolean) => void;
+  zenMode?: boolean;
+  onZenModeChange?: (zen: boolean) => void;
+  showVolumeSlider?: boolean;
+  onShowVolumeSliderChange?: (show: boolean) => void;
+  enable3DTilt?: boolean;
+  onEnable3DTiltChange?: (enable: boolean) => void;
+  showSettingsButton?: boolean;
+  onShowSettingsButtonChange?: (show: boolean) => void;
 }
 
 // Generate beautiful, dynamic, vibrant HSL theme palettes by hashing the song title/artist
@@ -210,7 +224,21 @@ export function MusicPlayer({
   accentColor = 'emerald',
   onAccentColorChange,
   textureStyle = 'paper',
-  onTextureStyleChange
+  onTextureStyleChange,
+  backgroundStyle = 'mesh',
+  onBackgroundStyleChange,
+  themePreset = 'dynamic',
+  onThemePresetChange,
+  showVisualizer = false,
+  onShowVisualizerChange,
+  zenMode = false,
+  onZenModeChange,
+  showVolumeSlider = true,
+  onShowVolumeSliderChange,
+  enable3DTilt = true,
+  onEnable3DTiltChange,
+  showSettingsButton = false,
+  onShowSettingsButtonChange
 }: MusicPlayerProps) {
   const theme = ACCENT_THEMES[accentColor];
 
@@ -315,28 +343,15 @@ export function MusicPlayer({
   };
 
   const [showSettings, setShowSettings] = useState(false);
-  const [showSettingsButton, setShowSettingsButton] = useState(() => localStorage.getItem('elva_show_settings_btn') === 'true');
   const [isLoaded, setIsLoaded] = useState(false);
   const [isLoadingNewSong, setIsLoadingNewSong] = useState(false);
   const [showSettingsHint, setShowSettingsHint] = useState(false);
   const [imageBlur, setImageBlur] = useState(20);
-  const [backgroundStyle, setBackgroundStyle] = useState<'default' | 'particles' | 'liquid' | 'mesh'>(() => {
-    return (localStorage.getItem('elva_bg_style') as 'default' | 'particles' | 'liquid' | 'mesh') || 'default';
-  });
-  const [zenMode, setZenMode] = useState(() => localStorage.getItem('elva_zen_mode') === 'true');
-  const [showVolumeSlider, setShowVolumeSlider] = useState(() => localStorage.getItem('elva_volume_slider') !== 'false');
-  const [enable3DTilt, setEnable3DTilt] = useState(() => localStorage.getItem('elva_3d_tilt') !== 'false');
   const [previousArtwork, setPreviousArtwork] = useState<string | null>(null);
   const [showPreviousArtwork, setShowPreviousArtwork] = useState(false);
   const [dominantColors, setDominantColors] = useState(() => getDynamicFallbackColors(songData.title || '', songData.artist || ''));
   const [targetColors, setTargetColors] = useState(() => getDynamicFallbackColors(songData.title || '', songData.artist || ''));
   const [extractedColors, setExtractedColors] = useState(() => getDynamicFallbackColors(songData.title || '', songData.artist || ''));
-  const [themePreset, setThemePreset] = useState<'dynamic' | 'cyberpunk' | 'obsidian' | 'aurora' | 'sunset'>(() => {
-    return (localStorage.getItem('elva_theme_preset') as 'dynamic' | 'cyberpunk' | 'obsidian' | 'aurora' | 'sunset') || 'dynamic';
-  });
-  const [showVisualizer, setShowVisualizer] = useState(() => {
-    return localStorage.getItem('elva_show_visualizer') === 'true';
-  });
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -1384,42 +1399,21 @@ export function MusicPlayer({
               <SettingsModal
                 onClose={() => setShowSettings(false)}
                 backgroundStyle={backgroundStyle}
-                onBackgroundStyleChange={(style) => {
-                  setBackgroundStyle(style);
-                  localStorage.setItem('elva_bg_style', style);
-                }}
+                onBackgroundStyleChange={onBackgroundStyleChange}
                 themePreset={themePreset}
-                onThemePresetChange={(theme) => {
-                  setThemePreset(theme);
-                  localStorage.setItem('elva_theme_preset', theme);
-                }}
+                onThemePresetChange={onThemePresetChange}
                 accentColor={accentColor}
                 onAccentColorChange={onAccentColorChange}
                 showVisualizer={showVisualizer}
-                onShowVisualizerChange={(show) => {
-                  setShowVisualizer(show);
-                  localStorage.setItem('elva_show_visualizer', String(show));
-                }}
+                onShowVisualizerChange={onShowVisualizerChange}
                 zenMode={zenMode}
-                onZenModeChange={(val) => {
-                  setZenMode(val);
-                  localStorage.setItem('elva_zen_mode', String(val));
-                }}
+                onZenModeChange={onZenModeChange}
                 showVolumeSlider={showVolumeSlider}
-                onShowVolumeSliderChange={(val) => {
-                  setShowVolumeSlider(val);
-                  localStorage.setItem('elva_volume_slider', String(val));
-                }}
+                onShowVolumeSliderChange={onShowVolumeSliderChange}
                 enable3DTilt={enable3DTilt}
-                onEnable3DTiltChange={(val) => {
-                  setEnable3DTilt(val);
-                  localStorage.setItem('elva_3d_tilt', String(val));
-                }}
+                onEnable3DTiltChange={onEnable3DTiltChange}
                 showSettingsButton={showSettingsButton}
-                onShowSettingsButtonChange={(val) => {
-                  setShowSettingsButton(val);
-                  localStorage.setItem('elva_show_settings_btn', String(val));
-                }}
+                onShowSettingsButtonChange={onShowSettingsButtonChange}
                 textureStyle={textureStyle}
                 onTextureStyleChange={onTextureStyleChange}
               />

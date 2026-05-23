@@ -686,7 +686,7 @@ export function Queue({
                     <div className="flex flex-col text-left min-w-0">
                       <div className="flex items-center gap-1.5">
                         <h2 className={`text-sm font-extrabold text-white tracking-tight truncate leading-none ${groupHoverTextAccent300[accentColor]} transition-colors`}>{selectedArtist.name}</h2>
-                        <span className={`text-[7px] font-bold ${textAccent300[accentColor]} tracking-wider ${bgAccent10[accentColor]} ${borderAccent20[accentColor]} px-1 py-0.5 rounded-md uppercase shrink-0`}>
+                        <span className={`text-[10px] font-bold ${textAccent300[accentColor]} tracking-wider ${bgAccent10[accentColor]} ${borderAccent20[accentColor]} px-1.5 py-0.5 rounded-md uppercase shrink-0`}>
                           ✦ Verified Artist
                         </span>
                       </div>
@@ -703,9 +703,9 @@ export function Queue({
                 {/* Styled Official Discography Divider Header for Sidebar Drawer */}
                 <div className="flex items-center justify-between px-2 py-1.5 mt-3 mb-2 border-b border-white/5">
                   <div className="flex items-center gap-1.5">
-                    <span className={`text-[9px] ${textAccent400[accentColor]} font-bold uppercase tracking-wider`}>Official Discography</span>
+                    <span className={`text-[10px] ${textAccent400[accentColor]} font-bold uppercase tracking-wider`}>Official Discography</span>
                   </div>
-                  <span className="text-[8px] text-white/30 font-medium uppercase tracking-widest bg-white/5 border border-white/8 px-1.5 py-0.5 rounded-md">
+                  <span className="text-[10px] text-white/30 font-medium uppercase tracking-widest bg-white/5 border border-white/8 px-1.5 py-0.5 rounded-md">
                     Verified
                   </span>
                 </div>
@@ -754,7 +754,7 @@ export function Queue({
                         {onAddToQueue && (
                           <button
                             onClick={(e) => handleAddSongToQueue(e, track)}
-                            className={`flex items-center gap-1 px-2.5 py-1.5 text-[9px] font-bold ${textAccent300[accentColor]} ${bgAccent05[accentColor]} ${hoverBgAccent15[accentColor]} ${borderAccent10[accentColor]} ${hoverBorderAccent20[accentColor]} rounded-full transition-all shrink-0 cursor-pointer hover:scale-105 active:scale-95 shadow-sm`}
+                            className={`flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-bold ${textAccent300[accentColor]} ${bgAccent05[accentColor]} ${hoverBgAccent15[accentColor]} ${borderAccent10[accentColor]} ${hoverBorderAccent20[accentColor]} rounded-full transition-all shrink-0 cursor-pointer hover:scale-105 active:scale-95 shadow-sm`}
                             title="Add to queue"
                           >
                             <Plus className={`w-3 h-3 ${textAccent400[accentColor]}`} />
@@ -790,7 +790,7 @@ export function Queue({
               >
                 {/* Search Results Header */}
                 <div className="flex items-center justify-between px-1.5 py-1 mb-3 border-b border-white/5 pb-2">
-                  <span className="text-[9px] text-white/35 font-bold uppercase tracking-wider">Search Results</span>
+                  <span className="text-[10px] text-white/35 font-bold uppercase tracking-wider">Search Results</span>
                 </div>
 
                 {/* Glowing Premium Clickable Artist Profile Card */}
@@ -812,7 +812,7 @@ export function Queue({
                           </div>
                           <div className="flex flex-col text-left">
                             <div className="flex items-center gap-1.5">
-                              <span className={`text-[8px] font-bold ${textAccent300[accentColor]} tracking-wider ${bgAccent10[accentColor]} ${borderAccent25[accentColor]} px-2 py-0.5 rounded-md uppercase`}>
+                              <span className={`text-[10px] font-bold ${textAccent300[accentColor]} tracking-wider ${bgAccent10[accentColor]} ${borderAccent25[accentColor]} px-2 py-0.5 rounded-md uppercase`}>
                                 ✦ Verified Artist
                               </span>
                             </div>
@@ -832,7 +832,7 @@ export function Queue({
                                 {artist.tags.slice(0, 2).map((tag) => (
                                   <span
                                     key={tag}
-                                    className={`text-[8px] font-bold text-white/40 bg-white/5 border border-white/10 px-1.5 py-0.5 rounded-md uppercase tracking-wider ${groupHoverBorderAccent10[accentColor]} ${groupHoverTextAccent300_60[accentColor]} transition-colors`}
+                                    className={`text-[10px] font-bold text-white/40 bg-white/5 border border-white/10 px-1.5 py-0.5 rounded-md uppercase tracking-wider ${groupHoverBorderAccent10[accentColor]} ${groupHoverTextAccent300_60[accentColor]} transition-colors`}
                                   >
                                     {tag}
                                   </span>
@@ -887,7 +887,7 @@ export function Queue({
                     {onAddToQueue && (
                       <button
                         onClick={(e) => handleAddSongToQueue(e, result)}
-                        className={`flex items-center gap-1 px-2.5 py-1.5 text-[9px] font-bold ${textAccent300[accentColor]} ${bgAccent05[accentColor]} ${hoverBgAccent15[accentColor]} ${borderAccent10[accentColor]} ${hoverBorderAccent20[accentColor]} rounded-full transition-all shrink-0 cursor-pointer hover:scale-105 active:scale-95 shadow-sm`}
+                        className={`flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-bold ${textAccent300[accentColor]} ${bgAccent05[accentColor]} ${hoverBgAccent15[accentColor]} ${borderAccent10[accentColor]} ${hoverBorderAccent20[accentColor]} rounded-full transition-all shrink-0 cursor-pointer hover:scale-105 active:scale-95 shadow-sm`}
                         title="Add to queue"
                       >
                         <Plus className={`w-3 h-3 ${textAccent400[accentColor]}`} />
@@ -979,7 +979,7 @@ export function Queue({
                             }`}>
                               {item.title}
                             </h3>
-                            <p className="text-[9px] text-white/35 truncate mt-0.5 font-light">
+                            <p className="text-[10px] text-white/35 truncate mt-0.5 font-light">
                               {item.artist}
                             </p>
                           </div>

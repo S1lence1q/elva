@@ -176,6 +176,63 @@ export default function App() {
     localStorage.setItem('elva_texture_style', textureStyle);
   }, [textureStyle]);
 
+  // Lifted Settings States for Perfect Consistency and Sync
+  const [backgroundStyle, setBackgroundStyle] = useState<'default' | 'particles' | 'liquid' | 'mesh'>(() => {
+    return (localStorage.getItem('elva_bg_style') as 'default' | 'particles' | 'liquid' | 'mesh') || 'mesh';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('elva_bg_style', backgroundStyle);
+  }, [backgroundStyle]);
+
+  const [themePreset, setThemePreset] = useState<'dynamic' | 'cyberpunk' | 'obsidian' | 'aurora' | 'sunset'>(() => {
+    return (localStorage.getItem('elva_theme_preset') as 'dynamic' | 'cyberpunk' | 'obsidian' | 'aurora' | 'sunset') || 'dynamic';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('elva_theme_preset', themePreset);
+  }, [themePreset]);
+
+  const [showVisualizer, setShowVisualizer] = useState(() => {
+    return localStorage.getItem('elva_show_visualizer') === 'true';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('elva_show_visualizer', String(showVisualizer));
+  }, [showVisualizer]);
+
+  const [zenMode, setZenMode] = useState(() => {
+    return localStorage.getItem('elva_zen_mode') === 'true';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('elva_zen_mode', String(zenMode));
+  }, [zenMode]);
+
+  const [showVolumeSlider, setShowVolumeSlider] = useState(() => {
+    return localStorage.getItem('elva_volume_slider') !== 'false';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('elva_volume_slider', String(showVolumeSlider));
+  }, [showVolumeSlider]);
+
+  const [enable3DTilt, setEnable3DTilt] = useState(() => {
+    return localStorage.getItem('elva_3d_tilt') !== 'false';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('elva_3d_tilt', String(enable3DTilt));
+  }, [enable3DTilt]);
+
+  const [showSettingsButton, setShowSettingsButton] = useState(() => {
+    return localStorage.getItem('elva_show_settings_btn') === 'true';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('elva_show_settings_btn', String(showSettingsButton));
+  }, [showSettingsButton]);
+
   const theme = ACCENT_THEMES[accentColor];
 
   // Helper mappings for dynamic class bindings
@@ -1481,7 +1538,7 @@ export default function App() {
                               <div className="flex flex-col text-left min-w-0">
                                 <div className="flex items-center gap-2">
                                   <h2 className={`text-base font-extrabold text-white tracking-tight truncate leading-none ${theme.textHoverLight} transition-colors`}>{selectedArtist.name}</h2>
-                                  <span className={`text-[8px] font-bold ${theme.badgeText} tracking-wider ${theme.badgeBg} border ${theme.badgeBorder} px-1.5 py-0.5 rounded-md uppercase shrink-0`}>
+                                  <span className={`text-[10px] font-bold ${theme.badgeText} tracking-wider ${theme.badgeBg} border ${theme.badgeBorder} px-1.5 py-0.5 rounded-md uppercase shrink-0`}>
                                     ✦ Verified Artist
                                   </span>
                                 </div>
@@ -1502,7 +1559,7 @@ export default function App() {
                                 {selectedArtist.tags.slice(0, 2).map((tag) => (
                                   <span
                                     key={tag}
-                                    className={`text-[8px] font-bold text-white/40 bg-white/5 border border-white/10 px-2 py-0.5 rounded-md uppercase tracking-wider ${groupHoverBorder500_10[accentColor]} ${groupHoverText300_60[accentColor]} transition-colors`}
+                                    className={`text-[10px] font-bold text-white/40 bg-white/5 border border-white/10 px-2 py-0.5 rounded-md uppercase tracking-wider ${groupHoverBorder500_10[accentColor]} ${groupHoverText300_60[accentColor]} transition-colors`}
                                   >
                                     {tag}
                                   </span>
@@ -1517,7 +1574,7 @@ export default function App() {
                           <div className="flex items-center gap-2">
                             <span className={`text-[10px] ${theme.text} font-bold uppercase tracking-wider`}>Official Discography</span>
                           </div>
-                          <span className="text-[9px] text-white/35 font-medium uppercase tracking-widest bg-white/5 border border-white/8 px-2 py-0.5 rounded-md">
+                          <span className="text-[10px] text-white/35 font-medium uppercase tracking-widest bg-white/5 border border-white/8 px-2 py-0.5 rounded-md">
                             Verified Tracks
                           </span>
                         </div>
@@ -1577,7 +1634,7 @@ export default function App() {
                                     e.stopPropagation();
                                     handleAddToQueue(track);
                                   }}
-                                  className={`flex items-center gap-1 px-2.5 py-1.5 text-[9px] font-bold ${theme.textLight} ${theme.bgFade} hover:${theme.bgHover} border ${theme.borderLight} hover:${theme.borderActive} rounded-full transition-all shrink-0 cursor-pointer hover:scale-105 active:scale-95 shadow-sm`}
+                                  className={`flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-bold ${theme.textLight} ${theme.bgFade} hover:${theme.bgHover} border ${theme.borderLight} hover:${theme.borderActive} rounded-full transition-all shrink-0 cursor-pointer hover:scale-105 active:scale-95 shadow-sm`}
                                   title="Add to queue"
                                 >
                                   <Plus className={`w-3 h-3 ${theme.text}`} />
@@ -1609,7 +1666,7 @@ export default function App() {
                                   </div>
                                   <div className="flex flex-col text-left">
                                     <div className="flex items-center gap-1.5">
-                                      <span className={`text-[8px] md:text-[9px] font-bold ${theme.badgeText} tracking-wider ${theme.badgeBg} border ${theme.borderAccent} px-2 py-0.5 rounded-md uppercase`}>
+                                      <span className={`text-[10px] md:text-xs font-bold ${theme.badgeText} tracking-wider ${theme.badgeBg} border ${theme.borderAccent} px-2 py-0.5 rounded-md uppercase`}>
                                         ✦ Verified Artist
                                       </span>
                                     </div>
@@ -1629,7 +1686,7 @@ export default function App() {
                                         {artist.tags.slice(0, 3).map((tag) => (
                                           <span
                                             key={tag}
-                                            className={`text-[8px] font-bold text-white/40 bg-white/5 border border-white/10 px-2 py-0.5 rounded-md uppercase tracking-wider ${groupHoverBorder500_10[accentColor]} ${groupHoverText300_60[accentColor]} transition-colors`}
+                                            className={`text-[10px] font-bold text-white/40 bg-white/5 border border-white/10 px-2 py-0.5 rounded-md uppercase tracking-wider ${groupHoverBorder500_10[accentColor]} ${groupHoverText300_60[accentColor]} transition-colors`}
                                           >
                                             {tag}
                                           </span>
@@ -1819,6 +1876,20 @@ export default function App() {
               currentStep={tourStep}
               textureStyle={textureStyle}
               onTextureStyleChange={setTextureStyle}
+              backgroundStyle={backgroundStyle}
+              onBackgroundStyleChange={setBackgroundStyle}
+              themePreset={themePreset}
+              onThemePresetChange={setThemePreset}
+              showVisualizer={showVisualizer}
+              onShowVisualizerChange={setShowVisualizer}
+              zenMode={zenMode}
+              onZenModeChange={setZenMode}
+              showVolumeSlider={showVolumeSlider}
+              onShowVolumeSliderChange={setShowVolumeSlider}
+              enable3DTilt={enable3DTilt}
+              onEnable3DTiltChange={setEnable3DTilt}
+              showSettingsButton={showSettingsButton}
+              onShowSettingsButtonChange={setShowSettingsButton}
               onFileSelect={(file) => {
                 if (appState === 'ready') {
                   setSongData({
@@ -1861,6 +1932,20 @@ export default function App() {
             onAccentColorChange={setAccentColor}
             textureStyle={textureStyle}
             onTextureStyleChange={setTextureStyle}
+            backgroundStyle={backgroundStyle}
+            onBackgroundStyleChange={setBackgroundStyle}
+            themePreset={themePreset}
+            onThemePresetChange={setThemePreset}
+            showVisualizer={showVisualizer}
+            onShowVisualizerChange={setShowVisualizer}
+            zenMode={zenMode}
+            onZenModeChange={setZenMode}
+            showVolumeSlider={showVolumeSlider}
+            onShowVolumeSliderChange={setShowVolumeSlider}
+            enable3DTilt={enable3DTilt}
+            onEnable3DTiltChange={setEnable3DTilt}
+            showSettingsButton={showSettingsButton}
+            onShowSettingsButtonChange={setShowSettingsButton}
           />
         )}
       </AnimatePresence>
@@ -1872,6 +1957,7 @@ export default function App() {
         onNext={handleTourNext}
         onBack={handleTourBack}
         onSkip={handleTourSkip}
+        accentColor={accentColor}
       />
 
       {/* Keyboard Shortcuts Map Overlay */}
