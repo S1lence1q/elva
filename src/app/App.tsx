@@ -1266,13 +1266,14 @@ export default function App() {
             {/* Elegant, quiet settings gear button in top-right */}
             <motion.button
               onClick={() => setShowSettings(true)}
-              className="absolute top-6 right-6 p-3 rounded-full bg-white/[0.02] border border-white/5 text-white/40 hover:text-white/70 hover:bg-white/[0.05] transition-all cursor-pointer z-30 shadow-md active:scale-95 flex items-center justify-center group"
+              className="absolute top-6 right-6 px-4 py-2.5 rounded-full bg-white/[0.02] hover:bg-white/[0.06] border border-white/5 hover:border-white/12 text-white/45 hover:text-white/80 transition-all duration-300 cursor-pointer z-30 flex items-center gap-2 text-[10px] uppercase tracking-[0.25em] font-medium shadow-md backdrop-blur-2xl group active:scale-95"
               title="Open settings"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.8 }}
             >
-              <Settings className="w-4 h-4 transition-transform duration-700 group-hover:rotate-45" />
+              <Settings className="w-3.5 h-3.5 text-white/40 group-hover:text-white/70 transition-transform duration-[1s] ease-out group-hover:rotate-90 shrink-0" />
+              <span className="font-light tracking-[0.25em] text-[10px]">Settings</span>
             </motion.button>
 
             {/* Elegant Background Textures based on user preference */}
