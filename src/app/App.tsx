@@ -437,7 +437,7 @@ export default function App() {
       const target = e.target as HTMLElement;
       const isSearchActive = appState === 'landing' && searchQuery.trim() !== '' && !isSearching;
 
-      if (isSearchActive && (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter')) {
+      if (isSearchActive && (e.key === 'ArrowDown' || e.key === 'ArrowUp' || (e.key === 'Enter' && focusedResultIndex >= 0))) {
         e.preventDefault();
 
         const hasArtistCard = shouldShowArtistCard(searchQuery) && verifiedArtist && !selectedArtist;
