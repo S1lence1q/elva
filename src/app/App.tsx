@@ -234,6 +234,7 @@ export default function App() {
   }, [showSettingsButton]);
 
   const [focusedResultIndex, setFocusedResultIndex] = useState<number>(-1);
+  const [loadingSongId, setLoadingSongId] = useState<string | null>(null);
 
   // Reset focus when searching or changing view
   useEffect(() => {
@@ -1177,8 +1178,6 @@ export default function App() {
 
     setAppState('ready');
   };
-
-  const [loadingSongId, setLoadingSongId] = useState<string | null>(null);
 
   const handleSelectSong = (result: SearchResult) => {
     if (appState === 'ready') {
