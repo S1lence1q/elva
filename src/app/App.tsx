@@ -1444,7 +1444,7 @@ export default function App() {
             animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
             exit={{ opacity: 0, scale: 1.08, filter: 'blur(8px)' }}
             transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-            className="absolute inset-0 z-10 flex flex-col items-center justify-center px-8 w-full h-full"
+            className="absolute inset-0 z-10 flex flex-col items-center justify-start pt-16 md:pt-24 px-8 w-full h-full"
           >
             {/* Animated gradient orbs during intro */}
             {isIntroActive && (
@@ -1503,116 +1503,100 @@ export default function App() {
             )}
 
             {/* Hero branding - elegant and refined */}
-            <AnimatePresence>
-              {searchResults.length === 0 && (
+            <div className="flex flex-col items-center gap-6 mb-8 shrink-0">
+              {/* Refined Elva wordmark */}
+              <motion.div
+                className="relative flex flex-col items-center"
+              >
+                {/* Subtle decorative lines with color */}
                 <motion.div
-                  key="hero-branding"
-                  initial={{ opacity: 1, height: 'auto', marginBottom: '5rem', scale: 1 }}
-                  exit={{ 
-                    opacity: 0, 
-                    height: 0, 
-                    marginBottom: 0, 
-                    scale: 0.95,
-                    filter: 'blur(8px)',
-                    transition: { duration: 0.45, ease: [0.16, 1, 0.3, 1] } 
-                  }}
-                  className="flex flex-col items-center gap-8 mb-20 overflow-hidden shrink-0"
+                  variants={topLineVariants}
+                  initial="initial"
+                  animate="animate"
+                  className="relative w-24 h-px mb-8"
                 >
-                  {/* Refined Elva wordmark */}
-                  <motion.div
-                    className="relative flex flex-col items-center"
-                  >
-                    {/* Subtle decorative lines with color */}
-                    <motion.div
-                      variants={topLineVariants}
-                      initial="initial"
-                      animate="animate"
-                      className="relative w-24 h-px mb-8"
-                    >
-                      <div className={`absolute inset-0 bg-gradient-to-r from-transparent ${viaAccent30[accentColor]} to-transparent`} />
-                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
-                    </motion.div>
-
-                    {/* Main wordmark with colored gradient */}
-                    <div className="relative">
-                      <div className="flex items-center select-none pb-2">
-                        {['E', 'l', 'v', 'a'].map((letter, i) => (
-                          <motion.span
-                            key={i}
-                            custom={i}
-                            variants={letterVariants}
-                            initial="initial"
-                            animate="animate"
-                            className={`text-8xl font-normal tracking-[0.06em] ${theme.glowText} bg-clip-text text-transparent px-[2px]`}
-                            style={{
-                              fontFamily: '"Kaobe", serif',
-                              textShadow: 'none'
-                            }}
-                          >
-                            {letter}
-                          </motion.span>
-                        ))}
-                      </div>
-
-                      {/* Subtle shimmer effect with color - smooth back and forth */}
-                      <motion.div
-                        animate={{
-                          x: ['-150%', '150%'],
-                        }}
-                        transition={{
-                          duration: 4.5,
-                          repeat: Infinity,
-                          repeatType: "reverse",
-                          ease: "easeInOut"
-                        }}
-                        className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent blur-sm"
-                        style={{ mixBlendMode: 'overlay' }}
-                      />
-                    </div>
-
-                    {/* Bottom decorative line with color */}
-                    <motion.div
-                      variants={bottomLineVariants}
-                      initial="initial"
-                      animate="animate"
-                      className="relative w-24 h-px mt-8"
-                    >
-                      <div className={`absolute inset-0 bg-gradient-to-r from-transparent ${viaAccent20[accentColor]} to-transparent`} />
-                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
-                    </motion.div>
-                  </motion.div>
-
-                  {/* Tagline - more subtle */}
-                  <motion.p
-                    variants={taglineVariants}
-                    initial="initial"
-                    animate="animate"
-                    className="text-[10px] text-white/30 tracking-[0.4em] uppercase font-light"
-                  >
-                    Listen Deeper
-                  </motion.p>
-
-                  {/* Minimalist Inline Tour Invite */}
-                  {!hasSeenTour && tourType === null && (
-                    <motion.p
-                      variants={inviteVariants}
-                      initial="initial"
-                      animate="animate"
-                      whileHover={{ opacity: 0.65 }}
-                      className="mt-6 text-[10px] font-extralight text-white tracking-[0.15em] transition-all duration-300 uppercase cursor-pointer"
-                    >
-                      New to Elva?{' '}
-                      <button
-                        onClick={startTour}
-                        className={`underline decoration-white/20 hover:decoration-current ${theme.textHover} ${theme.text} cursor-pointer transition-colors`}
-                      >
-                        Take a 15s tour
-                      </button>
-                    </motion.p>
-                  )}
+                  <div className={`absolute inset-0 bg-gradient-to-r from-transparent ${viaAccent30[accentColor]} to-transparent`} />
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
                 </motion.div>
+
+                {/* Main wordmark with colored gradient */}
+                <div className="relative">
+                  <div className="flex items-center select-none pb-2">
+                    {['E', 'l', 'v', 'a'].map((letter, i) => (
+                      <motion.span
+                        key={i}
+                        custom={i}
+                        variants={letterVariants}
+                        initial="initial"
+                        animate="animate"
+                        className={`text-8xl font-normal tracking-[0.06em] ${theme.glowText} bg-clip-text text-transparent px-[2px]`}
+                        style={{
+                          fontFamily: '"Kaobe", serif',
+                          textShadow: 'none'
+                        }}
+                      >
+                        {letter}
+                      </motion.span>
+                    ))}
+                  </div>
+
+                  {/* Subtle shimmer effect with color - smooth back and forth */}
+                  <motion.div
+                    animate={{
+                      x: ['-150%', '150%'],
+                    }}
+                    transition={{
+                      duration: 4.5,
+                      repeat: Infinity,
+                      repeatType: "reverse",
+                      ease: "easeInOut"
+                    }}
+                    className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent blur-sm"
+                    style={{ mixBlendMode: 'overlay' }}
+                  />
+                </div>
+
+                {/* Bottom decorative line with color */}
+                <motion.div
+                  variants={bottomLineVariants}
+                  initial="initial"
+                  animate="animate"
+                  className="relative w-24 h-px mt-8"
+                >
+                  <div className={`absolute inset-0 bg-gradient-to-r from-transparent ${viaAccent20[accentColor]} to-transparent`} />
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+                </motion.div>
+              </motion.div>
+
+              {/* Tagline - more subtle */}
+              <motion.p
+                variants={taglineVariants}
+                initial="initial"
+                animate="animate"
+                className="text-[10px] text-white/30 tracking-[0.4em] uppercase font-light"
+              >
+                Listen Deeper
+              </motion.p>
+
+              {/* Minimalist Inline Tour Invite */}
+              {!hasSeenTour && tourType === null && (
+                <motion.p
+                  variants={inviteVariants}
+                  initial="initial"
+                  animate="animate"
+                  whileHover={{ opacity: 0.65 }}
+                  className="mt-6 text-[10px] font-extralight text-white tracking-[0.15em] transition-all duration-300 uppercase cursor-pointer"
+                >
+                  New to Elva?{' '}
+                  <button
+                    onClick={startTour}
+                    className={`underline decoration-white/20 hover:decoration-current ${theme.textHover} ${theme.text} cursor-pointer transition-colors`}
+                  >
+                    Take a 15s tour
+                  </button>
+                </motion.p>
               )}
-            </AnimatePresence>
+            </div>
 
             {/* Input section */}
             <motion.div
@@ -1703,7 +1687,7 @@ export default function App() {
                         className="space-y-4"
                       >
                         {/* Cohesive Compact Artist Header Card */}
-                        <div className={`relative overflow-hidden p-4 rounded-2xl bg-gradient-to-br ${fromAccent02[accentColor]} to-white/[0.01] border border-white/8 flex flex-col sm:flex-row sm:items-center justify-between gap-4 w-full shadow-lg group hover:bg-white/[0.03] transition-all duration-300`}>
+                        <div className={`sticky top-0 z-20 overflow-hidden p-4 rounded-2xl bg-[#0d0d0f]/95 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 w-full shadow-lg group hover:bg-white/[0.03] backdrop-blur-md transition-all duration-300`}>
                           {/* Inner premium accent glow matching Queue styling */}
                           <div
                             className={`absolute inset-0 bg-gradient-to-r ${fromAccent02[accentColor]} to-transparent pointer-events-none`}

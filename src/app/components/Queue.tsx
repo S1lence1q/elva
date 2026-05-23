@@ -694,7 +694,7 @@ export function Queue({
                 className="space-y-4"
               >
                 {/* Cohesive Compact Artist Header Card */}
-                <div className={`relative overflow-hidden p-3.5 rounded-2xl bg-gradient-to-br ${fromAccent03[accentColor]} to-white/[0.01] border border-white/8 flex items-center justify-between gap-3 w-full shadow-lg group hover:bg-white/[0.03] transition-all duration-300`}>
+                <div className={`sticky top-0 z-20 overflow-hidden p-3.5 rounded-2xl bg-[#0d0d0f]/95 border border-white/10 flex items-center justify-between gap-3 w-full shadow-lg group hover:bg-white/[0.03] backdrop-blur-md transition-all duration-300`}>
                   {/* Inner premium accent glow matching Queue styling */}
                   <div
                     className={`absolute inset-0 bg-gradient-to-r ${fromAccent02[accentColor]} to-transparent pointer-events-none`}
