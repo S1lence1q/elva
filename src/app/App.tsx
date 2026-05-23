@@ -83,6 +83,52 @@ const robustFetch = async (url: string, signal?: AbortSignal): Promise<Response>
   throw new Error(`Failed to fetch ${url} directly or via proxies.`);
 };
 
+const fetchFromFirstSuccessfulInstance = async <T extends unknown>(
+  instances: string[],
+  fetchFn: (instance: string, signal: AbortSignal) => Promise<T>,
+  timeoutMs: number = 3000
+): Promise<T> => {
+  const globalController = new AbortController();
+  
+  const promises = instances.map(async (instance) => {
+    const instanceController = new AbortController();
+    
+    // Listen to global abort (e.g. if another instance succeeded)
+    const abortListener = () => instanceController.abort();
+    globalController.signal.addEventListener('abort', abortListener);
+    
+    const timeoutId = setTimeout(() => instanceController.abort(), timeoutMs);
+    try {
+      const res = await fetchFn(instance, instanceController.signal);
+      clearTimeout(timeoutId);
+      // Success! Abort all other instances
+      globalController.abort();
+      return res;
+    } catch (err) {
+      clearTimeout(timeoutId);
+      throw err;
+    } finally {
+      globalController.signal.removeEventListener('abort', abortListener);
+    }
+  });
+
+  return new Promise((resolve, reject) => {
+    let rejectedCount = 0;
+    if (promises.length === 0) {
+      reject(new Error('No instances provided'));
+      return;
+    }
+    promises.forEach((p) => {
+      p.then(resolve).catch(() => {
+        rejectedCount++;
+        if (rejectedCount === promises.length) {
+          reject(new Error('All instances failed'));
+        }
+      });
+    });
+  });
+};
+
 const fetchVideoDetails = async (videoId: string): Promise<{ title: string; artist: string; artworkUrl: string }> => {
   const apiKey = (import.meta as any).env.VITE_YOUTUBE_API_KEY;
 
@@ -117,42 +163,52 @@ const fetchVideoDetails = async (videoId: string): Promise<{ title: string; arti
     'https://pipedapi.tokhmi.xyz'
   ];
 
-  for (const instance of PIPED_INSTANCES) {
-    try {
-      const response = await robustFetch(`${instance}/streams/${videoId}`);
-      if (response.ok) {
-        const data = await response.json();
-        return {
-          title: decodeHTMLEntities(data.title || 'YouTube Stream'),
-          artist: decodeHTMLEntities(data.uploader || 'Web Stream'),
-          artworkUrl: `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`
-        };
-      }
-    } catch (err) {
-      console.warn(`Piped video detail fetch failed for ${instance}:`, err);
-    }
-  }
-
   const INVIDIOUS_INSTANCES = [
     'https://yewtu.be',
     'https://invidious.io.lol',
     'https://iv.melmac.space'
   ];
 
-  for (const instance of INVIDIOUS_INSTANCES) {
-    try {
-      const response = await robustFetch(`${instance}/api/v1/videos/${videoId}`);
-      if (response.ok) {
+  // Try PIPED details concurrently
+  try {
+    const details = await fetchFromFirstSuccessfulInstance(
+      PIPED_INSTANCES,
+      async (instance, signal) => {
+        const response = await robustFetch(`${instance}/streams/${videoId}`, signal);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        return {
+          title: decodeHTMLEntities(data.title || 'YouTube Stream'),
+          artist: decodeHTMLEntities(data.uploader || 'Web Stream'),
+          artworkUrl: `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`
+        };
+      },
+      3000
+    );
+    return details;
+  } catch (pipedErr) {
+    console.warn('All Piped instances failed for video details, trying Invidious concurrently:', pipedErr);
+  }
+
+  // Try INVIDIOUS details concurrently
+  try {
+    const details = await fetchFromFirstSuccessfulInstance(
+      INVIDIOUS_INSTANCES,
+      async (instance, signal) => {
+        const response = await robustFetch(`${instance}/api/v1/videos/${videoId}`, signal);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
         return {
           title: decodeHTMLEntities(data.title || 'YouTube Stream'),
           artist: decodeHTMLEntities(data.author || 'Web Stream'),
           artworkUrl: `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`
         };
-      }
-    } catch (err) {
-      console.warn(`Invidious video detail fetch failed for ${instance}:`, err);
-    }
+      },
+      3000
+    );
+    return details;
+  } catch (invidiousErr) {
+    console.error('All Invidious instances failed for video details:', invidiousErr);
   }
 
   return {
@@ -695,81 +751,70 @@ export default function App() {
       'https://invidious.snopyta.org'
     ];
 
-    let success = false;
-    let results: SearchResult[] = [];
+    // Try PIPED search concurrently
+    try {
+      const results = await fetchFromFirstSuccessfulInstance(
+        PIPED_INSTANCES,
+        async (instance, signal) => {
+          const targetUrl = `${instance}/search?q=${encodeURIComponent(query)}&filter=music_songs`;
+          const response = await robustFetch(targetUrl, signal);
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const data = await response.json();
+          if (data && data.items && Array.isArray(data.items)) {
+            const validStreams = data.items.filter((item: any) => {
+              if (!item.url) return false;
+              const ytMatch = item.url.match(/(?:v=|\/watch\?v=)([^"&?\/\s]{11})/i);
+              const videoId = ytMatch ? ytMatch[1] : null;
+              const isPlayable = !item.type || item.type === 'stream' || item.type === 'video';
+              return videoId && videoId.length === 11 && isPlayable;
+            });
 
-    // Try Piped Instances
-    for (const instance of PIPED_INSTANCES) {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3500);
+            const mapped = validStreams.map((item: any) => {
+              const ytMatch = item.url.match(/(?:v=|\/watch\?v=)([^"&?\/\s]{11})/i);
+              const videoId = ytMatch![1];
+              let channelId = item.uploaderId;
+              if (!channelId && item.uploaderUrl) {
+                const chMatch = item.uploaderUrl.match(/\/channel\/([^\/]+)/i);
+                if (chMatch) channelId = chMatch[1];
+              }
+              return {
+                id: videoId,
+                title: decodeHTMLEntities(item.title),
+                artist: decodeHTMLEntities(item.uploaderName || 'Unknown Artist'),
+                thumbnail: `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`,
+                videoId: videoId,
+                channelId: channelId
+              };
+            });
 
-      try {
-        const targetUrl = `${instance}/search?q=${encodeURIComponent(query)}&filter=music_songs`;
-        const response = await robustFetch(targetUrl, controller.signal);
-        clearTimeout(timeoutId);
-        
-        if (!response.ok) continue;
-        const data = await response.json();
-        if (data && data.items && Array.isArray(data.items)) {
-          // Filter to only include videos with a valid 11-char videoId and exclude channels/playlists
-          const validStreams = data.items.filter((item: any) => {
-            if (!item.url) return false;
-            const ytMatch = item.url.match(/(?:v=|\/watch\?v=)([^"&?\/\s]{11})/i);
-            const videoId = ytMatch ? ytMatch[1] : null;
-            const isPlayable = !item.type || item.type === 'stream' || item.type === 'video';
-            return videoId && videoId.length === 11 && isPlayable;
-          });
-
-          results = validStreams.slice(0, limit).map((item: any) => {
-            const ytMatch = item.url.match(/(?:v=|\/watch\?v=)([^"&?\/\s]{11})/i);
-            const videoId = ytMatch![1];
-            let channelId = item.uploaderId;
-            if (!channelId && item.uploaderUrl) {
-              const chMatch = item.uploaderUrl.match(/\/channel\/([^\/]+)/i);
-              if (chMatch) channelId = chMatch[1];
-            }
-            return {
-              id: videoId,
-              title: decodeHTMLEntities(item.title),
-              artist: decodeHTMLEntities(item.uploaderName || 'Unknown Artist'),
-              thumbnail: `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`,
-              videoId: videoId,
-              channelId: channelId
-            };
-          });
-          if (results.length > 0) {
-            success = true;
-            break;
+            if (mapped.length > 0) return mapped;
           }
-        }
-      } catch (err) {
-        clearTimeout(timeoutId);
-        console.warn(`Piped instance ${instance} failed:`, err);
-      }
+          throw new Error('Empty search items');
+        },
+        3000
+      );
+      return results.slice(0, limit);
+    } catch (pipedErr) {
+      console.warn('All Piped instances failed for search, trying Invidious concurrently:', pipedErr);
     }
 
-    // Try Invidious Instances if Piped failed
-    if (!success) {
-      for (const instance of INVIDIOUS_INSTANCES) {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 3500);
-
-        try {
+    // Try INVIDIOUS search concurrently if PIPED failed
+    try {
+      const results = await fetchFromFirstSuccessfulInstance(
+        INVIDIOUS_INSTANCES,
+        async (instance, signal) => {
           const targetUrl = `${instance}/api/v1/search?q=${encodeURIComponent(query)}&type=video`;
-          const response = await robustFetch(targetUrl, controller.signal);
-          clearTimeout(timeoutId);
-          
-          if (!response.ok) continue;
+          const response = await robustFetch(targetUrl, signal);
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
           const data = await response.json();
           if (Array.isArray(data)) {
-            // Filter to only include videos with a valid 11-char videoId and exclude playlists/channels
             const validVideos = data.filter((item: any) => {
               const videoId = item.videoId;
               const isPlayable = !item.type || item.type === 'video' || item.type === 'short';
               return videoId && videoId.length === 11 && isPlayable;
             });
 
-            results = validVideos.slice(0, limit).map((item: any) => {
+            const mapped = validVideos.map((item: any) => {
               const videoId = item.videoId;
               return {
                 id: videoId,
@@ -780,19 +825,19 @@ export default function App() {
                 channelId: item.authorId
               };
             });
-            if (results.length > 0) {
-              success = true;
-              break;
-            }
+
+            if (mapped.length > 0) return mapped;
           }
-        } catch (err) {
-          clearTimeout(timeoutId);
-          console.warn(`Invidious instance ${instance} failed:`, err);
-        }
-      }
+          throw new Error('Empty search items');
+        },
+        3000
+      );
+      return results.slice(0, limit);
+    } catch (invidiousErr) {
+      console.error('All Invidious instances failed for search:', invidiousErr);
     }
 
-    return results;
+    return [];
   };
 
   const executeChannelUploadsAPI = async (channelId: string, limit: number = 50): Promise<SearchResult[]> => {
@@ -828,15 +873,15 @@ export default function App() {
       }
     }
 
-     const PIPED_INSTANCES = [
-       'https://api.piped.private.coffee',
-       'https://pipedapi.kavin.rocks',
-       'https://pipedapi.lunar.icu',
-       'https://pipedapi.colby.host',
-       'https://api.piped.yt',
-       'https://pipedapi.tokhmi.xyz',
-       'https://pipedapi.moomoo.me'
-     ];
+    const PIPED_INSTANCES = [
+      'https://api.piped.private.coffee',
+      'https://pipedapi.kavin.rocks',
+      'https://pipedapi.lunar.icu',
+      'https://pipedapi.colby.host',
+      'https://api.piped.yt',
+      'https://pipedapi.tokhmi.xyz',
+      'https://pipedapi.moomoo.me'
+    ];
 
     const INVIDIOUS_INSTANCES = [
       'https://yewtu.be',
@@ -846,60 +891,52 @@ export default function App() {
       'https://invidious.snopyta.org'
     ];
 
-    let success = false;
-    let results: SearchResult[] = [];
+    // Try PIPED instances concurrently
+    try {
+      const results = await fetchFromFirstSuccessfulInstance(
+        PIPED_INSTANCES,
+        async (instance, signal) => {
+          const targetUrl = `${instance}/channel/${channelId}`;
+          const response = await robustFetch(targetUrl, signal);
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const data = await response.json();
+          if (data && data.relatedStreams && Array.isArray(data.relatedStreams)) {
+            const mapped = data.relatedStreams.map((item: any) => {
+              const ytMatch = item.url.match(/(?:v=|\/watch\?v=)([^"&?\/\s]{11})/i);
+              const videoId = ytMatch ? ytMatch[1] : '';
+              return {
+                id: videoId,
+                title: decodeHTMLEntities(item.title),
+                artist: decodeHTMLEntities(item.uploaderName || 'Unknown Artist'),
+                thumbnail: `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`,
+                videoId: videoId,
+                channelId: channelId
+              };
+            }).filter((item: any) => item.id.length === 11);
 
-    for (const instance of PIPED_INSTANCES) {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3500);
-
-      try {
-        const targetUrl = `${instance}/channel/${channelId}`;
-        const response = await robustFetch(targetUrl, controller.signal);
-        clearTimeout(timeoutId);
-        
-        if (!response.ok) continue;
-        const data = await response.json();
-        if (data && data.relatedStreams && Array.isArray(data.relatedStreams)) {
-          results = data.relatedStreams.map((item: any) => {
-            const ytMatch = item.url.match(/(?:v=|\/watch\?v=)([^"&?\/\s]{11})/i);
-            const videoId = ytMatch ? ytMatch[1] : '';
-            return {
-              id: videoId,
-              title: decodeHTMLEntities(item.title),
-              artist: decodeHTMLEntities(item.uploaderName || 'Unknown Artist'),
-              thumbnail: `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`,
-              videoId: videoId,
-              channelId: channelId
-            };
-          }).filter((item: any) => item.id.length === 11);
-
-          if (results.length > 0) {
-            success = true;
-            break;
+            if (mapped.length > 0) return mapped;
           }
-        }
-      } catch (err) {
-        clearTimeout(timeoutId);
-        console.warn(`Piped channel fetch for ${instance} failed:`, err);
-      }
+          throw new Error('Empty relatedStreams');
+        },
+        3000
+      );
+      return results.slice(0, limit);
+    } catch (pipedErr) {
+      console.warn('All Piped instances failed for channel uploads, trying Invidious concurrently:', pipedErr);
     }
 
-    if (!success) {
-      for (const instance of INVIDIOUS_INSTANCES) {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 3500);
-
-        try {
+    // Try INVIDIOUS instances concurrently if PIPED failed
+    try {
+      const results = await fetchFromFirstSuccessfulInstance(
+        INVIDIOUS_INSTANCES,
+        async (instance, signal) => {
           const targetUrl = `${instance}/api/v1/channels/${channelId}`;
-          const response = await robustFetch(targetUrl, controller.signal);
-          clearTimeout(timeoutId);
-          
-          if (!response.ok) continue;
+          const response = await robustFetch(targetUrl, signal);
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
           const data = await response.json();
           const videos = Array.isArray(data) ? data : (data.videos || data.relatedStreams || []);
           
-          results = videos.map((item: any) => {
+          const mapped = videos.map((item: any) => {
             const videoId = item.videoId;
             return {
               id: videoId,
@@ -911,18 +948,17 @@ export default function App() {
             };
           }).filter((item: any) => item.id && item.id.length === 11);
 
-          if (results.length > 0) {
-            success = true;
-            break;
-          }
-        } catch (err) {
-          clearTimeout(timeoutId);
-          console.warn(`Invidious channel fetch for ${instance} failed:`, err);
-        }
-      }
+          if (mapped.length > 0) return mapped;
+          throw new Error('Empty videos');
+        },
+        3000
+      );
+      return results.slice(0, limit);
+    } catch (invidiousErr) {
+      console.error('All Invidious instances failed for channel uploads:', invidiousErr);
     }
 
-    return results.slice(0, limit);
+    return [];
   };
 
   // Helper to determine if query matches an artist profile search
