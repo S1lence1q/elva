@@ -414,7 +414,18 @@ export function Queue({
     const nameLower = artist.name.toLowerCase();
     const matchingResults = searchResults.filter(track => {
       const trackArtistLower = (track.artist || '').toLowerCase();
-      return trackArtistLower.includes(nameLower) || nameLower.includes(trackArtistLower);
+      const trackTitleLower = (track.title || '').toLowerCase();
+      
+      // Strict matching for pre-population
+      let artistMatches = trackArtistLower.includes(nameLower) || nameLower.includes(trackArtistLower);
+      if (!artistMatches && trackTitleLower.includes(nameLower)) {
+        const isCamilo = trackArtistLower.includes('camilo');
+        const isExactTitleMatchDiffArtist = trackTitleLower.trim() === nameLower;
+        if (!isCamilo && !isExactTitleMatchDiffArtist) {
+          artistMatches = true;
+        }
+      }
+      return artistMatches;
     });
 
     if (matchingResults.length > 0) {
@@ -429,23 +440,36 @@ export function Queue({
       let rawTracks: SearchResult[] = [];
       const apiKey = (import.meta as any).env.VITE_YOUTUBE_API_KEY;
 
-      // Only attempt direct channel uploads query if the official YouTube API Key is active!
-      // On public Piped/Invidious instances, scraping channel uploads is extremely slow, challenged by bot blocks, or broken.
+      // 2. Fetch concurrently from multiple search variations + channel uploads to get a complete discography!
+      const fetchPromises: Promise<SearchResult[]>[] = [];
+      
       if (apiKey && artist.channelId && !artist.isTopic && onFetchChannelUploads) {
-        // Query the exact channel uploads playlist (100% deterministic, no loose search)
-        rawTracks = await onFetchChannelUploads(artist.channelId, 50);
+        fetchPromises.push(onFetchChannelUploads(artist.channelId, 50));
       }
       
-      // Fall back to robust search-based retrieval using the direct artist name.
-      // Fetch up to 40 tracks for a full discography!
-      if (rawTracks.length === 0 && onSearch) {
-        rawTracks = await onSearch(artist.name, 40);
+      if (onSearch) {
+        // Concurrently query direct artist search, topic search, and general songs search to find all tracks
+        fetchPromises.push(onSearch(artist.name, 50));
+        fetchPromises.push(onSearch(`${artist.name} topic`, 50));
+        fetchPromises.push(onSearch(`${artist.name} songs`, 50));
       }
-      
-      // Secondary fallback with "topic" if direct artist name returns nothing
-      if (rawTracks.length === 0 && onSearch) {
-        rawTracks = await onSearch(`${artist.name} topic`, 40);
+
+      const resultsLists = await Promise.all(fetchPromises);
+
+      // Merge and deduplicate by track ID
+      const seenIds = new Set<string>();
+      const combinedTracks: SearchResult[] = [];
+      for (const list of resultsLists) {
+        if (list && Array.isArray(list)) {
+          for (const track of list) {
+            if (track && track.id && !seenIds.has(track.id)) {
+              seenIds.add(track.id);
+              combinedTracks.push(track);
+            }
+          }
+        }
       }
+      rawTracks = combinedTracks;
 
       // Clean and filter the tracks strictly to keep official, high-quality music releases
       const cleaned = rawTracks
@@ -454,7 +478,16 @@ export function Queue({
           const trackArtistLower = track.artist.toLowerCase();
           
           // Strict artist matching to ensure tracks belong to the viewed artist
-          const artistMatches = trackArtistLower.includes(nameLower) || nameLower.includes(trackArtistLower);
+          let artistMatches = trackArtistLower.includes(nameLower) || nameLower.includes(trackArtistLower);
+          
+          // Match if artist's name is in the title but uploader is another non-blocklisted entity (like a record label)
+          if (!artistMatches && titleLower.includes(nameLower)) {
+            const isCamilo = trackArtistLower.includes('camilo');
+            const isExactTitleMatchDiffArtist = titleLower.trim() === nameLower;
+            if (!isCamilo && !isExactTitleMatchDiffArtist) {
+              artistMatches = true;
+            }
+          }
           
           // Filter out teasers, trailers, vlogs, documentary, behind the scenes from official channels
           const blocklist = ['teaser', 'trailer', 'vlog', 'behind the scenes', 'bts', 'documentary', 'live stream', 'interview'];
