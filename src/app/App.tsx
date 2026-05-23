@@ -139,6 +139,15 @@ const fetchVideoDetails = async (videoId: string): Promise<{ title: string; arti
   };
 };
 
+interface VerifiedArtist {
+  name: string;
+  thumbnail: string;
+  channelId?: string;
+  disambiguation?: string;
+  country?: string;
+  tags?: string[];
+}
+
 export default function App() {
   const [appState, setAppState] = useState<AppState>('landing');
   const [showSettings, setShowSettings] = useState(false);
@@ -149,6 +158,14 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+
+  // Artist Profile States on Home Page
+  const [selectedArtist, setSelectedArtist] = useState<VerifiedArtist | null>(null);
+  const [verifiedArtist, setVerifiedArtist] = useState<VerifiedArtist | null>(null);
+  const [isVerifyingArtist, setIsVerifyingArtist] = useState(false);
+  const [artistTracks, setArtistTracks] = useState<SearchResult[]>([]);
+  const [isLoadingArtist, setIsLoadingArtist] = useState(false);
+
   const [queue, setQueue] = useState<SearchResult[]>([]);
   const [songData, setSongData] = useState<{
     title: string;
@@ -326,22 +343,6 @@ export default function App() {
   const [tourStep, setTourStep] = useState(0);
   const [hasSeenTour, setHasSeenTour] = useState(() => localStorage.getItem('elva_tour_completed') === 'true');
   const [showShortcutMap, setShowShortcutMap] = useState(false);
-
-  interface VerifiedArtist {
-    name: string;
-    thumbnail: string;
-    channelId?: string;
-    disambiguation?: string;
-    country?: string;
-    tags?: string[];
-  }
-
-  // Artist Profile States on Home Page
-  const [selectedArtist, setSelectedArtist] = useState<VerifiedArtist | null>(null);
-  const [verifiedArtist, setVerifiedArtist] = useState<VerifiedArtist | null>(null);
-  const [isVerifyingArtist, setIsVerifyingArtist] = useState(false);
-  const [artistTracks, setArtistTracks] = useState<SearchResult[]>([]);
-  const [isLoadingArtist, setIsLoadingArtist] = useState(false);
 
   // Reset selected artist if search query changes
   useEffect(() => {
