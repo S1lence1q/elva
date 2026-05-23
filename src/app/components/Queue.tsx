@@ -691,50 +691,46 @@ export function Queue({
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
                 transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                className="space-y-4"
+                className="space-y-6"
               >
-                {/* Cohesive Compact Artist Header Card */}
-                <div className={`sticky top-0 z-20 overflow-hidden p-3.5 rounded-2xl bg-[#0d0d0f]/95 border border-white/10 flex items-center justify-between gap-3 w-full shadow-lg group hover:bg-white/[0.03] backdrop-blur-md transition-all duration-300`}>
-                  {/* Inner premium accent glow matching Queue styling */}
-                  <div
-                    className={`absolute inset-0 bg-gradient-to-r ${fromAccent02[accentColor]} to-transparent pointer-events-none`}
-                    style={{
-                      maskImage: 'linear-gradient(to right, black, transparent)',
-                      WebkitMaskImage: 'linear-gradient(to right, black, transparent)'
-                    }}
-                  />
-                  
-                  <div className="relative flex items-center gap-3 min-w-0 z-10">
-                    {/* Avatar with hover scale - scaled up to w-16 h-16 and circular */}
-                    <div className={`relative w-16 h-16 rounded-full overflow-hidden border-2 ${borderAccent20[accentColor]} flex-shrink-0 shadow-md group-hover:scale-105 transition-transform duration-300`}>
-                      <img src={selectedArtist.thumbnail} alt={selectedArtist.name} className="w-full h-full object-cover scale-105" />
-                    </div>
-                    
-                    {/* Artist Info */}
-                    <div className="flex flex-col text-left min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <h2 className={`text-sm font-extrabold text-white tracking-tight truncate leading-none ${groupHoverTextAccent300[accentColor]} transition-colors`}>{selectedArtist.name}</h2>
-                        <span className={`text-[10px] font-bold ${textAccent300[accentColor]} tracking-wider ${bgAccent10[accentColor]} ${borderAccent20[accentColor]} px-1.5 py-0.5 rounded-md uppercase shrink-0`}>
-                          ✦ Verified Artist
-                        </span>
-                      </div>
-                      
-                      {selectedArtist.disambiguation && (
-                        <p className="text-[9px] text-white/50 truncate mt-1.5 font-medium leading-none">
-                          {selectedArtist.disambiguation}
-                        </p>
-                      )}
-                    </div>
+                {/* Cohesive Compact Artist Header Card - Centered mini-hero style */}
+                <div className="relative overflow-hidden p-5 rounded-2xl bg-white/[0.01] border border-white/[0.06] backdrop-blur-md flex flex-col items-center text-center group shadow-md w-full">
+                  {/* Ambient dynamic theme glow in background */}
+                  <div className={`absolute -top-10 w-36 h-36 rounded-full blur-[45px] bg-gradient-to-br ${fromAccent02[accentColor]} opacity-20 pointer-events-none`} />
+
+                  {/* Centered avatar with scale zoom */}
+                  <div className={`relative w-16 h-16 rounded-full overflow-hidden border-2 ${borderAccent20[accentColor]} shadow-md group-hover:scale-105 transition-transform duration-300 shrink-0`}>
+                    <img src={selectedArtist.thumbnail} alt={selectedArtist.name} className="w-full h-full object-cover scale-105" />
                   </div>
+
+                  {/* Serif artist name */}
+                  <h2 
+                    className="text-base font-normal text-white mt-3 tracking-wide leading-tight"
+                    style={{ fontFamily: '"Kaobe", serif' }}
+                  >
+                    {selectedArtist.name}
+                  </h2>
+
+                  {/* Verified badge */}
+                  <span className={`mt-2 flex items-center gap-1 text-[8px] font-bold ${textAccent300[accentColor]} tracking-wider ${bgAccent10[accentColor]} ${borderAccent20[accentColor]} px-2 py-0.5 rounded uppercase shrink-0`}>
+                    ✦ Verified Artist
+                  </span>
+
+                  {/* Country / description */}
+                  {selectedArtist.disambiguation && (
+                    <p className="text-[10px] text-white/50 mt-2 max-w-xs font-light leading-relaxed italic">
+                      {selectedArtist.disambiguation}
+                    </p>
+                  )}
                 </div>
 
                 {/* Styled Official Discography Divider Header for Sidebar Drawer */}
-                <div className="flex items-center justify-between px-2 py-1.5 mt-3 mb-2 border-b border-white/5">
+                <div className="flex items-center justify-between px-2 py-1.5 border-b border-white/5">
                   <div className="flex items-center gap-1.5">
                     <span className={`text-[10px] ${textAccent400[accentColor]} font-bold uppercase tracking-wider`}>Official Discography</span>
                   </div>
                   <span className="text-[10px] text-white/30 font-medium uppercase tracking-widest bg-white/5 border border-white/8 px-1.5 py-0.5 rounded-md">
-                    Verified
+                    {artistTracks.length} tracks
                   </span>
                 </div>
 

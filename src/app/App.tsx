@@ -1397,7 +1397,7 @@ export default function App() {
     if (song) handleSelectSong(song);
   };
 
-
+  const isSearchMode = searchQuery.trim() !== '' || selectedArtist !== null;
 
   return (
     <div className="size-full relative overflow-hidden bg-[#0a0a0a] flex items-center justify-center">
@@ -1411,7 +1411,9 @@ export default function App() {
       >
         <motion.div
           animate={{
-            opacity: [0.04, 0.08, 0.04],
+            opacity: appState === 'landing' 
+              ? [0.14, 0.24, 0.14] 
+              : [0.03, 0.06, 0.03],
             scale: [1, 1.1, 1],
           }}
           transition={{
@@ -1423,7 +1425,9 @@ export default function App() {
         />
         <motion.div
           animate={{
-            opacity: [0.02, 0.05, 0.02],
+            opacity: appState === 'landing' 
+              ? [0.08, 0.15, 0.08] 
+              : [0.015, 0.03, 0.015],
             scale: [1.1, 1, 1.1],
           }}
           transition={{
@@ -1444,7 +1448,11 @@ export default function App() {
             animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
             exit={{ opacity: 0, scale: 1.08, filter: 'blur(8px)' }}
             transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-            className="absolute inset-0 z-10 flex flex-col items-center justify-start pt-16 md:pt-24 px-8 w-full h-full"
+            className={`absolute inset-0 z-10 flex flex-col items-center transition-all duration-700 ease-[0.16,1,0.3,1] px-8 w-full h-full ${
+              isSearchMode 
+                ? 'justify-start pt-12 md:pt-16' 
+                : 'justify-center pb-12 md:pb-16'
+            }`}
           >
             {/* Animated gradient orbs during intro */}
             {isIntroActive && (
@@ -1601,232 +1609,230 @@ export default function App() {
 
             {/* Input section or Immersive Artist View */}
             <AnimatePresence mode="wait">
-              {selectedArtist ? (
-                /* NEW Fullscreen Immersive Artist View */
-                <motion.div
-                  key="immersive-artist-view"
-                  initial={{ opacity: 0, y: 30, filter: 'blur(10px)' }}
-                  animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                  exit={{ opacity: 0, y: -30, filter: 'blur(10px)' }}
-                  transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
-                  className="w-full max-w-5xl px-4 flex flex-col h-[calc(100vh-160px)] z-10"
-                >
-                  {/* Sticky Blurred Nav Header Bar */}
-                  <div className="sticky top-0 z-30 flex items-center justify-between w-full py-4 border-b border-white/5 bg-[#0a0a0a]/30 backdrop-blur-xl shrink-0">
-                    {/* Left: Back Button */}
-                    <button
-                      onClick={() => {
-                        setSelectedArtist(null);
-                        setArtistTracks([]);
-                      }}
-                      className="flex items-center gap-2 text-white/50 hover:text-white transition-all cursor-pointer group/back text-xs font-semibold py-1.5 px-3.5 rounded-full hover:bg-white/5 border border-white/0 hover:border-white/5 active:scale-95 shadow-sm"
-                      title="Back to search results"
-                    >
-                      <ArrowLeft className="w-3.5 h-3.5 group-hover/back:-translate-x-0.5 transition-transform" />
-                      <span>Back to Search</span>
-                    </button>
-
-                    {/* Center: Dynamic Artist Context Pill */}
+                  {selectedArtist ? (
+                    /* NEW Centered Balanced Immersive Artist View (Middle Ground) */
                     <motion.div
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      className="flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.03] border border-white/5 backdrop-blur-md shrink-0 shadow-sm"
+                      key="immersive-artist-view"
+                      initial={{ opacity: 0, y: 30, filter: 'blur(10px)' }}
+                      animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                      exit={{ opacity: 0, y: -30, filter: 'blur(10px)' }}
+                      transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+                      className="w-full max-w-3xl px-4 flex flex-col h-[calc(100vh-160px)] z-10"
                     >
-                      <div className="relative w-5 h-5 rounded-full overflow-hidden border border-white/10 shrink-0">
-                        <img src={selectedArtist.thumbnail} alt={selectedArtist.name} className="w-full h-full object-cover scale-105" />
-                      </div>
-                      <span className="text-[10px] font-extrabold text-white tracking-wide truncate max-w-[120px] sm:max-w-[200px]">
-                        {selectedArtist.name}
-                      </span>
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0 animate-pulse" />
-                    </motion.div>
-
-                    {/* Right: Elva branding wordmark */}
-                    <div 
-                      className="text-lg tracking-[0.2em] uppercase font-light text-white select-none cursor-pointer hover:opacity-85 transition-opacity"
-                      style={{ fontFamily: '"Kaobe", serif' }}
-                      onClick={() => {
-                        setSelectedArtist(null);
-                        setArtistTracks([]);
-                      }}
-                    >
-                      Elva
-                    </div>
-                  </div>
-
-                  {/* Spacious Immersive Content Grid */}
-                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 pt-8 pb-16 overflow-y-auto flex-1 scrollbar-none relative">
-                    
-                    {/* Left Column: Sticky Artist Hero Panel */}
-                    <div className="col-span-1 lg:col-span-4 lg:sticky lg:top-4 self-start space-y-6">
-                      <div className="relative overflow-hidden p-8 rounded-3xl bg-white/[0.01] border border-white/[0.06] backdrop-blur-2xl shadow-xl flex flex-col items-center text-center group">
-                        {/* Ambient dynamic theme glow in background */}
-                        <div className={`absolute -top-16 w-56 h-56 rounded-full blur-[80px] bg-gradient-to-br ${theme.welcomeFrom} opacity-20 pointer-events-none`} />
-
-                        {/* Large Circular Avatar with theme border */}
-                        <div className={`relative w-36 h-36 md:w-40 md:h-40 rounded-full overflow-hidden border-2 border-white/10 shadow-2xl relative transition-transform duration-700 group-hover:scale-105 shrink-0`}>
-                          <img src={selectedArtist.thumbnail} alt={selectedArtist.name} className="w-full h-full object-cover scale-105" />
-                        </div>
-
-                        {/* Artist serif title */}
-                        <h2 
-                          className="text-3xl md:text-4xl font-normal text-white mt-6 tracking-wide leading-tight px-1 transition-colors duration-300 hover:text-white"
-                          style={{ fontFamily: '"Kaobe", serif' }}
+                      {/* Sticky Blurred Nav Header Bar */}
+                      <div className="sticky top-0 z-30 flex items-center justify-between w-full py-4 border-b border-white/5 bg-[#0a0a0a]/30 backdrop-blur-xl shrink-0">
+                        {/* Left: Back Button */}
+                        <button
+                          onClick={() => {
+                            setSelectedArtist(null);
+                            setArtistTracks([]);
+                          }}
+                          className="flex items-center gap-2 text-white/50 hover:text-white transition-all cursor-pointer group/back text-xs font-semibold py-1.5 px-3.5 rounded-full hover:bg-white/5 border border-white/0 hover:border-white/5 active:scale-95 shadow-sm"
+                          title="Back to search results"
                         >
-                          {selectedArtist.name}
-                        </h2>
+                          <ArrowLeft className="w-3.5 h-3.5 group-hover/back:-translate-x-0.5 transition-transform" />
+                          <span>Back to Search</span>
+                        </button>
 
-                        {/* Verified badge */}
-                        <span className={`mt-3 flex items-center gap-1 text-[10px] font-bold ${theme.badgeText} tracking-wider ${theme.badgeBg} border ${theme.badgeBorder} px-2.5 py-1 rounded-md uppercase shrink-0`}>
-                          ✦ Verified Artist
-                        </span>
-
-                        {/* Country / Disambiguation */}
-                        {selectedArtist.disambiguation && (
-                          <p className="text-xs text-white/50 mt-4 max-w-xs font-medium leading-relaxed italic">
-                            {selectedArtist.disambiguation} {selectedArtist.country && `(${selectedArtist.country})`}
-                          </p>
-                        )}
-                        {!selectedArtist.disambiguation && selectedArtist.country && (
-                          <p className="text-xs text-white/50 mt-4 max-w-xs font-medium leading-relaxed italic">
-                            Artist from {selectedArtist.country}
-                          </p>
-                        )}
-
-                        {/* Theme tags */}
-                        {selectedArtist.tags && selectedArtist.tags.length > 0 && (
-                          <div className="flex flex-wrap justify-center gap-1.5 mt-6 w-full">
-                            {selectedArtist.tags.slice(0, 3).map((tag) => (
-                              <span
-                                key={tag}
-                                className={`text-[9px] font-bold text-white/40 bg-white/5 border border-white/5 px-2.5 py-1 rounded-md uppercase tracking-wider ${groupHoverBorder500_10[accentColor]} ${groupHoverText300_60[accentColor]} transition-colors`}
-                              >
-                                {tag}
-                              </span>
-                            ))}
+                        {/* Center: Dynamic Artist Context Pill */}
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.95 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          className="flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.03] border border-white/5 backdrop-blur-md shrink-0 shadow-sm"
+                        >
+                          <div className="relative w-5 h-5 rounded-full overflow-hidden border border-white/10 shrink-0">
+                            <img src={selectedArtist.thumbnail} alt={selectedArtist.name} className="w-full h-full object-cover scale-105" />
                           </div>
-                        )}
+                          <span className="text-[10px] font-extrabold text-white tracking-wide truncate max-w-[120px] sm:max-w-[200px]">
+                            {selectedArtist.name}
+                          </span>
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0 animate-pulse" />
+                        </motion.div>
+
+                        {/* Right: Elva branding wordmark */}
+                        <div 
+                          className="text-lg tracking-[0.2em] uppercase font-light text-white select-none cursor-pointer hover:opacity-85 transition-opacity"
+                          style={{ fontFamily: '"Kaobe", serif' }}
+                          onClick={() => {
+                            setSelectedArtist(null);
+                            setArtistTracks([]);
+                          }}
+                        >
+                          Elva
+                        </div>
                       </div>
-                    </div>
 
-                    {/* Right Column: Dynamic Discography List & Loader */}
-                    <div className="col-span-1 lg:col-span-8 space-y-6">
-                      {isLoadingArtist ? (
-                        /* Premium Skeleton Loading State */
-                        <div className="space-y-4">
-                          <div className="flex items-center justify-between pb-3 border-b border-white/5 animate-pulse">
-                            <div className="w-28 h-4 bg-white/10 rounded" />
-                            <div className="w-16 h-4 bg-white/5 rounded" />
-                          </div>
-                          {[1, 2, 3, 4, 5].map((i) => (
-                            <div key={`sk-${i}`} className="flex items-center gap-4 p-3 rounded-2xl border border-white/[0.02] bg-white/[0.01] animate-pulse">
-                              <div className="w-5 h-5 bg-white/5 rounded shrink-0" />
-                              <div className="w-12 h-12 bg-white/5 rounded-xl shrink-0" />
-                              <div className="flex-1 space-y-2">
-                                <div className="w-1/3 h-3 bg-white/10 rounded" />
-                                <div className="w-1/4 h-2 bg-white/5 rounded" />
-                              </div>
-                              <div className="w-16 h-8 bg-white/5 rounded-full" />
-                            </div>
-                          ))}
-                        </div>
-                      ) : artistTracks.length === 0 ? (
-                        /* Empty state */
-                        <div className="py-20 text-center text-white/40 border border-white/[0.04] bg-white/[0.01] rounded-3xl">
-                          <Music className="w-10 h-10 text-white/10 mx-auto mb-3" />
-                          <p className="text-xs font-medium uppercase tracking-wider text-white/50">No official songs found</p>
-                          <p className="text-[10px] text-white/20 mt-1">Try another verified artist or search query.</p>
-                        </div>
-                      ) : (
-                        /* Beautiful spacious tracks list */
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-between pb-3 border-b border-white/5 px-1 shrink-0">
-                            <div className="flex items-center gap-2">
-                              <span className="text-[10px] text-white/45 font-bold uppercase tracking-wider">Official Releases</span>
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
-                            </div>
-                            <span className="text-[10px] text-white/35 font-medium uppercase tracking-wider bg-white/5 border border-white/5 px-2.5 py-0.5 rounded-md">
-                              {artistTracks.length} tracks found
-                            </span>
+                      {/* Centered Scrollable content area */}
+                      <div className="flex-1 overflow-y-auto scrollbar-none space-y-8 pt-6 pb-20 pr-1 relative">
+                        
+                        {/* Centered Mini-Hero Panel */}
+                        <div className="relative overflow-hidden p-8 rounded-3xl bg-white/[0.01] border border-white/[0.06] backdrop-blur-2xl shadow-xl flex flex-col items-center text-center group w-full">
+                          {/* Ambient dynamic theme glow in background */}
+                          <div className={`absolute -top-16 w-56 h-56 rounded-full blur-[80px] bg-gradient-to-br ${theme.welcomeFrom} opacity-20 pointer-events-none`} />
+
+                          {/* Large Circular Avatar with theme border (Balanced Middle Ground Size) */}
+                          <div className="relative w-24 h-24 rounded-full overflow-hidden border-2 border-white/10 shadow-2xl relative transition-transform duration-700 group-hover:scale-105 shrink-0">
+                            <img src={selectedArtist.thumbnail} alt={selectedArtist.name} className="w-full h-full object-cover scale-105" />
                           </div>
 
-                          <div className="space-y-2">
-                            {artistTracks.map((track, index) => {
-                              const isFocused = focusedResultIndex === index;
-                              const trackNumber = String(index + 1).padStart(2, '0');
-                              return (
-                                <motion.div
-                                  key={`artist-track-${track.id}`}
-                                  initial={{ opacity: 0, y: 10 }}
-                                  animate={{ opacity: 1, y: 0 }}
-                                  transition={{ delay: index * 0.015, ease: "easeOut" }}
-                                  onClick={() => {
-                                    if (!loadingSongId) handleSelectSong(track);
-                                  }}
-                                  className={`group w-full flex items-center gap-4 p-3 rounded-2xl border transition-all duration-300 cursor-pointer ${
-                                    loadingSongId === track.id
-                                      ? `${theme.borderActive} ${theme.bgActive}`
-                                      : isFocused
-                                      ? 'bg-white/[0.06] border-white/20 shadow-md scale-[1.01]'
-                                      : 'bg-white/[0.01] hover:bg-white/[0.04] border border-white/[0.03] hover:border-white/10 shadow-sm'
-                                  }`}
+                          {/* Artist serif title */}
+                          <h2 
+                            className="text-2xl md:text-3xl font-normal text-white mt-4 tracking-wide leading-tight px-1 transition-colors duration-300 hover:text-white"
+                            style={{ fontFamily: '"Kaobe", serif' }}
+                          >
+                            {selectedArtist.name}
+                          </h2>
+
+                          {/* Verified badge */}
+                          <span className={`mt-2.5 flex items-center gap-1 text-[9px] font-bold ${theme.badgeText} tracking-wider ${theme.badgeBg} border ${theme.badgeBorder} px-2.5 py-0.5 rounded-md uppercase shrink-0`}>
+                            ✦ Verified Artist
+                          </span>
+
+                          {/* Country / Disambiguation */}
+                          {selectedArtist.disambiguation && (
+                            <p className="text-[11px] text-white/50 mt-3 max-w-md font-medium leading-relaxed italic">
+                              {selectedArtist.disambiguation} {selectedArtist.country && `(${selectedArtist.country})`}
+                            </p>
+                          )}
+                          {!selectedArtist.disambiguation && selectedArtist.country && (
+                            <p className="text-[11px] text-white/50 mt-3 max-w-md font-medium leading-relaxed italic">
+                              Artist from {selectedArtist.country}
+                            </p>
+                          )}
+
+                          {/* Theme tags */}
+                          {selectedArtist.tags && selectedArtist.tags.length > 0 && (
+                            <div className="flex flex-wrap justify-center gap-1.5 mt-4 w-full">
+                              {selectedArtist.tags.slice(0, 3).map((tag) => (
+                                <span
+                                  key={tag}
+                                  className={`text-[8px] font-bold text-white/40 bg-white/5 border border-white/5 px-2 py-0.5 rounded-md uppercase tracking-wider ${groupHoverBorder500_10[accentColor]} ${groupHoverText300_60[accentColor]} transition-colors`}
                                 >
-                                  {/* Mono index numbering */}
-                                  <span className="text-[10px] font-mono text-white/20 group-hover:text-white/35 transition-colors shrink-0 w-6 text-right">
-                                    {trackNumber}
-                                  </span>
-
-                                  {/* Cover art with hover play button */}
-                                  <div className="relative w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 bg-neutral-900 border border-white/5 shadow-md">
-                                    <img src={track.thumbnail} alt={track.title} className="w-full h-full object-cover" />
-                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                      {loadingSongId === track.id ? (
-                                        <motion.div
-                                          animate={{ rotate: 360 }}
-                                          transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}
-                                          className={`w-4 h-4 rounded-full border border-white/20 ${theme.borderT}`}
-                                        />
-                                      ) : (
-                                        <Play className="w-4 h-4 text-white fill-white scale-90 group-hover:scale-105 transition-all" />
-                                      )}
-                                    </div>
-                                  </div>
-
-                                  {/* Info */}
-                                  <div className="flex-1 text-left min-w-0">
-                                    <h3 className={`text-xs font-semibold truncate transition-colors duration-300 ${
-                                      loadingSongId === track.id ? `${theme.text} font-semibold` : 'text-white/90 group-hover:text-white tracking-tight'
-                                    }`}>
-                                      {track.title}
-                                    </h3>
-                                    <p className="text-[10px] text-white/40 truncate mt-0.5 font-light">
-                                      {track.artist}
-                                    </p>
-                                  </div>
-
-                                  {/* Add to queue with accent colors */}
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleAddToQueue(track);
-                                    }}
-                                    className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold ${theme.textLight} ${theme.bgFade} hover:${theme.bgHover} border ${theme.borderLight} hover:${theme.borderActive} rounded-full transition-all shrink-0 cursor-pointer hover:scale-105 active:scale-95 shadow-sm`}
-                                    title="Add to queue"
-                                  >
-                                    <Plus className={`w-3 h-3 ${theme.text}`} />
-                                    <span>Queue</span>
-                                  </button>
-                                </motion.div>
-                              );
-                            })}
-                          </div>
+                                  {tag}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
 
-                  </div>
-                </motion.div>
-              ) : (
+                        {/* Centered Discography List & Loader */}
+                        <div className="space-y-4">
+                          {isLoadingArtist ? (
+                            /* Premium Skeleton Loading State */
+                            <div className="space-y-4">
+                              <div className="flex items-center justify-between pb-3 border-b border-white/5 animate-pulse">
+                                <div className="w-28 h-4 bg-white/10 rounded" />
+                                <div className="w-16 h-4 bg-white/5 rounded" />
+                              </div>
+                              {[1, 2, 3, 4, 5].map((i) => (
+                                <div key={`sk-${i}`} className="flex items-center gap-4 p-3 rounded-2xl border border-white/[0.02] bg-white/[0.01] animate-pulse">
+                                  <div className="w-5 h-5 bg-white/5 rounded shrink-0" />
+                                  <div className="w-12 h-12 bg-white/5 rounded-xl shrink-0" />
+                                  <div className="flex-1 space-y-2">
+                                    <div className="w-1/3 h-3 bg-white/10 rounded" />
+                                    <div className="w-1/4 h-2 bg-white/5 rounded" />
+                                  </div>
+                                  <div className="w-16 h-8 bg-white/5 rounded-full" />
+                                </div>
+                              ))}
+                            </div>
+                          ) : artistTracks.length === 0 ? (
+                            /* Empty state */
+                            <div className="py-20 text-center text-white/40 border border-white/[0.04] bg-white/[0.01] rounded-3xl">
+                              <Music className="w-10 h-10 text-white/10 mx-auto mb-3" />
+                              <p className="text-xs font-medium uppercase tracking-wider text-white/50">No official songs found</p>
+                              <p className="text-[10px] text-white/20 mt-1">Try another verified artist or search query.</p>
+                            </div>
+                          ) : (
+                            /* Beautiful spacious tracks list */
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-between pb-3 border-b border-white/5 px-1 shrink-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[10px] text-white/45 font-bold uppercase tracking-wider">Official Releases</span>
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                                </div>
+                                <span className="text-[10px] text-white/35 font-medium uppercase tracking-wider bg-white/5 border border-white/5 px-2.5 py-0.5 rounded-md">
+                                  {artistTracks.length} tracks found
+                                </span>
+                              </div>
+
+                              <div className="space-y-2">
+                                {artistTracks.map((track, index) => {
+                                  const isFocused = focusedResultIndex === index;
+                                  const trackNumber = String(index + 1).padStart(2, '0');
+                                  return (
+                                    <motion.div
+                                      key={`artist-track-${track.id}`}
+                                      initial={{ opacity: 0, y: 10 }}
+                                      animate={{ opacity: 1, y: 0 }}
+                                      transition={{ delay: index * 0.015, ease: "easeOut" }}
+                                      onClick={() => {
+                                        if (!loadingSongId) handleSelectSong(track);
+                                      }}
+                                      className={`group w-full flex items-center gap-4 p-3 rounded-2xl border transition-all duration-300 cursor-pointer ${
+                                        loadingSongId === track.id
+                                          ? `${theme.borderActive} ${theme.bgActive}`
+                                          : isFocused
+                                          ? 'bg-white/[0.06] border-white/20 shadow-md scale-[1.01]'
+                                          : 'bg-white/[0.01] hover:bg-white/[0.04] border border-white/[0.03] hover:border-white/10 shadow-sm'
+                                      }`}
+                                    >
+                                      {/* Mono index numbering */}
+                                      <span className="text-[10px] font-mono text-white/20 group-hover:text-white/35 transition-colors shrink-0 w-6 text-right">
+                                        {trackNumber}
+                                      </span>
+
+                                      {/* Cover art with hover play button */}
+                                      <div className="relative w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 bg-neutral-900 border border-white/5 shadow-md">
+                                        <img src={track.thumbnail} alt={track.title} className="w-full h-full object-cover" />
+                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                          {loadingSongId === track.id ? (
+                                            <motion.div
+                                              animate={{ rotate: 360 }}
+                                              transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}
+                                              className={`w-4 h-4 rounded-full border border-white/20 ${theme.borderT}`}
+                                            />
+                                          ) : (
+                                            <Play className="w-4 h-4 text-white fill-white scale-90 group-hover:scale-105 transition-all" />
+                                          )}
+                                        </div>
+                                      </div>
+
+                                      {/* Info */}
+                                      <div className="flex-1 text-left min-w-0">
+                                        <h3 className={`text-xs font-semibold truncate transition-colors duration-300 ${
+                                          loadingSongId === track.id ? `${theme.text} font-semibold` : 'text-white/90 group-hover:text-white tracking-tight'
+                                        }`}>
+                                          {track.title}
+                                        </h3>
+                                        <p className="text-[10px] text-white/40 truncate mt-0.5 font-light">
+                                          {track.artist}
+                                        </p>
+                                      </div>
+
+                                      {/* Add to queue with accent colors */}
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleAddToQueue(track);
+                                        }}
+                                        className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold ${theme.textLight} ${theme.bgFade} hover:${theme.bgHover} border ${theme.borderLight} hover:${theme.borderActive} rounded-full transition-all shrink-0 cursor-pointer hover:scale-105 active:scale-95 shadow-sm`}
+                                        title="Add to queue"
+                                      >
+                                        <Plus className={`w-3 h-3 ${theme.text}`} />
+                                        <span>Queue</span>
+                                      </button>
+                                    </motion.div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                      </div>
+                    </motion.div>
+                  ) : (
                 /* Search input section */
                 <motion.div
                   key="search-input-section"
