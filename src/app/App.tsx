@@ -225,6 +225,7 @@ interface VerifiedArtist {
   disambiguation?: string;
   country?: string;
   tags?: string[];
+  isTopic?: boolean;
 }
 
 export default function App() {
@@ -1023,10 +1024,12 @@ export default function App() {
         .replace(/\s*VEVO$/i, '')
         .replace(/\s*Official\s*$/i, '')
         .trim();
+      const isTopic = match.artist.toLowerCase().includes('topic');
       return {
         name: cleanedName,
         thumbnail: match.thumbnail,
-        channelId: match.channelId
+        channelId: match.channelId,
+        isTopic: isTopic
       };
     }
     
@@ -1089,11 +1092,11 @@ export default function App() {
             .sort((a: any, b: any) => (b.count || 0) - (a.count || 0))
             .map((t: any) => t.name)
             .slice(0, 3);
-
           setVerifiedArtist({
             name: candidate.name,
             thumbnail: candidate.thumbnail,
             channelId: candidate.channelId,
+            isTopic: candidate.isTopic,
             disambiguation: matchedArtist.disambiguation || undefined,
             country: matchedArtist.country || undefined,
             tags: tagsList.length > 0 ? tagsList : undefined
@@ -1107,7 +1110,8 @@ export default function App() {
           setVerifiedArtist({
             name: candidate.name,
             thumbnail: candidate.thumbnail,
-            channelId: candidate.channelId
+            channelId: candidate.channelId,
+            isTopic: candidate.isTopic
           });
         }
       } finally {
@@ -1123,7 +1127,7 @@ export default function App() {
       active = false;
     };
   }, [searchResults, searchQuery]);
-
+ 
   // Fetch artist profile official releases in background
   const handleViewArtistProfile = async (artist: VerifiedArtist) => {
     setSelectedArtist(artist);
@@ -1131,7 +1135,7 @@ export default function App() {
     
     try {
       let rawTracks: SearchResult[] = [];
-      if (artist.channelId) {
+      if (artist.channelId && !artist.isTopic) {
         // Query the exact channel uploads playlist (100% deterministic, no loose search)
         rawTracks = await executeChannelUploadsAPI(artist.channelId, 50);
       }

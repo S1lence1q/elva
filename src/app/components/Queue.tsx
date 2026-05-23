@@ -222,6 +222,7 @@ export function Queue({
     disambiguation?: string;
     country?: string;
     tags?: string[];
+    isTopic?: boolean;
   }
 
   const [selectedArtist, setSelectedArtist] = useState<VerifiedArtist | null>(null);
@@ -305,10 +306,12 @@ export function Queue({
         .replace(/\s*VEVO$/i, '')
         .replace(/\s*Official\s*$/i, '')
         .trim();
+      const isTopic = match.artist.toLowerCase().includes('topic');
       return {
         name: cleanedName,
         thumbnail: match.thumbnail,
-        channelId: match.channelId
+        channelId: match.channelId,
+        isTopic: isTopic
       };
     }
     
@@ -380,6 +383,7 @@ export function Queue({
             name: candidate.name,
             thumbnail: candidate.thumbnail,
             channelId: candidate.channelId,
+            isTopic: candidate.isTopic,
             disambiguation: matchedArtist.disambiguation || undefined,
             country: matchedArtist.country || undefined,
             tags: tagsList.length > 0 ? tagsList : undefined
@@ -395,7 +399,8 @@ export function Queue({
           setVerifiedArtist({
             name: candidate.name,
             thumbnail: candidate.thumbnail,
-            channelId: candidate.channelId
+            channelId: candidate.channelId,
+            isTopic: candidate.isTopic
           });
         }
       } finally {
@@ -419,7 +424,7 @@ export function Queue({
     
     try {
       let rawTracks: SearchResult[] = [];
-      if (artist.channelId && onFetchChannelUploads) {
+      if (artist.channelId && !artist.isTopic && onFetchChannelUploads) {
         // Query the exact channel uploads playlist (100% deterministic, no loose search)
         rawTracks = await onFetchChannelUploads(artist.channelId, 50);
       }
