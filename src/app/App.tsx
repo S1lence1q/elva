@@ -831,7 +831,7 @@ export default function App() {
       const timeoutId = setTimeout(() => controller.abort(), 3500);
 
       try {
-        const targetUrl = `${instance}/channels/${channelId}`;
+        const targetUrl = `${instance}/channel/${channelId}`;
         const response = await robustFetch(targetUrl, controller.signal);
         clearTimeout(timeoutId);
         
