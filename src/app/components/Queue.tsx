@@ -424,7 +424,11 @@ export function Queue({
     
     try {
       let rawTracks: SearchResult[] = [];
-      if (artist.channelId && !artist.isTopic && onFetchChannelUploads) {
+      const apiKey = (import.meta as any).env.VITE_YOUTUBE_API_KEY;
+
+      // Only attempt direct channel uploads query if the official YouTube API Key is active!
+      // On public Piped/Invidious instances, scraping channel uploads is extremely slow, challenged by bot blocks, or broken.
+      if (apiKey && artist.channelId && !artist.isTopic && onFetchChannelUploads) {
         // Query the exact channel uploads playlist (100% deterministic, no loose search)
         rawTracks = await onFetchChannelUploads(artist.channelId, 50);
       }
