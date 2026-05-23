@@ -1139,7 +1139,7 @@ export default function App() {
     return null;
   };
 
-  // Verify artist via MusicBrainz API to prevent fake artist cards on gibberish searches
+  // Verify artist via MusicBrainz API in background to enrich metadata
   useEffect(() => {
     let active = true;
     
@@ -1149,23 +1149,32 @@ export default function App() {
         return;
       }
       
-      // Get candidate artist from search results using the heuristics
+      // Get candidate artist from search results using local heuristics
       const candidate = getArtistName(searchQuery, searchResults);
       if (!candidate) {
         setVerifiedArtist(null);
         return;
       }
 
+      // 1. Instantly display the Verified Artist Card (0ms delay) to prevent lag!
+      setVerifiedArtist({
+        name: candidate.name,
+        thumbnail: candidate.thumbnail,
+        channelId: candidate.channelId,
+        isTopic: candidate.isTopic
+      });
+
       setIsVerifyingArtist(true);
       try {
         const queryVal = candidate.name.trim();
-        // Call MusicBrainz API
+        // 2. Query MusicBrainz silently in the background with a tight 2.5s timeout
         const response = await fetchWithTimeout(
           `https://musicbrainz.org/ws/2/artist/?query=artist:${encodeURIComponent(queryVal)}&fmt=json`,
           {
             headers: {
               'User-Agent': 'ElvaMusicApp/1.0 ( contact@elva.fm )'
-            }
+            },
+            timeout: 2500 // Tight timeout to prevent hanging on slow MB servers
           }
         );
         
@@ -1182,41 +1191,26 @@ export default function App() {
         const matchedArtist = artists.find((artist: any) => {
           const nameLower = (artist.name || '').toLowerCase();
           const score = artist.score || 0;
-          
-          const isHighConfidence = score >= 90;
-          const isNameMatch = nameLower === queryLower || nameLower.includes(queryLower) || queryLower.includes(nameLower);
-          
-          return isHighConfidence && isNameMatch;
+          return score >= 85 && (nameLower === queryLower || nameLower.includes(queryLower) || queryLower.includes(nameLower));
         });
         
-        if (matchedArtist) {
+        if (matchedArtist && active) {
           const tagsList = (matchedArtist.tags || [])
             .filter((t: any) => (t.count || 0) > 0)
             .sort((a: any, b: any) => (b.count || 0) - (a.count || 0))
             .map((t: any) => t.name)
             .slice(0, 3);
-          setVerifiedArtist({
-            name: candidate.name,
-            thumbnail: candidate.thumbnail,
-            channelId: candidate.channelId,
-            isTopic: candidate.isTopic,
+            
+          // 3. Silently merge MusicBrainz metadata (disambiguation, tags, country)
+          setVerifiedArtist(prev => prev ? {
+            ...prev,
             disambiguation: matchedArtist.disambiguation || undefined,
             country: matchedArtist.country || undefined,
             tags: tagsList.length > 0 ? tagsList : undefined
-          });
-        } else {
-          setVerifiedArtist(null);
+          } : null);
         }
       } catch (error) {
-        console.warn('MusicBrainz verification failed, using local heuristics fallback:', error);
-        if (active) {
-          setVerifiedArtist({
-            name: candidate.name,
-            thumbnail: candidate.thumbnail,
-            channelId: candidate.channelId,
-            isTopic: candidate.isTopic
-          });
-        }
+        console.warn('Background MusicBrainz metadata enrichment failed:', error);
       } finally {
         if (active) {
           setIsVerifyingArtist(false);
@@ -1239,6 +1233,7 @@ export default function App() {
     const nameLower = artist.name.toLowerCase();
     const matchingResults = searchResults.filter(track => {
       const trackArtistLower = (track.artist || '').toLowerCase();
+      // Strict artist matching to avoid showing other artists
       return trackArtistLower.includes(nameLower) || nameLower.includes(trackArtistLower);
     });
 
@@ -1255,30 +1250,34 @@ export default function App() {
       const apiKey = (import.meta as any).env.VITE_YOUTUBE_API_KEY;
 
       // Only attempt direct channel uploads query if the official YouTube API Key is active!
-      // On public Piped/Invidious instances, scraping channel uploads is extremely slow, challenged by bot blocks, or broken.
       if (apiKey && artist.channelId && !artist.isTopic) {
         // Query the exact channel uploads playlist (100% deterministic, no loose search)
         rawTracks = await executeChannelUploadsAPI(artist.channelId, 50);
       }
       
       // Fall back to robust search-based retrieval using the direct artist name.
-      // Querying just the artist name acts as the perfect direct search!
+      // Fetch up to 40 tracks for a full discography!
       if (rawTracks.length === 0) {
-        rawTracks = await executeSearchAPI(artist.name);
+        rawTracks = await executeSearchAPI(artist.name, 40);
       }
       
       // Secondary fallback with "topic" if direct artist name returns nothing
       if (rawTracks.length === 0) {
-        rawTracks = await executeSearchAPI(`${artist.name} topic`);
+        rawTracks = await executeSearchAPI(`${artist.name} topic`, 40);
       }
 
       // Clean and filter the tracks strictly to keep official, high-quality music releases
       const cleaned = rawTracks
         .filter(track => {
           const titleLower = track.title.toLowerCase();
+          const trackArtistLower = track.artist.toLowerCase();
+          
+          // Strict artist matching to ensure tracks belong to the viewed artist
+          const artistMatches = trackArtistLower.includes(nameLower) || nameLower.includes(trackArtistLower);
+          
           // Filter out teasers, trailers, vlogs, documentary, behind the scenes from official channels
           const blocklist = ['teaser', 'trailer', 'vlog', 'behind the scenes', 'bts', 'documentary', 'live stream', 'interview'];
-          return !blocklist.some(word => titleLower.includes(word));
+          return artistMatches && !blocklist.some(word => titleLower.includes(word));
         })
         .map(track => {
           // Strip "- Topic", "VEVO", "Official" from artist uploader names
@@ -1498,7 +1497,7 @@ export default function App() {
             animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
             exit={{ opacity: 0, scale: 1.08, filter: 'blur(8px)' }}
             transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-            className={`absolute inset-0 z-10 flex flex-col items-center px-8 w-full h-full justify-start pb-12 transition-all duration-500 ease-[0.16,1,0.3,1] ${
+            className={`absolute inset-0 z-10 flex flex-col items-center px-8 w-full h-full justify-start pb-12 transition-all duration-300 ease-[0.16,1,0.3,1] ${
               selectedArtist ? 'pt-6 md:pt-8' : 'pt-20 md:pt-28'
             }`}
           >
@@ -1656,15 +1655,15 @@ export default function App() {
             )}
 
             {/* Input section or Immersive Artist View */}
-            <AnimatePresence mode="wait">
+            <AnimatePresence>
                   {selectedArtist ? (
                     /* NEW Cinematic Widescreen Artist Page */
                     <motion.div
                       key="immersive-artist-view"
-                      initial={{ opacity: 0, y: 20 }}
+                      initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -20 }}
-                      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
                       className="w-full max-w-5xl px-4 flex flex-col h-[calc(100vh-80px)] z-10"
                     >
                       {/* Navigation bar above the layout */}

@@ -319,7 +319,7 @@ export function Queue({
     return null;
   };
 
-  // Verify artist via MusicBrainz API to prevent fake artist cards on gibberish searches
+  // Verify artist via MusicBrainz API in background to enrich metadata
   useEffect(() => {
     let active = true;
     
@@ -329,23 +329,32 @@ export function Queue({
         return;
       }
       
-      // Get candidate artist from search results using the heuristics
+      // Get candidate artist from search results using local heuristics
       const candidate = getArtistName(searchQuery, searchResults);
       if (!candidate) {
         setVerifiedArtist(null);
         return;
       }
 
+      // 1. Instantly display the Verified Artist Card (0ms delay) to prevent lag!
+      setVerifiedArtist({
+        name: candidate.name,
+        thumbnail: candidate.thumbnail,
+        channelId: candidate.channelId,
+        isTopic: candidate.isTopic
+      });
+
       setIsVerifyingArtist(true);
       try {
         const queryVal = candidate.name.trim();
-        // Call MusicBrainz API
+        // 2. Query MusicBrainz silently in the background with a tight 2.5s timeout
         const response = await fetchWithTimeout(
           `https://musicbrainz.org/ws/2/artist/?query=artist:${encodeURIComponent(queryVal)}&fmt=json`,
           {
             headers: {
               'User-Agent': 'ElvaMusicApp/1.0 ( contact@elva.fm )'
-            }
+            },
+            timeout: 2500 // Tight timeout to prevent hanging on slow MB servers
           }
         );
         
@@ -359,19 +368,13 @@ export function Queue({
         const artists = data.artists || [];
         const queryLower = queryVal.toLowerCase();
         
-        // Find if there is any artist matching the query in MusicBrainz with high confidence
         const matchedArtist = artists.find((artist: any) => {
           const nameLower = (artist.name || '').toLowerCase();
           const score = artist.score || 0;
-          
-          // Must have high confidence score and closely match the name
-          const isHighConfidence = score >= 90;
-          const isNameMatch = nameLower === queryLower || nameLower.includes(queryLower) || queryLower.includes(nameLower);
-          
-          return isHighConfidence && isNameMatch;
+          return score >= 85 && (nameLower === queryLower || nameLower.includes(queryLower) || queryLower.includes(nameLower));
         });
         
-        if (matchedArtist) {
+        if (matchedArtist && active) {
           // Extract top tags
           const tagsList = (matchedArtist.tags || [])
             .filter((t: any) => (t.count || 0) > 0)
@@ -379,30 +382,16 @@ export function Queue({
             .map((t: any) => t.name)
             .slice(0, 3);
 
-          setVerifiedArtist({
-            name: candidate.name,
-            thumbnail: candidate.thumbnail,
-            channelId: candidate.channelId,
-            isTopic: candidate.isTopic,
+          // 3. Silently merge MusicBrainz metadata (disambiguation, tags, country)
+          setVerifiedArtist(prev => prev ? {
+            ...prev,
             disambiguation: matchedArtist.disambiguation || undefined,
             country: matchedArtist.country || undefined,
             tags: tagsList.length > 0 ? tagsList : undefined
-          });
-        } else {
-          // If no high-confidence artist exists in the global DB, suppress the card!
-          setVerifiedArtist(null);
+          } : null);
         }
       } catch (error) {
-        console.warn('MusicBrainz verification failed, using local heuristics fallback:', error);
-        if (active) {
-          // Fallback on network/rate-limiting errors to ensure app usability
-          setVerifiedArtist({
-            name: candidate.name,
-            thumbnail: candidate.thumbnail,
-            channelId: candidate.channelId,
-            isTopic: candidate.isTopic
-          });
-        }
+        console.warn('Background MusicBrainz metadata enrichment failed:', error);
       } finally {
         if (active) {
           setIsVerifyingArtist(false);
@@ -448,22 +437,28 @@ export function Queue({
       }
       
       // Fall back to robust search-based retrieval using the direct artist name.
+      // Fetch up to 40 tracks for a full discography!
       if (rawTracks.length === 0 && onSearch) {
-        rawTracks = await onSearch(artist.name, 50);
+        rawTracks = await onSearch(artist.name, 40);
       }
       
       // Secondary fallback with "topic" if direct artist name returns nothing
       if (rawTracks.length === 0 && onSearch) {
-        rawTracks = await onSearch(`${artist.name} topic`, 50);
+        rawTracks = await onSearch(`${artist.name} topic`, 40);
       }
 
       // Clean and filter the tracks strictly to keep official, high-quality music releases
       const cleaned = rawTracks
         .filter(track => {
           const titleLower = track.title.toLowerCase();
+          const trackArtistLower = track.artist.toLowerCase();
+          
+          // Strict artist matching to ensure tracks belong to the viewed artist
+          const artistMatches = trackArtistLower.includes(nameLower) || nameLower.includes(trackArtistLower);
+          
           // Filter out teasers, trailers, vlogs, documentary, behind the scenes from official channels
           const blocklist = ['teaser', 'trailer', 'vlog', 'behind the scenes', 'bts', 'documentary', 'live stream', 'interview'];
-          return !blocklist.some(word => titleLower.includes(word));
+          return artistMatches && !blocklist.some(word => titleLower.includes(word));
         })
         .map(track => {
           // Strip "- Topic", "VEVO", "Official" from artist uploader names
