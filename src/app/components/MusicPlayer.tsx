@@ -1306,10 +1306,10 @@ export function MusicPlayer({
         togglePlayPause();
       } else if (e.code === 'ArrowRight') {
         e.preventDefault();
-        skipTime(10);
+        skipTime(5);
       } else if (e.code === 'ArrowLeft') {
         e.preventDefault();
-        skipTime(-10);
+        skipTime(-5);
       } else if (e.code === 'ArrowUp') {
         e.preventDefault();
         const nv = Math.min(100, volume + 5);
@@ -1964,6 +1964,11 @@ export function MusicPlayer({
                     max={duration}
                     step={0.1}
                     onValueChange={handleSliderChange}
+                    onKeyDown={(e) => {
+                      if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
+                        e.preventDefault();
+                      }
+                    }}
                     className="relative flex items-center w-full h-12 cursor-pointer group/slider"
                   >
                     {/* Minimalistic waveform backdrop */}

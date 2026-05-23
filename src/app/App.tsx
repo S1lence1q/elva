@@ -233,6 +233,13 @@ export default function App() {
     localStorage.setItem('elva_show_settings_btn', String(showSettingsButton));
   }, [showSettingsButton]);
 
+  const [focusedResultIndex, setFocusedResultIndex] = useState<number>(-1);
+
+  // Reset focus when searching or changing view
+  useEffect(() => {
+    setFocusedResultIndex(-1);
+  }, [searchQuery, searchResults, selectedArtist]);
+
   const theme = ACCENT_THEMES[accentColor];
 
   // Helper mappings for dynamic class bindings
@@ -426,6 +433,47 @@ export default function App() {
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
+      const isSearchActive = appState === 'landing' && searchQuery.trim() !== '' && !isSearching;
+
+      if (isSearchActive && (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter')) {
+        e.preventDefault();
+
+        const hasArtistCard = shouldShowArtistCard(searchQuery) && verifiedArtist && !selectedArtist;
+        const totalItems = selectedArtist 
+          ? artistTracks.length 
+          : searchResults.length + (hasArtistCard ? 1 : 0);
+
+        if (totalItems === 0) return;
+
+        if (e.key === 'ArrowDown') {
+          setFocusedResultIndex(prev => {
+            if (prev < totalItems - 1) return prev + 1;
+            return prev;
+          });
+        } else if (e.key === 'ArrowUp') {
+          setFocusedResultIndex(prev => {
+            if (prev > 0) return prev - 1;
+            return -1;
+          });
+        } else if (e.key === 'Enter') {
+          if (focusedResultIndex >= 0) {
+            if (selectedArtist) {
+              const track = artistTracks[focusedResultIndex];
+              if (track && !loadingSongId) handleSelectSong(track);
+            } else {
+              if (hasArtistCard && focusedResultIndex === 0) {
+                handleViewArtistProfile(verifiedArtist);
+              } else {
+                const songIndex = hasArtistCard ? focusedResultIndex - 1 : focusedResultIndex;
+                const song = searchResults[songIndex];
+                if (song && !loadingSongId) handleSelectSong(song);
+              }
+            }
+          }
+        }
+        return;
+      }
+
       if (
         target.tagName === 'INPUT' ||
         target.tagName === 'TEXTAREA' ||
@@ -448,7 +496,7 @@ export default function App() {
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [showShortcutMap, showSettings]);
+  }, [showShortcutMap, showSettings, appState, searchQuery, isSearching, searchResults, selectedArtist, artistTracks, verifiedArtist, loadingSongId, focusedResultIndex]);
 
   useEffect(() => {
     const handleResetTour = () => {
@@ -1263,17 +1311,7 @@ export default function App() {
               />
             )}
 
-            {/* Elegant, quiet settings button in top-right */}
-            <motion.button
-              onClick={() => setShowSettings(true)}
-              className="absolute top-6 right-8 text-[10px] uppercase tracking-[0.25em] font-light text-white/30 hover:text-white/70 transition-colors duration-300 cursor-pointer z-30 py-2 active:scale-95 select-none"
-              title="Open settings"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.8 }}
-            >
-              Settings
-            </motion.button>
+
 
             {/* Elegant Background Textures based on user preference */}
             {textureStyle !== 'none' && (
@@ -1587,61 +1625,68 @@ export default function App() {
                               <p className="text-xs">No official songs found.</p>
                             </div>
                           ) : (
-                            artistTracks.map((track, index) => (
-                              <motion.div
-                                key={`artist-track-${track.id}`}
-                                initial={{ opacity: 0, x: -10 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: index * 0.03, ease: "easeOut" }}
-                                onClick={() => {
-                                  if (!loadingSongId) handleSelectSong(track);
-                                }}
-                                className={`group w-full flex items-center gap-3 p-2.5 rounded-2xl bg-white/[0.02] hover:bg-white/[0.06] border border-white/5 hover:border-white/10 transition-all duration-300 cursor-pointer ${
-                                  loadingSongId === track.id ? `${theme.borderActive} ${theme.bgActive}` : ''
-                                }`}
-                              >
-                                {/* Thumbnail with hover play icon */}
-                                <div className="relative w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 bg-neutral-900 border border-white/5 shadow-md">
-                                  <img src={track.thumbnail} alt={track.title} className="w-full h-full object-cover" />
-                                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                    {loadingSongId === track.id ? (
-                                      <motion.div
-                                        animate={{ rotate: 360 }}
-                                        transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}
-                                        className={`w-4 h-4 rounded-full border border-white/20 ${theme.borderT}`}
-                                      />
-                                    ) : (
-                                      <Play className="w-4 h-4 text-white fill-white scale-90 group-hover:scale-105 transition-all" />
-                                    )}
-                                  </div>
-                                </div>
-
-                                {/* Info */}
-                                <div className="flex-1 text-left min-w-0">
-                                  <h3 className={`text-xs font-semibold truncate transition-colors duration-300 ${
-                                    loadingSongId === track.id ? `${theme.text} font-semibold` : 'text-white/90 group-hover:text-white transition-colors tracking-tight'
-                                  }`}>
-                                    {track.title}
-                                  </h3>
-                                  <p className="text-[10px] text-white/40 truncate mt-0.5 font-light">
-                                    {track.artist}
-                                  </p>
-                                </div>
-
-                                {/* Quick Add To Queue */}
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleAddToQueue(track);
+                            artistTracks.map((track, index) => {
+                              const isFocused = focusedResultIndex === index;
+                              return (
+                                <motion.div
+                                  key={`artist-track-${track.id}`}
+                                  initial={{ opacity: 0, x: -10 }}
+                                  animate={{ opacity: 1, x: 0 }}
+                                  transition={{ delay: index * 0.03, ease: "easeOut" }}
+                                  onClick={() => {
+                                    if (!loadingSongId) handleSelectSong(track);
                                   }}
-                                  className={`flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-bold ${theme.textLight} ${theme.bgFade} hover:${theme.bgHover} border ${theme.borderLight} hover:${theme.borderActive} rounded-full transition-all shrink-0 cursor-pointer hover:scale-105 active:scale-95 shadow-sm`}
-                                  title="Add to queue"
+                                  className={`group w-full flex items-center gap-3 p-2.5 rounded-2xl border transition-all duration-300 cursor-pointer ${
+                                    loadingSongId === track.id
+                                      ? `${theme.borderActive} ${theme.bgActive}`
+                                      : isFocused
+                                      ? 'bg-white/[0.06] border-white/20 shadow-md scale-[1.01]'
+                                      : 'bg-white/[0.02] hover:bg-white/[0.06] border border-white/5 hover:border-white/10'
+                                  }`}
                                 >
-                                  <Plus className={`w-3 h-3 ${theme.text}`} />
-                                  <span>Queue</span>
-                                </button>
-                              </motion.div>
-                            ))
+                                  {/* Thumbnail with hover play icon */}
+                                  <div className="relative w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 bg-neutral-900 border border-white/5 shadow-md">
+                                    <img src={track.thumbnail} alt={track.title} className="w-full h-full object-cover" />
+                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                      {loadingSongId === track.id ? (
+                                        <motion.div
+                                          animate={{ rotate: 360 }}
+                                          transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}
+                                          className={`w-4 h-4 rounded-full border border-white/20 ${theme.borderT}`}
+                                        />
+                                      ) : (
+                                        <Play className="w-4 h-4 text-white fill-white scale-90 group-hover:scale-105 transition-all" />
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {/* Info */}
+                                  <div className="flex-1 text-left min-w-0">
+                                    <h3 className={`text-xs font-semibold truncate transition-colors duration-300 ${
+                                      loadingSongId === track.id ? `${theme.text} font-semibold` : 'text-white/90 group-hover:text-white transition-colors tracking-tight'
+                                    }`}>
+                                      {track.title}
+                                    </h3>
+                                    <p className="text-[10px] text-white/40 truncate mt-0.5 font-light">
+                                      {track.artist}
+                                    </p>
+                                  </div>
+
+                                  {/* Quick Add To Queue */}
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleAddToQueue(track);
+                                    }}
+                                    className={`flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-bold ${theme.textLight} ${theme.bgFade} hover:${theme.bgHover} border ${theme.borderLight} hover:${theme.borderActive} rounded-full transition-all shrink-0 cursor-pointer hover:scale-105 active:scale-95 shadow-sm`}
+                                    title="Add to queue"
+                                  >
+                                    <Plus className={`w-3 h-3 ${theme.text}`} />
+                                    <span>Queue</span>
+                                  </button>
+                                </motion.div>
+                              );
+                            })
                           )}
                         </div>
                       </motion.div>
@@ -1651,12 +1696,17 @@ export default function App() {
                         {shouldShowArtistCard(searchQuery) && verifiedArtist && (
                           (() => {
                             const artist = verifiedArtist;
+                            const isFocused = focusedResultIndex === 0;
                             return (
                               <motion.div
                                 initial={{ opacity: 0, y: -10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 onClick={() => handleViewArtistProfile(artist)}
-                                className={`relative overflow-hidden p-6 rounded-3xl bg-gradient-to-br ${theme.fromGradient} to-white/[0.01] border ${theme.borderCard} hover:${theme.borderHover} hover:${theme.fromGradientHover} hover:to-white/[0.02] transition-all duration-300 mb-6 flex items-center justify-between gap-6 group shadow-lg cursor-pointer active:scale-[0.99] backdrop-blur-xl w-full`}
+                                className={`relative overflow-hidden p-6 rounded-3xl bg-gradient-to-br ${theme.fromGradient} to-white/[0.01] border transition-all duration-300 mb-6 flex items-center justify-between gap-6 group shadow-lg cursor-pointer active:scale-[0.99] backdrop-blur-xl w-full ${
+                                  isFocused
+                                    ? 'border-white/30 bg-white/[0.04] scale-[1.01]'
+                                    : `${theme.borderCard} hover:${theme.borderHover} hover:${theme.fromGradientHover} hover:to-white/[0.02]`
+                                }`}
                               >
                                 
                                 <div className="flex items-center gap-5 relative z-10">
@@ -1701,74 +1751,84 @@ export default function App() {
                           })()
                         )}
 
-                        {searchResults.map((result, index) => (
-                          <motion.div
-                            key={result.id}
-                            initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                            whileHover={{ scale: 1.015 }}
-                            whileTap={{ scale: 0.96 }}
-                            onClick={() => {
-                              if (!loadingSongId) handleSelectSong(result);
-                            }}
-                            transition={{
-                              delay: index * 0.08,
-                              duration: 0.4,
-                              ease: [0.16, 1, 0.3, 1]
-                            }}
-                            className={`group relative w-full flex items-center gap-4 p-3.5 rounded-2xl bg-white/[0.02] hover:bg-white/[0.06] border border-white/[0.06] hover:border-white/15 transition-all duration-300 backdrop-blur-xl cursor-pointer ${
-                              loadingSongId === result.id ? `${theme.borderActive} ${theme.bgActive}` : ''
-                            }`}
-                          >
-                            {/* Subtle highlight on hover */}
-                            <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-white/0 via-white/[0.02] to-white/0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                        {searchResults.map((result, index) => {
+                          const hasArtistCard = shouldShowArtistCard(searchQuery) && verifiedArtist;
+                          const actualIndex = hasArtistCard ? index + 1 : index;
+                          const isFocused = focusedResultIndex === actualIndex;
 
-                            {/* Thumbnail Container */}
-                            <div className="relative w-16 h-16 rounded-xl overflow-hidden flex-shrink-0">
-                              <img
-                                src={result.thumbnail}
-                                alt={result.title}
-                                className={`w-full h-full object-cover transition-opacity duration-300 ${loadingSongId === result.id ? 'opacity-40' : ''}`}
-                              />
-                              <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-all flex items-center justify-center">
-                                {loadingSongId === result.id ? (
-                                  <motion.div
-                                    animate={{ rotate: 360 }}
-                                    transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}
-                                    className={`w-5 h-5 rounded-full border border-white/20 ${theme.borderT}`}
-                                  />
-                                ) : (
-                                  <Music className="w-5 h-5 text-white/0 group-hover:text-white/80 transition-colors" />
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Song Info */}
-                            <div className="relative flex-1 text-left min-w-0">
-                              <h3 className={`text-sm font-medium truncate transition-colors duration-300 ${
-                                loadingSongId === result.id ? `${theme.text} font-semibold` : 'text-white/75 group-hover:text-white/95'
-                              }`}>
-                                {result.title}
-                              </h3>
-                              <p className="text-white/35 text-xs truncate mt-1">
-                                {result.artist}
-                              </p>
-                            </div>
-
-                            {/* Add to queue */}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleAddToQueue(result);
+                          return (
+                            <motion.div
+                              key={result.id}
+                              initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                              animate={{ opacity: 1, y: 0, scale: 1 }}
+                              whileHover={{ scale: 1.015 }}
+                              whileTap={{ scale: 0.96 }}
+                              onClick={() => {
+                                if (!loadingSongId) handleSelectSong(result);
                               }}
-                              className="relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-white/10 transition-all opacity-0 group-hover:opacity-100 duration-200"
-                              title="Add to queue"
+                              transition={{
+                                delay: index * 0.08,
+                                duration: 0.4,
+                                ease: [0.16, 1, 0.3, 1]
+                              }}
+                              className={`group relative w-full flex items-center gap-4 p-3.5 rounded-2xl border transition-all duration-300 backdrop-blur-xl cursor-pointer ${
+                                loadingSongId === result.id
+                                  ? `${theme.borderActive} ${theme.bgActive}`
+                                  : isFocused
+                                  ? 'bg-white/[0.06] border-white/20 shadow-md scale-[1.015]'
+                                  : 'bg-white/[0.02] border-white/[0.06] hover:bg-white/[0.06] hover:border-white/15'
+                              }`}
                             >
-                              <Plus className="w-3.5 h-3.5 text-white/40" />
-                              <span className="text-xs text-white/40">Queue</span>
-                            </button>
-                          </motion.div>
-                        ))}
+                              {/* Subtle highlight on hover */}
+                              <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-white/0 via-white/[0.02] to-white/0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+
+                              {/* Thumbnail Container */}
+                              <div className="relative w-16 h-16 rounded-xl overflow-hidden flex-shrink-0">
+                                <img
+                                  src={result.thumbnail}
+                                  alt={result.title}
+                                  className={`w-full h-full object-cover transition-opacity duration-300 ${loadingSongId === result.id ? 'opacity-40' : ''}`}
+                                />
+                                <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-all flex items-center justify-center">
+                                  {loadingSongId === result.id ? (
+                                    <motion.div
+                                      animate={{ rotate: 360 }}
+                                      transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}
+                                      className={`w-5 h-5 rounded-full border border-white/20 ${theme.borderT}`}
+                                    />
+                                  ) : (
+                                    <Music className="w-5 h-5 text-white/0 group-hover:text-white/80 transition-colors" />
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Song Info */}
+                              <div className="relative flex-1 text-left min-w-0">
+                                <h3 className={`text-sm font-medium truncate transition-colors duration-300 ${
+                                  loadingSongId === result.id ? `${theme.text} font-semibold` : 'text-white/75 group-hover:text-white/95'
+                                }`}>
+                                  {result.title}
+                                </h3>
+                                <p className="text-white/35 text-xs truncate mt-1">
+                                  {result.artist}
+                                </p>
+                              </div>
+
+                              {/* Add to queue */}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleAddToQueue(result);
+                                }}
+                                className="relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-white/10 transition-all opacity-0 group-hover:opacity-100 duration-200"
+                                title="Add to queue"
+                              >
+                                <Plus className="w-3.5 h-3.5 text-white/40" />
+                                <span className="text-xs text-white/40">Queue</span>
+                              </button>
+                            </motion.div>
+                          );
+                        })}
                       </>
                     )}
                   </motion.div>
