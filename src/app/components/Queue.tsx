@@ -4,6 +4,22 @@ import { Music, X, Search, Plus, Play, Upload, Loader2, Link as LinkIcon, AlertC
 import { toast } from 'sonner';
 import { AccentColor, ACCENT_THEMES } from './themeUtils';
 
+const fetchWithTimeout = async (url: string, options: RequestInit = {}, timeoutMs: number = 4000): Promise<Response> => {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+    clearTimeout(id);
+    return response;
+  } catch (err) {
+    clearTimeout(id);
+    throw err;
+  }
+};
+
 interface QueueItem {
   id: string;
   title: string;
@@ -321,7 +337,7 @@ export function Queue({
       try {
         const queryVal = candidate.name.trim();
         // Call MusicBrainz API
-        const response = await fetch(
+        const response = await fetchWithTimeout(
           `https://musicbrainz.org/ws/2/artist/?query=artist:${encodeURIComponent(queryVal)}&fmt=json`,
           {
             headers: {

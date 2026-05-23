@@ -30,10 +30,33 @@ const decodeHTMLEntities = (text: string): string => {
   }
 };
 
+const fetchWithTimeout = async (url: string, options: RequestInit = {}, timeoutMs: number = 4000): Promise<Response> => {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  
+  const signal = options.signal;
+  if (signal) {
+    signal.addEventListener('abort', () => controller.abort());
+    if (signal.aborted) controller.abort();
+  }
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+    clearTimeout(id);
+    return response;
+  } catch (err) {
+    clearTimeout(id);
+    throw err;
+  }
+};
+
 const robustFetch = async (url: string, signal?: AbortSignal): Promise<Response> => {
   // 1. Try directly (most Invidious/Piped public instances natively support CORS)
   try {
-    const response = await fetch(url, { signal });
+    const response = await fetchWithTimeout(url, { signal });
     if (response.ok) return response;
   } catch (e) {
     console.warn(`Direct fetch failed for ${url}:`, e);
@@ -42,7 +65,7 @@ const robustFetch = async (url: string, signal?: AbortSignal): Promise<Response>
   // 2. Try via allorigins proxy (very stable)
   try {
     const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-    const response = await fetch(proxyUrl, { signal });
+    const response = await fetchWithTimeout(proxyUrl, { signal });
     if (response.ok) return response;
   } catch (e) {
     console.warn(`AllOrigins proxy fetch failed for ${url}:`, e);
@@ -51,7 +74,7 @@ const robustFetch = async (url: string, signal?: AbortSignal): Promise<Response>
   // 3. Try via corsproxy.io (fallback)
   try {
     const proxyUrl = `https://corsproxy.io/?url=${encodeURIComponent(url)}`;
-    const response = await fetch(proxyUrl, { signal });
+    const response = await fetchWithTimeout(proxyUrl, { signal });
     if (response.ok) return response;
   } catch (e) {
     console.warn(`corsproxy.io fetch failed for ${url}:`, e);
@@ -65,7 +88,7 @@ const fetchVideoDetails = async (videoId: string): Promise<{ title: string; arti
 
   if (apiKey) {
     try {
-      const response = await fetch(
+      const response = await fetchWithTimeout(
         `https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${videoId}&key=${apiKey}`
       );
       if (response.ok) {
@@ -624,7 +647,7 @@ export default function App() {
     if (apiKey) {
       // Use Official YouTube Data API v3 (100% stable, free up to 10k/day)
       try {
-        const response = await fetch(
+        const response = await fetchWithTimeout(
           `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=${limit}&q=${encodeURIComponent(
             query
           )}&type=video&key=${apiKey}`
@@ -780,7 +803,7 @@ export default function App() {
     if (apiKey) {
       try {
         const uploadsPlaylistId = channelId.startsWith('UC') ? channelId.replace(/^UC/, 'UU') : channelId;
-        const response = await fetch(
+        const response = await fetchWithTimeout(
           `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=${limit}&playlistId=${uploadsPlaylistId}&key=${apiKey}`
         );
         if (!response.ok) {
@@ -995,7 +1018,7 @@ export default function App() {
       try {
         const queryVal = candidate.name.trim();
         // Call MusicBrainz API
-        const response = await fetch(
+        const response = await fetchWithTimeout(
           `https://musicbrainz.org/ws/2/artist/?query=artist:${encodeURIComponent(queryVal)}&fmt=json`,
           {
             headers: {
