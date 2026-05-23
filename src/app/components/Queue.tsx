@@ -420,6 +420,20 @@ export function Queue({
   // Fetch artist profile official releases in background
   const handleViewArtistProfile = async (artist: VerifiedArtist) => {
     setSelectedArtist(artist);
+    
+    // 1. Instant pre-population from currently active search results to eliminate any loading delay
+    const nameLower = artist.name.toLowerCase();
+    const matchingResults = searchResults.filter(track => {
+      const trackArtistLower = (track.artist || '').toLowerCase();
+      return trackArtistLower.includes(nameLower) || nameLower.includes(trackArtistLower);
+    });
+
+    if (matchingResults.length > 0) {
+      setArtistTracks(matchingResults);
+    } else {
+      setArtistTracks([]);
+    }
+    
     setIsLoadingArtist(true);
     
     try {
@@ -433,8 +447,12 @@ export function Queue({
         rawTracks = await onFetchChannelUploads(artist.channelId, 50);
       }
       
-      // If we got no tracks from the channel uploads (common on Piped/Invidious fallbacks for topic channels),
-      // or if there is no channelId, fall back to robust search-based retrieval.
+      // Fall back to robust search-based retrieval using the direct artist name.
+      if (rawTracks.length === 0 && onSearch) {
+        rawTracks = await onSearch(artist.name, 50);
+      }
+      
+      // Secondary fallback with "topic" if direct artist name returns nothing
       if (rawTracks.length === 0 && onSearch) {
         rawTracks = await onSearch(`${artist.name} topic`, 50);
       }
@@ -467,7 +485,10 @@ export function Queue({
           };
         });
       
-      setArtistTracks(cleaned);
+      // If we got new/more tracks, merge them or replace the pre-populated tracks to guarantee completeness
+      if (cleaned.length > 0) {
+        setArtistTracks(cleaned);
+      }
     } catch (error) {
       console.error('Failed to load artist profile tracks:', error);
       toast.error(`Could not fetch official releases for ${artist.name}`);
