@@ -1075,8 +1075,11 @@ export default function App() {
       if (artist.channelId) {
         // Query the exact channel uploads playlist (100% deterministic, no loose search)
         rawTracks = await executeChannelUploadsAPI(artist.channelId, 50);
-      } else {
-        // Fallback to searching
+      }
+      
+      // If we got no tracks from the channel uploads (common on Piped/Invidious fallbacks for topic channels),
+      // or if there is no channelId, fall back to robust search-based retrieval.
+      if (rawTracks.length === 0) {
         rawTracks = await executeSearchAPI(`${artist.name} topic`);
       }
 
