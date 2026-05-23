@@ -53,13 +53,17 @@ const fetchWithTimeout = async (url: string, options: RequestInit = {}, timeoutM
   }
 };
 
-const robustFetch = async (url: string, signal?: AbortSignal): Promise<Response> => {
+const robustFetch = async (url: string, signal?: AbortSignal, skipProxies: boolean = false): Promise<Response> => {
   // 1. Try directly (most Invidious/Piped public instances natively support CORS)
   try {
     const response = await fetchWithTimeout(url, { signal });
     if (response.ok) return response;
   } catch (e) {
     console.warn(`Direct fetch failed for ${url}:`, e);
+  }
+
+  if (skipProxies) {
+    throw new Error(`Direct fetch failed for ${url} and proxies were skipped.`);
   }
 
   // 2. Try via allorigins proxy (very stable)
@@ -169,12 +173,12 @@ const fetchVideoDetails = async (videoId: string): Promise<{ title: string; arti
     'https://iv.melmac.space'
   ];
 
-  // Try PIPED details concurrently
+  // Try PIPED details concurrently (direct only)
   try {
     const details = await fetchFromFirstSuccessfulInstance(
       PIPED_INSTANCES,
       async (instance, signal) => {
-        const response = await robustFetch(`${instance}/streams/${videoId}`, signal);
+        const response = await robustFetch(`${instance}/streams/${videoId}`, signal, true); // SKIP PROXIES
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
         return {
@@ -183,19 +187,19 @@ const fetchVideoDetails = async (videoId: string): Promise<{ title: string; arti
           artworkUrl: `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`
         };
       },
-      3000
+      1800
     );
     return details;
   } catch (pipedErr) {
-    console.warn('All Piped instances failed for video details, trying Invidious concurrently:', pipedErr);
+    console.warn('All Piped instances failed direct video details, trying Invidious directly:', pipedErr);
   }
 
-  // Try INVIDIOUS details concurrently
+  // Try INVIDIOUS details concurrently (direct only)
   try {
     const details = await fetchFromFirstSuccessfulInstance(
       INVIDIOUS_INSTANCES,
       async (instance, signal) => {
-        const response = await robustFetch(`${instance}/api/v1/videos/${videoId}`, signal);
+        const response = await robustFetch(`${instance}/api/v1/videos/${videoId}`, signal, true); // SKIP PROXIES
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
         return {
@@ -204,11 +208,26 @@ const fetchVideoDetails = async (videoId: string): Promise<{ title: string; arti
           artworkUrl: `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`
         };
       },
-      3000
+      1800
     );
     return details;
   } catch (invidiousErr) {
-    console.error('All Invidious instances failed for video details:', invidiousErr);
+    console.warn('All Invidious instances failed direct video details, trying single proxy fallback:', invidiousErr);
+  }
+
+  // ULTIMATE FALLBACK: Try a single Piped instance with proxies allowed
+  try {
+    const response = await robustFetch(`${PIPED_INSTANCES[0]}/streams/${videoId}`, undefined, false); // ALLOW PROXIES
+    if (response.ok) {
+      const data = await response.json();
+      return {
+        title: decodeHTMLEntities(data.title || 'YouTube Stream'),
+        artist: decodeHTMLEntities(data.uploader || 'Web Stream'),
+        artworkUrl: `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`
+      };
+    }
+  } catch (proxyErr) {
+    console.error('All direct and proxy video details failed:', proxyErr);
   }
 
   return {
@@ -752,13 +771,13 @@ export default function App() {
       'https://invidious.snopyta.org'
     ];
 
-    // Try PIPED search concurrently
+    // Try PIPED search concurrently (direct only)
     try {
       const results = await fetchFromFirstSuccessfulInstance(
         PIPED_INSTANCES,
         async (instance, signal) => {
           const targetUrl = `${instance}/search?q=${encodeURIComponent(query)}&filter=music_songs`;
-          const response = await robustFetch(targetUrl, signal);
+          const response = await robustFetch(targetUrl, signal, true); // SKIP PROXIES
           if (!response.ok) throw new Error(`HTTP ${response.status}`);
           const data = await response.json();
           if (data && data.items && Array.isArray(data.items)) {
@@ -792,20 +811,20 @@ export default function App() {
           }
           throw new Error('Empty search items');
         },
-        3000
+        1800
       );
       return results.slice(0, limit);
     } catch (pipedErr) {
-      console.warn('All Piped instances failed for search, trying Invidious concurrently:', pipedErr);
+      console.warn('All Piped instances failed direct search, trying Invidious directly:', pipedErr);
     }
 
-    // Try INVIDIOUS search concurrently if PIPED failed
+    // Try INVIDIOUS search concurrently (direct only)
     try {
       const results = await fetchFromFirstSuccessfulInstance(
         INVIDIOUS_INSTANCES,
         async (instance, signal) => {
           const targetUrl = `${instance}/api/v1/search?q=${encodeURIComponent(query)}&type=video`;
-          const response = await robustFetch(targetUrl, signal);
+          const response = await robustFetch(targetUrl, signal, true); // SKIP PROXIES
           if (!response.ok) throw new Error(`HTTP ${response.status}`);
           const data = await response.json();
           if (Array.isArray(data)) {
@@ -831,11 +850,42 @@ export default function App() {
           }
           throw new Error('Empty search items');
         },
-        3000
+        1800
       );
       return results.slice(0, limit);
     } catch (invidiousErr) {
-      console.error('All Invidious instances failed for search:', invidiousErr);
+      console.warn('All Invidious instances failed direct search, trying single proxy fallback:', invidiousErr);
+    }
+
+    // ULTIMATE FALLBACK: Hit a single instance WITH proxy allowed, so we don't spam!
+    try {
+      const targetUrl = `${PIPED_INSTANCES[0]}/search?q=${encodeURIComponent(query)}&filter=music_songs`;
+      const response = await robustFetch(targetUrl, undefined, false); // ALLOW PROXIES
+      if (response.ok) {
+        const data = await response.json();
+        if (data && data.items && Array.isArray(data.items)) {
+          const validStreams = data.items.filter((item: any) => {
+            if (!item.url) return false;
+            const ytMatch = item.url.match(/(?:v=|\/watch\?v=)([^"&?\/\s]{11})/i);
+            const videoId = ytMatch ? ytMatch[1] : null;
+            return videoId && videoId.length === 11;
+          });
+          const mapped = validStreams.map((item: any) => {
+            const ytMatch = item.url.match(/(?:v=|\/watch\?v=)([^"&?\/\s]{11})/i);
+            const videoId = ytMatch![1];
+            return {
+              id: videoId,
+              title: decodeHTMLEntities(item.title),
+              artist: decodeHTMLEntities(item.uploaderName || 'Unknown Artist'),
+              thumbnail: `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`,
+              videoId: videoId
+            };
+          });
+          if (mapped.length > 0) return mapped.slice(0, limit);
+        }
+      }
+    } catch (proxyErr) {
+      console.error('All direct and proxy searches failed:', proxyErr);
     }
 
     return [];
@@ -892,13 +942,13 @@ export default function App() {
       'https://invidious.snopyta.org'
     ];
 
-    // Try PIPED instances concurrently
+    // Try PIPED instances concurrently (direct only)
     try {
       const results = await fetchFromFirstSuccessfulInstance(
         PIPED_INSTANCES,
         async (instance, signal) => {
           const targetUrl = `${instance}/channel/${channelId}`;
-          const response = await robustFetch(targetUrl, signal);
+          const response = await robustFetch(targetUrl, signal, true); // SKIP PROXIES
           if (!response.ok) throw new Error(`HTTP ${response.status}`);
           const data = await response.json();
           if (data && data.relatedStreams && Array.isArray(data.relatedStreams)) {
@@ -919,20 +969,20 @@ export default function App() {
           }
           throw new Error('Empty relatedStreams');
         },
-        3000
+        1800
       );
       return results.slice(0, limit);
     } catch (pipedErr) {
-      console.warn('All Piped instances failed for channel uploads, trying Invidious concurrently:', pipedErr);
+      console.warn('All Piped instances failed direct channel uploads, trying Invidious directly:', pipedErr);
     }
 
-    // Try INVIDIOUS instances concurrently if PIPED failed
+    // Try INVIDIOUS instances concurrently (direct only)
     try {
       const results = await fetchFromFirstSuccessfulInstance(
         INVIDIOUS_INSTANCES,
         async (instance, signal) => {
           const targetUrl = `${instance}/api/v1/channels/${channelId}`;
-          const response = await robustFetch(targetUrl, signal);
+          const response = await robustFetch(targetUrl, signal, true); // SKIP PROXIES
           if (!response.ok) throw new Error(`HTTP ${response.status}`);
           const data = await response.json();
           const videos = Array.isArray(data) ? data : (data.videos || data.relatedStreams || []);
@@ -952,16 +1002,41 @@ export default function App() {
           if (mapped.length > 0) return mapped;
           throw new Error('Empty videos');
         },
-        3000
+        1800
       );
       return results.slice(0, limit);
     } catch (invidiousErr) {
-      console.error('All Invidious instances failed for channel uploads:', invidiousErr);
+      console.warn('All Invidious instances failed direct channel uploads, trying single proxy fallback:', invidiousErr);
+    }
+
+    // ULTIMATE FALLBACK: Try a single Piped instance with proxies
+    try {
+      const targetUrl = `${PIPED_INSTANCES[0]}/channel/${channelId}`;
+      const response = await robustFetch(targetUrl, undefined, false); // ALLOW PROXIES
+      if (response.ok) {
+        const data = await response.json();
+        if (data && data.relatedStreams && Array.isArray(data.relatedStreams)) {
+          const mapped = data.relatedStreams.map((item: any) => {
+            const ytMatch = item.url.match(/(?:v=|\/watch\?v=)([^"&?\/\s]{11})/i);
+            const videoId = ytMatch ? ytMatch[1] : '';
+            return {
+              id: videoId,
+              title: decodeHTMLEntities(item.title),
+              artist: decodeHTMLEntities(item.uploaderName || 'Unknown Artist'),
+              thumbnail: `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`,
+              videoId: videoId,
+              channelId: channelId
+            };
+          }).filter((item: any) => item.id.length === 11);
+          if (mapped.length > 0) return mapped.slice(0, limit);
+        }
+      }
+    } catch (proxyErr) {
+      console.error('All direct and proxy channel fetches failed:', proxyErr);
     }
 
     return [];
   };
-
   // Helper to determine if query matches an artist profile search
   const shouldShowArtistCard = (query: string) => {
     const trimmed = query.trim().toLowerCase();
