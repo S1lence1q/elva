@@ -1776,23 +1776,23 @@ export default function App() {
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -10 }}
                       transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-                      className="w-full max-w-5xl px-4 flex flex-col h-[calc(100vh-80px)] z-10"
+                      className="w-full max-w-5xl px-4 flex flex-col h-[calc(100vh-80px)] overflow-y-auto scrollbar-none z-10"
                     >
                       {/* Navigation bar above the layout */}
-                      <div className="flex items-center justify-between w-full pb-4 border-b border-white/5 shrink-0">
+                      <div className="flex items-center justify-between w-full pb-3 border-b border-white/5 shrink-0 px-2 select-none">
                         <button
                           onClick={() => {
                             setSelectedArtist(null);
                             setArtistTracks([]);
                           }}
-                          className="flex items-center gap-1.5 text-white/50 hover:text-white transition-all cursor-pointer group/back text-xs font-semibold py-1 px-3 rounded-full hover:bg-white/5"
+                          className="flex items-center gap-1.5 text-white/50 hover:text-white transition-all cursor-pointer group/back text-xs font-semibold py-1 px-3 rounded-full hover:bg-white/5 -ml-3"
                           title="Back to search results"
                         >
                           <ArrowLeft className="w-3.5 h-3.5 group-hover/back:-translate-x-0.5 transition-transform" />
                           <span>Back to Search</span>
                         </button>
                         <div 
-                          className="text-lg tracking-[0.2em] uppercase font-light text-white select-none cursor-pointer hover:opacity-85 transition-opacity"
+                          className="text-lg tracking-[0.2em] uppercase font-light text-white select-none cursor-pointer hover:opacity-85 transition-opacity -mr-2"
                           style={{ fontFamily: '"Kaobe", serif' }}
                           onClick={() => {
                             setSelectedArtist(null);
@@ -1804,7 +1804,7 @@ export default function App() {
                       </div>
 
                       {/* Immersive Widescreen Artist Hero Banner */}
-                      <div className="relative w-full rounded-3xl overflow-hidden border border-white/[0.06] bg-white/[0.01] backdrop-blur-2xl shadow-2xl p-6 md:p-8 flex flex-col md:flex-row items-center md:items-end gap-6 md:gap-8 shrink-0 min-h-[220px] md:min-h-[260px] mt-4">
+                      <div className="relative w-full rounded-3xl overflow-hidden border border-white/[0.06] bg-white/[0.01] backdrop-blur-2xl shadow-2xl py-4 px-6 md:py-5 md:px-8 flex flex-col md:flex-row items-center gap-6 md:gap-8 shrink-0 mt-4">
                         {/* Ambient dynamic theme glow behind/inside the banner */}
                         {artistColors && (
                           <div 
@@ -1850,19 +1850,10 @@ export default function App() {
                       </div>
 
                       {/* Single Column Discography (Full Width & Premium Center-aligned) */}
-                      <div className="flex-1 flex flex-col gap-6 mt-6 overflow-hidden min-h-0 pb-6 w-full max-w-4xl mx-auto">
+                      <div className="flex flex-col gap-6 mt-6 pb-24 w-full max-w-4xl mx-auto">
                         
                         {/* COLUMN 1: Discography Section */}
-                        <div className="flex-1 flex flex-col min-h-0 bg-white/[0.01] border border-white/[0.04] rounded-3xl p-6 md:p-8 backdrop-blur-xl relative overflow-hidden">
-                          {/* Ambient glow inside list */}
-                          {artistColors && (
-                            <div 
-                              className="absolute -bottom-16 -left-16 w-56 h-56 rounded-full blur-[65px] opacity-15 pointer-events-none"
-                              style={{
-                                background: `radial-gradient(circle, ${artistColors.solidGlow} 0%, rgba(255,255,255,0) 70%)`
-                              }}
-                            />
-                          )}
+                        <div className="w-full flex flex-col relative">
 
                           <div className="flex items-center justify-between pb-3 border-b border-white/5 shrink-0 z-10 relative">
                             <span className="text-[10px] text-white/40 font-bold uppercase tracking-wider">Official Releases</span>
@@ -1871,8 +1862,8 @@ export default function App() {
                             </span>
                           </div>
                           
-                          {/* Spacious Scrollable track list */}
-                          <div className="flex-1 overflow-y-auto scrollbar-none space-y-1.5 mt-4 pr-1 z-10 relative">
+                          {/* Spacious track list flowing naturally */}
+                          <div className="w-full space-y-2 mt-4 z-10 relative">
                             {isLoadingArtist ? (
                               /* Pulsing skeleton list */
                               <div className="space-y-3">
