@@ -30,6 +30,52 @@ const decodeHTMLEntities = (text: string): string => {
   }
 };
 
+const getArtistDynamicColors = (name: string) => {
+  const nameLower = name.toLowerCase();
+  
+  if (nameLower.includes('kundo')) {
+    // Beautiful emerald / mint green tint matching Kundo's signature aesthetics
+    return {
+      accent: '#10b981',
+      glow: 'rgba(16, 185, 129, 0.15)',
+      bgGlow: 'rgba(16, 185, 129, 0.38)',
+      solidGlow: 'rgba(16, 185, 129, 0.55)',
+      gradient: 'from-emerald-500/30 to-transparent',
+      rgbaGlow: 'rgba(16, 185, 129, 0.22)'
+    };
+  }
+  
+  if (nameLower.includes('kesi')) {
+    // Stunning warm sunset amber gold matching Kesi's branding
+    return {
+      accent: '#f59e0b',
+      glow: 'rgba(245, 158, 11, 0.15)',
+      bgGlow: 'rgba(245, 158, 11, 0.38)',
+      solidGlow: 'rgba(245, 158, 11, 0.55)',
+      gradient: 'from-amber-500/30 to-transparent',
+      rgbaGlow: 'rgba(245, 158, 11, 0.22)'
+    };
+  }
+
+  // Fallback HSL generator (deterministic and highly premium)
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const h = Math.abs(hash % 360);
+  const s = 70 + (Math.abs(hash) % 15);
+  const l = 40 + (Math.abs(hash) % 12);
+  
+  return {
+    accent: `hsl(${h}, ${s}%, ${l}%)`,
+    glow: `hsla(${h}, ${s}%, ${l}%, 0.15)`,
+    bgGlow: `hsla(${h}, ${s}%, ${l}%, 0.32)`,
+    solidGlow: `hsla(${h}, ${s}%, ${l}%, 0.5)`,
+    gradient: `from-[hsl(${h},${s}%,${l}%)] to-transparent`,
+    rgbaGlow: `hsla(${h}, ${s}%, ${l}%, 0.2)`
+  };
+};
+
 const fetchWithTimeout = async (url: string, options: RequestInit = {}, timeoutMs: number = 4000): Promise<Response> => {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeoutMs);
@@ -358,6 +404,7 @@ export default function App() {
   }, [searchQuery, searchResults, selectedArtist]);
 
   const theme = ACCENT_THEMES[accentColor];
+  const artistColors = selectedArtist ? getArtistDynamicColors(selectedArtist.name) : null;
 
   // Helper mappings for dynamic class bindings
   const welcomeBgB = {
@@ -1538,6 +1585,20 @@ export default function App() {
           }}
           className={`absolute top-1/3 left-1/4 w-[500px] h-[500px] rounded-full blur-[110px] bg-gradient-to-br ${welcomeBgB[accentColor]} via-neutral-100/5 to-transparent`}
         />
+
+        {/* Cinematic Dynamic Artist Background Glow! */}
+        {selectedArtist && artistColors && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 0.65, scale: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[850px] h-[850px] rounded-full blur-[130px] pointer-events-none z-[1]"
+            style={{
+              background: `radial-gradient(circle, ${artistColors.bgGlow} 0%, ${artistColors.glow} 45%, rgba(10,10,10,0) 80%)`
+            }}
+          />
+        )}
       </motion.div>
 
       <AnimatePresence>
@@ -1743,50 +1804,65 @@ export default function App() {
                       </div>
 
                       {/* Immersive Widescreen Artist Hero Banner */}
-                      <div className="relative w-full rounded-3xl overflow-hidden border border-white/[0.06] bg-white/[0.01] backdrop-blur-2xl shadow-2xl p-6 md:p-8 flex flex-col md:flex-row items-center md:items-end gap-6 md:gap-8 shrink-0 min-h-[180px] md:min-h-[220px] mt-4">
+                      <div className="relative w-full rounded-3xl overflow-hidden border border-white/[0.06] bg-white/[0.01] backdrop-blur-2xl shadow-2xl p-6 md:p-8 flex flex-col md:flex-row items-center md:items-end gap-6 md:gap-8 shrink-0 min-h-[220px] md:min-h-[260px] mt-4">
                         {/* Ambient dynamic theme glow behind/inside the banner */}
-                        <div className={`absolute top-0 right-0 w-80 h-80 rounded-full blur-[75px] bg-gradient-to-br ${theme.welcomeFrom} opacity-40 pointer-events-none`} />
+                        {artistColors && (
+                          <div 
+                            className="absolute top-0 right-0 w-80 h-80 rounded-full blur-[75px] opacity-40 pointer-events-none"
+                            style={{
+                              background: `radial-gradient(circle, ${artistColors.solidGlow} 0%, rgba(255,255,255,0) 70%)`
+                            }}
+                          />
+                        )}
                         
                         {/* Giant circular avatar with high-end border */}
-                        <div className="relative w-28 h-28 md:w-36 md:h-36 rounded-full overflow-hidden border-2 border-white/10 shadow-2xl transition-transform duration-500 hover:scale-105 shrink-0 z-10">
+                        <div className="relative w-36 h-36 md:w-48 md:h-48 rounded-full overflow-hidden border-2 border-white/10 shadow-2xl transition-transform duration-500 hover:scale-105 shrink-0 z-10">
                           <img src={selectedArtist.thumbnail} alt={selectedArtist.name} className="w-full h-full object-cover scale-105" />
                         </div>
                         
                         {/* Hero Info Text (aligned bottom-left on desktop) */}
                         <div className="flex flex-col text-center md:text-left relative z-10">
                           <div className="flex items-center justify-center md:justify-start gap-2">
-                            <span className={`flex items-center gap-1 text-[9px] font-bold ${theme.badgeText} tracking-wider ${theme.badgeBg} border ${theme.badgeBorder} px-2.5 py-0.5 rounded-md uppercase`}>
+                            <span className="flex items-center gap-1 text-[9px] font-bold text-white/50 bg-white/5 border border-white/10 px-2.5 py-0.5 rounded-md uppercase tracking-wider">
                               ✦ Verified Artist
                             </span>
                           </div>
                           
                           <h2 
-                            className="text-4xl md:text-5xl font-normal text-white mt-3 md:mt-4 tracking-wide leading-tight"
+                            className="text-5xl md:text-7xl lg:text-8xl font-normal text-white mt-3 md:mt-4 tracking-wide leading-none"
                             style={{ fontFamily: '"Kaobe", serif' }}
                           >
                             {selectedArtist.name}
                           </h2>
                           
-                          {selectedArtist.disambiguation && (
-                            <p className="text-xs text-white/50 mt-2 font-medium max-w-xl leading-relaxed italic">
-                              {selectedArtist.disambiguation} {selectedArtist.country && `(${selectedArtist.country})`}
-                            </p>
-                          )}
-                          {!selectedArtist.disambiguation && selectedArtist.country && (
-                            <p className="text-xs text-white/50 mt-2 font-medium max-w-xl leading-relaxed italic">
-                              Artist from {selectedArtist.country}
-                            </p>
-                          )}
+                          <p className="text-[10px] md:text-xs text-white/40 font-bold tracking-[0.25em] uppercase mt-3 md:mt-4">
+                            {selectedArtist.name.toLowerCase().includes('kesi') || selectedArtist.name.toLowerCase().includes('kundo')
+                              ? 'DANISH RAPPER • DK'
+                              : (() => {
+                                  const countryText = selectedArtist.country ? selectedArtist.country.toUpperCase() : 'DK';
+                                  const tags = (selectedArtist.tags || []).slice(0, 2).map(t => t.toUpperCase());
+                                  if (tags.length === 0) tags.push('ARTIST');
+                                  return `${tags.join(' • ')} • ${countryText}`;
+                                })()
+                            }
+                          </p>
                         </div>
                       </div>
 
-                      {/* Two-Column Cinematic Content Layout */}
-                      <div className="flex-1 flex flex-col md:flex-row gap-6 mt-6 overflow-hidden min-h-0 pb-6">
+                      {/* Single Column Discography (Full Width & Premium Center-aligned) */}
+                      <div className="flex-1 flex flex-col gap-6 mt-6 overflow-hidden min-h-0 pb-6 w-full max-w-4xl mx-auto">
                         
-                        {/* COLUMN 1: Discography Section (Left / 65% width) */}
-                        <div className="flex-1 md:flex-[1.8] flex flex-col min-h-0 bg-white/[0.01] border border-white/[0.04] rounded-3xl p-6 backdrop-blur-xl relative overflow-hidden">
+                        {/* COLUMN 1: Discography Section */}
+                        <div className="flex-1 flex flex-col min-h-0 bg-white/[0.01] border border-white/[0.04] rounded-3xl p-6 md:p-8 backdrop-blur-xl relative overflow-hidden">
                           {/* Ambient glow inside list */}
-                          <div className={`absolute -bottom-16 -left-16 w-56 h-56 rounded-full blur-[65px] bg-gradient-to-br ${theme.welcomeFrom} opacity-15 pointer-events-none`} />
+                          {artistColors && (
+                            <div 
+                              className="absolute -bottom-16 -left-16 w-56 h-56 rounded-full blur-[65px] opacity-15 pointer-events-none"
+                              style={{
+                                background: `radial-gradient(circle, ${artistColors.solidGlow} 0%, rgba(255,255,255,0) 70%)`
+                              }}
+                            />
+                          )}
 
                           <div className="flex items-center justify-between pb-3 border-b border-white/5 shrink-0 z-10 relative">
                             <span className="text-[10px] text-white/40 font-bold uppercase tracking-wider">Official Releases</span>
@@ -1827,7 +1903,7 @@ export default function App() {
                                       key={`artist-track-${track.id}`}
                                       initial={{ opacity: 0, y: 5 }}
                                       animate={{ opacity: 1, y: 0 }}
-                                      className={`group w-full flex items-center gap-4 p-2.5 rounded-2xl border transition-all duration-300 cursor-pointer ${
+                                      className={`group w-full flex items-center gap-4 py-4 px-6 rounded-2xl border transition-all duration-300 cursor-pointer ${
                                         loadingSongId === track.id
                                           ? `${theme.borderActive} ${theme.bgActive}`
                                           : isFocused
@@ -1858,8 +1934,8 @@ export default function App() {
                                       </div>
 
                                       <div className="flex-1 text-left min-w-0">
-                                        <h3 className={`text-xs md:text-sm font-semibold truncate transition-colors duration-300 ${
-                                          loadingSongId === track.id ? `${theme.text} font-semibold` : 'text-white/90 group-hover:text-white tracking-tight'
+                                        <h3 className={`text-sm md:text-base font-semibold truncate transition-colors duration-300 ${
+                                          loadingSongId === track.id ? `${theme.text}` : 'text-white/90 group-hover:text-white tracking-tight'
                                         }`}>
                                           {track.title}
                                         </h3>
@@ -1873,10 +1949,10 @@ export default function App() {
                                           e.stopPropagation();
                                           handleAddToQueue(track);
                                         }}
-                                        className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold ${theme.textLight} ${theme.bgFade} hover:${theme.bgHover} border ${theme.borderLight} hover:${theme.borderActive} rounded-full transition-all shrink-0 cursor-pointer`}
+                                        className={`opacity-0 group-hover:opacity-100 flex items-center gap-1.5 px-4 py-2 text-[10px] font-bold ${theme.textLight} ${theme.bgFade} hover:${theme.bgHover} border ${theme.borderLight} hover:${theme.borderActive} rounded-full transition-all duration-300 shrink-0 cursor-pointer`}
                                         title="Add to queue"
                                       >
-                                        <Plus className={`w-3 h-3 ${theme.text}`} />
+                                        <Plus className={`w-3.5 h-3.5 ${theme.text}`} />
                                         <span>Queue</span>
                                       </button>
                                     </motion.div>
@@ -1886,59 +1962,6 @@ export default function App() {
                             )}
                           </div>
                         </div>
-
-                        {/* COLUMN 2: Spotlight / Info Card (Right / 35% width) */}
-                        <div className="hidden md:flex flex-col md:flex-[1] bg-white/[0.01] border border-white/[0.04] rounded-3xl p-6 backdrop-blur-xl relative overflow-hidden shrink-0">
-                          <div className="flex items-center gap-2 pb-3 border-b border-white/5 shrink-0 z-10 relative">
-                            <span className="text-[10px] text-white/40 font-bold uppercase tracking-wider">Artist Spotlight</span>
-                          </div>
-
-                          <div className="flex-1 flex flex-col justify-between space-y-6 mt-4 z-10 relative">
-                            <div className="space-y-4">
-                              <div>
-                                <h4 className="text-[10px] text-white/30 uppercase tracking-widest font-semibold">Origin & Location</h4>
-                                <p className="text-xs text-white/70 mt-1 font-medium leading-relaxed">
-                                  {selectedArtist.country ? `Based in ${selectedArtist.country}` : 'International Artist'}
-                                </p>
-                              </div>
-
-                              {selectedArtist.tags && selectedArtist.tags.length > 0 && (
-                                <div>
-                                  <h4 className="text-[10px] text-white/30 uppercase tracking-widest font-semibold mb-2">Primary Tags</h4>
-                                  <div className="flex flex-wrap gap-1.5">
-                                    {selectedArtist.tags.map((tag) => (
-                                      <span
-                                        key={tag}
-                                        className="text-[9px] font-bold text-white/50 bg-white/5 border border-white/10 px-2.5 py-1 rounded-md uppercase tracking-wider"
-                                      >
-                                        {tag}
-                                      </span>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                              
-                              <div className="pt-2">
-                                <h4 className="text-[10px] text-white/30 uppercase tracking-widest font-semibold">Profile verification</h4>
-                                <p className="text-[10px] text-white/40 mt-1 leading-normal font-light">
-                                  Verified metadata sourced securely via MusicBrainz and MusicBrainz community contributors.
-                                </p>
-                              </div>
-                            </div>
-
-                            {/* Accent panel */}
-                            <div className={`relative overflow-hidden p-4 rounded-2xl bg-gradient-to-br ${theme.fromGradient} to-white/[0.01] border border-white/5 shadow-md flex items-center gap-3 shrink-0`}>
-                              <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center shrink-0">
-                                <Music className={`w-4 h-4 ${theme.text}`} />
-                              </div>
-                              <div className="text-left">
-                                <p className="text-[10px] font-bold text-white/80 tracking-wide uppercase">Interactive Visuals</p>
-                                <p className="text-[9px] text-white/45 mt-0.5 leading-normal">Ambient colors automatically map to matches of the artwork profile.</p>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
                       </div>
                     </motion.div>
                   ) : (
