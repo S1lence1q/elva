@@ -1,0 +1,273 @@
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Play, Pause, SkipBack, SkipForward, Heart, ListPlus } from 'lucide-react';
+import * as Slider from '@radix-ui/react-slider';
+import { SearchResult } from '../types';
+
+interface PlayerControlsProps {
+  songData: {
+    title: string;
+    artist: string;
+    artworkUrl: string;
+    audioUrl: string;
+    videoId?: string;
+  };
+  currentTime: number;
+  duration: number;
+  isPlaying: boolean;
+  waveformData: number[];
+  isArtworkHovered: boolean;
+  tourType: 'landing' | 'player' | null;
+  currentStep: number | undefined;
+  handleSliderChange: (value: number[]) => void;
+  handlePreviousSong: () => void;
+  handleNextSong: () => void;
+  togglePlayPause: () => void;
+  formatTime: (time: number) => string;
+  favorites?: SearchResult[];
+  onToggleFavorite?: (song: SearchResult) => void;
+  onAddToPlaylist?: (playlistId: string) => void;
+}
+
+export const PlayerControls: React.FC<PlayerControlsProps> = ({
+  songData,
+  currentTime,
+  duration,
+  isPlaying,
+  waveformData,
+  isArtworkHovered,
+  tourType,
+  currentStep,
+  handleSliderChange,
+  handlePreviousSong,
+  handleNextSong,
+  togglePlayPause,
+  formatTime,
+  favorites = [],
+  onToggleFavorite,
+  onAddToPlaylist
+}) => {
+  const [showPlaylistMenu, setShowPlaylistMenu] = useState(false);
+  const [playlists, setPlaylists] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (showPlaylistMenu) {
+      try {
+        const stored = localStorage.getItem('elva_playlists');
+        if (stored) setPlaylists(JSON.parse(stored));
+      } catch (e) {}
+    }
+  }, [showPlaylistMenu]);
+
+  const isFavorite = favorites.some(fav => fav.id === (songData.videoId || songData.audioUrl));
+
+  return (
+    <div 
+      className={`absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-black/20 transition-all duration-300 ${
+        (isArtworkHovered || !isPlaying || (tourType !== null && currentStep === 1) || showPlaylistMenu) ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+      }`}
+    >
+      {/* Song info - top */}
+      <div className="absolute top-8 left-0 right-0 flex flex-col items-center text-center px-8 z-20">
+        <div className="flex items-center gap-2.5 max-w-full justify-center">
+          <h2 className="text-xl text-white/90 font-medium tracking-tight truncate max-w-[200px] sm:max-w-[280px]" style={{ letterSpacing: '-0.01em' }}>
+            {songData.title}
+          </h2>
+          
+          {/* Heart Button */}
+          {onToggleFavorite && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleFavorite({
+                  id: songData.videoId || songData.audioUrl,
+                  videoId: songData.videoId || '',
+                  title: songData.title,
+                  artist: songData.artist,
+                  thumbnail: songData.artworkUrl,
+                });
+              }}
+              className="p-1.5 rounded-xl hover:bg-white/10 text-white/30 hover:text-white cursor-pointer shrink-0 transition-all"
+              title={isFavorite ? "Fjern fra favoritter" : "Marker som favorit"}
+            >
+              <Heart className={`w-4 h-4 ${isFavorite ? 'text-red-500 fill-red-500' : ''}`} />
+            </button>
+          )}
+
+          {/* Add to Playlist button */}
+          {onAddToPlaylist && (
+            <div className="relative shrink-0" onClick={(e) => e.stopPropagation()}>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowPlaylistMenu(!showPlaylistMenu);
+                }}
+                className={`p-1.5 rounded-xl hover:bg-white/10 text-white/30 hover:text-white cursor-pointer transition-all ${showPlaylistMenu ? 'bg-white/15 text-white' : ''}`}
+                title="Tilføj til playliste"
+              >
+                <ListPlus className="w-4 h-4" />
+              </button>
+
+              {/* Glassmorphic Dropdown Menu */}
+              <AnimatePresence>
+                {showPlaylistMenu && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                    transition={{ duration: 0.2 }}
+                    className="absolute top-8 right-0 w-48 rounded-2xl border border-white/10 bg-black/80 backdrop-blur-2xl p-2.5 shadow-2xl text-left flex flex-col gap-1 z-[100]"
+                  >
+                    <span className="text-[9px] font-bold text-white/30 tracking-wider uppercase px-2 py-1 select-none">Vælg Playliste</span>
+                    <div className="max-h-[140px] overflow-y-auto scrollbar-none flex flex-col gap-0.5">
+                      {playlists.length > 0 ? (
+                        playlists.map((pl) => (
+                          <button
+                            key={pl.id}
+                            onClick={() => {
+                              onAddToPlaylist(pl.id);
+                              setShowPlaylistMenu(false);
+                            }}
+                            className="w-full text-left text-xs text-white/70 hover:text-white hover:bg-white/10 rounded-xl px-2.5 py-2 transition-all cursor-pointer truncate"
+                          >
+                            {pl.name}
+                          </button>
+                        ))
+                      ) : (
+                        <div className="text-[10px] text-white/30 px-2.5 py-3 text-center leading-normal">
+                          Ingen playlister oprettet. Opret i Mit Hub!
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          )}
+
+        </div>
+        <p className="text-sm text-white/60 tracking-wide mt-0.5" style={{ letterSpacing: '0.02em' }}>{songData.artist}</p>
+      </div>
+
+      {/* Controls container */}
+      <div className="absolute inset-0 flex flex-col justify-end p-8 z-10">
+        {/* Timeline section */}
+        <div className="space-y-2 mb-6" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+          <Slider.Root
+            value={[currentTime]}
+            max={duration}
+            step={0.1}
+            onValueChange={handleSliderChange}
+            onKeyDown={(e) => {
+              if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
+                e.preventDefault();
+              }
+            }}
+            className="relative flex items-center w-full h-12 cursor-pointer group/slider"
+          >
+            {/* Minimalistic waveform backdrop */}
+            <div className="absolute inset-0 flex items-center gap-[2px] px-0.5">
+              {waveformData.map((height, i) => {
+                const progress = (currentTime / duration) * 100;
+                const barProgress = (i / waveformData.length) * 100;
+                const isPlayed = barProgress <= progress;
+
+                return (
+                  <div
+                    key={i}
+                    className="flex-1 rounded-full transition-all duration-150"
+                    style={{
+                      height: `${height * 16}px`,
+                      backgroundColor: isPlayed ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.15)',
+                      opacity: 0.6,
+                    }}
+                  />
+                );
+              })}
+            </div>
+
+            <Slider.Track className="relative h-[3px] w-full bg-transparent rounded-full overflow-hidden">
+              <Slider.Range className="absolute h-full bg-transparent" />
+            </Slider.Track>
+            <Slider.Thumb
+              className="block w-3 h-3 rounded-full bg-white opacity-0 group-hover/slider:opacity-100 transition-opacity duration-150 focus:outline-none focus:opacity-100"
+            />
+          </Slider.Root>
+
+          {/* Time display */}
+          <div className="flex justify-between">
+            <span className="text-xs text-white/70 tabular-nums font-medium">
+              {formatTime(currentTime)}
+            </span>
+            <span className="text-xs text-white/70 tabular-nums font-medium">
+              {formatTime(duration)}
+            </span>
+          </div>
+        </div>
+
+        {/* Playback controls - under timeline */}
+        <div id="music-controls" className="flex items-center justify-center gap-4" onClick={(e) => e.stopPropagation()}>
+          {/* Previous song */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handlePreviousSong();
+            }}
+            className="p-3 rounded-full bg-white/5 hover:bg-white/10 active:scale-95 border border-white/10 hover:border-white/20 transition-all cursor-pointer group"
+            title="Previous Song"
+          >
+            <SkipBack className="w-5 h-5 text-white/70 group-hover:text-white transition-colors" />
+          </button>
+
+          {/* Play/Pause button */}
+          <button
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              togglePlayPause();
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              togglePlayPause();
+            }}
+            className="relative group/button active:scale-95 transition-all cursor-pointer"
+            title={isPlaying ? "Pause" : "Play"}
+          >
+            <div className="relative px-12 py-4 rounded-full bg-white/10 hover:bg-white/15 border border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.3)] overflow-hidden transition-all">
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover/button:translate-x-full transition-transform duration-1000" />
+              <div className="relative flex items-center justify-center">
+                {isPlaying ? (
+                  <Pause className="w-6 h-6 text-white fill-white" />
+                ) : (
+                  <Play className="w-6 h-6 text-white fill-white ml-0.5" />
+                )}
+              </div>
+              <AnimatePresence>
+                {isPlaying && (
+                  <motion.div
+                    initial={{ scaleX: 0 }}
+                    animate={{ scaleX: 1 }}
+                    exit={{ scaleX: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="absolute bottom-0 left-0 right-0 h-[1px] bg-white/40 origin-left"
+                  />
+                )}
+              </AnimatePresence>
+            </div>
+          </button>
+
+          {/* Next song */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleNextSong();
+            }}
+            className="p-3 rounded-full bg-white/5 hover:bg-white/10 active:scale-95 border border-white/10 hover:border-white/20 transition-all cursor-pointer group"
+            title="Next Song"
+          >
+            <SkipForward className="w-5 h-5 text-white/70 group-hover:text-white transition-colors" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};

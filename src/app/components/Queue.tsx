@@ -614,7 +614,7 @@ export function Queue({
         animate={{ x: 0 }}
         exit={{ x: '100%' }}
         transition={{ type: 'spring', damping: 26, stiffness: 220 }}
-        className="fixed right-0 top-0 bottom-0 w-full max-w-[400px] bg-neutral-950/40 backdrop-blur-3xl border-l border-white/10 z-50 flex flex-col shadow-[-20px_0_60px_rgba(0,0,0,0.65)] pointer-events-auto overflow-hidden"
+        className="fixed right-0 top-0 bottom-0 w-full max-w-[460px] bg-neutral-950/40 backdrop-blur-3xl border-l border-white/10 z-50 flex flex-col shadow-[-20px_0_60px_rgba(0,0,0,0.65)] pointer-events-auto overflow-hidden"
       >
         {/* Ambient background glow reflecting theme colors */}
         <div
@@ -668,12 +668,12 @@ export function Queue({
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
               transition={{ duration: 0.22, ease: "easeInOut" }}
-              className="relative px-5 py-4 border-b border-white/5 shrink-0 z-10 flex gap-2 bg-black/5 overflow-hidden"
+              className="relative px-5 py-4 border-b border-white/5 shrink-0 z-10 flex gap-2 bg-black/5 overflow-hidden items-center"
             >
               <div className="relative flex-1">
                 <button
                   onClick={handleSearch}
-                  className="absolute left-2.5 top-1/2 -translate-y-1/2 p-1.5 hover:bg-white/5 rounded-lg text-white/30 hover:text-white/60 transition-all cursor-pointer z-10"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 p-1.5 hover:bg-white/5 rounded-lg text-white/30 hover:text-white/60 transition-all cursor-pointer z-10"
                   title="Search"
                 >
                   <Search className="w-4 h-4" />
@@ -685,12 +685,12 @@ export function Queue({
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                   placeholder="Search or paste link..."
-                  className="w-full pl-11 pr-10 py-2.5 rounded-xl bg-white/5 border border-white/8 hover:border-white/15 focus:border-white/20 text-white placeholder-white/35 text-xs focus:outline-none transition-all duration-200"
+                  className="w-full pl-12 pr-10 py-3 rounded-2xl bg-white/5 border border-white/8 hover:border-white/15 focus:border-white/20 text-white placeholder-white/35 text-sm focus:outline-none transition-all duration-200"
                 />
                 {searchQuery && (
                   <button
                     onClick={() => setSearchQuery('')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-white/10 rounded-full text-white/40 hover:text-white/60 transition-colors z-10"
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1 hover:bg-white/10 rounded-full text-white/40 hover:text-white/60 transition-colors z-10"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -700,7 +700,7 @@ export function Queue({
               {/* Quick upload button */}
               <button
                 onClick={handleUploadClick}
-                className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/8 hover:border-white/15 active:scale-95 transition-all text-white/50 hover:text-white shrink-0 cursor-pointer flex items-center justify-center"
+                className="w-[46px] h-[46px] p-0 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/8 hover:border-white/15 active:scale-95 transition-all text-white/50 hover:text-white shrink-0 cursor-pointer flex items-center justify-center"
                 title="Upload audio file"
               >
                 <Upload className="w-4 h-4" />
@@ -717,7 +717,7 @@ export function Queue({
         </AnimatePresence>
 
         {/* Drawer Content */}
-        <div className="flex-1 overflow-y-auto p-4 scrollbar-none relative z-10">
+        <div className={`flex-1 overflow-y-auto scrollbar-none relative z-10 pb-[120px] ${selectedArtist ? 'p-0' : 'p-4'}`}>
           <AnimatePresence mode="wait">
             {isLoadingArtist ? (
               /* Artist Loading Spinner */
@@ -742,49 +742,43 @@ export function Queue({
                 transition={{ type: 'spring', damping: 25, stiffness: 200 }}
                 className="space-y-6"
               >
-                {/* Cohesive Compact Artist Header Card - Centered mini-hero style */}
-                <div className="relative overflow-hidden p-5 rounded-2xl bg-white/[0.01] border border-white/[0.06] backdrop-blur-md flex flex-col items-center text-center group shadow-md w-full">
-                  {/* Ambient dynamic theme glow in background */}
-                  <div className={`absolute -top-10 w-36 h-36 rounded-full blur-[45px] bg-gradient-to-br ${fromAccent02[accentColor]} opacity-20 pointer-events-none`} />
-
-                  {/* Centered avatar with scale zoom */}
-                  <div className={`relative w-16 h-16 rounded-full overflow-hidden border-2 ${borderAccent20[accentColor]} shadow-md group-hover:scale-105 transition-transform duration-300 shrink-0`}>
-                    <img src={selectedArtist.thumbnail} alt={selectedArtist.name} className="w-full h-full object-cover scale-105" />
+                {/* Cinematic Widescreen Artist Profile Banner (100% width, fades to black bottom) */}
+                <div className="relative w-full h-56 overflow-hidden select-none shrink-0">
+                  <img src={selectedArtist.thumbnail} alt={selectedArtist.name} className="w-full h-full object-cover" />
+                  {/* Elegant fade mask into the dark panel background */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-neutral-950 via-neutral-950/45 to-transparent" />
+                  
+                  {/* absolute overlay labels */}
+                  <div className="absolute bottom-4 left-6 right-6 text-left">
+                    <span className={`inline-flex items-center gap-1 text-[10px] font-bold ${textAccent300[accentColor]} tracking-wider ${bgAccent10[accentColor]} ${borderAccent20[accentColor]} px-2.5 py-1 rounded uppercase shrink-0`}>
+                      ✦ Verified Artist
+                    </span>
+                    <h2 
+                      className="text-2xl font-normal text-white mt-1.5 tracking-wide leading-tight"
+                      style={{ fontFamily: '"Kaobe", serif' }}
+                    >
+                      {selectedArtist.name}
+                    </h2>
+                    {selectedArtist.disambiguation && (
+                      <p className="text-xs text-white/60 mt-1 max-w-xs font-light leading-relaxed italic truncate">
+                        {selectedArtist.disambiguation}
+                      </p>
+                    )}
                   </div>
-
-                  {/* Serif artist name */}
-                  <h2 
-                    className="text-base font-normal text-white mt-3 tracking-wide leading-tight"
-                    style={{ fontFamily: '"Kaobe", serif' }}
-                  >
-                    {selectedArtist.name}
-                  </h2>
-
-                  {/* Verified badge */}
-                  <span className={`mt-2 flex items-center gap-1 text-[8px] font-bold ${textAccent300[accentColor]} tracking-wider ${bgAccent10[accentColor]} ${borderAccent20[accentColor]} px-2 py-0.5 rounded uppercase shrink-0`}>
-                    ✦ Verified Artist
-                  </span>
-
-                  {/* Country / description */}
-                  {selectedArtist.disambiguation && (
-                    <p className="text-[10px] text-white/50 mt-2 max-w-xs font-light leading-relaxed italic">
-                      {selectedArtist.disambiguation}
-                    </p>
-                  )}
                 </div>
 
                 {/* Styled Official Discography Divider Header for Sidebar Drawer */}
-                <div className="flex items-center justify-between px-2 py-1.5 border-b border-white/5">
+                <div className="flex items-center justify-between px-6 py-2 border-b border-white/5">
                   <div className="flex items-center gap-1.5">
-                    <span className={`text-[10px] ${textAccent400[accentColor]} font-bold uppercase tracking-wider`}>Official Discography</span>
+                    <span className={`text-xs ${textAccent400[accentColor]} font-bold uppercase tracking-wider`}>Official Discography</span>
                   </div>
-                  <span className="text-[10px] text-white/30 font-medium uppercase tracking-widest bg-white/5 border border-white/8 px-1.5 py-0.5 rounded-md">
+                  <span className="text-xs text-white/45 font-medium uppercase tracking-widest bg-white/5 border border-white/5 px-2 py-0.5 rounded-md">
                     {artistTracks.length} tracks
                   </span>
                 </div>
 
-                {/* Tracks list */}
-                <div className="space-y-2">
+                {/* Tracks list - Direct flat list */}
+                <div className="space-y-0 flex flex-col bg-transparent">
                   {artistTracks.length === 0 ? (
                     <div className="py-12 text-center text-white/40">
                       <Music className="w-8 h-8 text-white/10 mx-auto mb-2" />
@@ -803,7 +797,7 @@ export function Queue({
                             onClose();
                           }
                         }}
-                        className="group w-full flex items-center gap-3 p-2.5 rounded-2xl bg-white/[0.02] hover:bg-white/[0.06] border border-white/5 hover:border-white/10 transition-all duration-300 cursor-pointer"
+                        className="group w-full flex items-center gap-3 py-3.5 px-6 border-b border-white/5 last:border-b-0 hover:bg-white/[0.02] transition-colors duration-300 cursor-pointer"
                       >
                         {/* Thumbnail with hover play icon */}
                         <div className="relative w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 bg-neutral-900 border border-white/5 shadow-md">
@@ -815,10 +809,10 @@ export function Queue({
 
                         {/* Info */}
                         <div className="flex-1 text-left min-w-0">
-                          <h3 className="text-xs font-semibold text-white/90 truncate group-hover:text-white transition-colors tracking-tight">
+                          <h3 className="text-sm font-semibold text-white/90 truncate group-hover:text-white transition-colors tracking-tight">
                             {track.title}
                           </h3>
-                          <p className="text-[10px] text-white/40 truncate mt-0.5 font-light">
+                          <p className="text-xs text-white/45 truncate mt-0.5 font-light">
                             {track.artist}
                           </p>
                         </div>
@@ -827,7 +821,7 @@ export function Queue({
                         {onAddToQueue && (
                           <button
                             onClick={(e) => handleAddSongToQueue(e, track)}
-                            className={`flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-bold ${textAccent300[accentColor]} ${bgAccent05[accentColor]} ${hoverBgAccent15[accentColor]} ${borderAccent10[accentColor]} ${hoverBorderAccent20[accentColor]} rounded-full transition-all shrink-0 cursor-pointer hover:scale-105 active:scale-95 shadow-sm`}
+                            className={`flex items-center gap-1 px-2.5 py-1 text-[10px] font-bold ${textAccent300[accentColor]} ${bgAccent05[accentColor]} hover:${bgAccent10[accentColor]} border ${borderAccent10[accentColor]} rounded-full transition-all shrink-0 cursor-pointer`}
                             title="Add to queue"
                           >
                             <Plus className={`w-3 h-3 ${textAccent400[accentColor]}`} />
@@ -863,7 +857,7 @@ export function Queue({
               >
                 {/* Search Results Header */}
                 <div className="flex items-center justify-between px-1.5 py-1 mb-3 border-b border-white/5 pb-2">
-                  <span className="text-[10px] text-white/35 font-bold uppercase tracking-wider">Search Results</span>
+                  <span className="text-xs text-white/45 font-bold uppercase tracking-wider">Search Results</span>
                 </div>
 
                 {/* Glowing Premium Clickable Artist Profile Card */}
@@ -948,10 +942,10 @@ export function Queue({
 
                     {/* Info */}
                     <div className="flex-1 text-left min-w-0">
-                      <h3 className="text-xs font-semibold text-white/90 truncate group-hover:text-white transition-colors tracking-tight">
+                      <h3 className="text-sm font-semibold text-white/90 truncate group-hover:text-white transition-colors tracking-tight">
                         {result.title}
                       </h3>
-                      <p className="text-[10px] text-white/40 truncate mt-0.5 font-light">
+                      <p className="text-xs text-white/45 truncate mt-0.5 font-light">
                         {result.artist}
                       </p>
                     </div>
@@ -1047,12 +1041,12 @@ export function Queue({
 
                           {/* Info */}
                           <div className="flex-1 text-left min-w-0">
-                            <h3 className={`text-xs font-semibold truncate tracking-tight transition-colors ${
+                            <h3 className={`text-sm font-semibold truncate tracking-tight transition-colors ${
                               isCurrent ? textAccent300[accentColor] : 'text-white/85 group-hover:text-white'
                             }`}>
                               {item.title}
                             </h3>
-                            <p className="text-[10px] text-white/35 truncate mt-0.5 font-light">
+                            <p className="text-xs text-white/40 truncate mt-0.5 font-light">
                               {item.artist}
                             </p>
                           </div>

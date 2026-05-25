@@ -1,6 +1,6 @@
-import { useEffect } from 'react';
-import { motion } from 'motion/react';
-import { X } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { X, ChevronDown } from 'lucide-react';
 import { AccentColor, ACCENT_THEMES } from './themeUtils';
 
 interface SettingsModalProps {
@@ -11,8 +11,6 @@ interface SettingsModalProps {
   onThemePresetChange?: (theme: 'dynamic' | 'cyberpunk' | 'obsidian' | 'aurora' | 'sunset') => void;
   accentColor?: AccentColor;
   onAccentColorChange?: (color: AccentColor) => void;
-  showVisualizer?: boolean;
-  onShowVisualizerChange?: (show: boolean) => void;
   showVolumeSlider?: boolean;
   onShowVolumeSliderChange?: (show: boolean) => void;
   zenMode?: boolean;
@@ -73,8 +71,6 @@ export function SettingsModal({
   onThemePresetChange,
   accentColor = 'emerald',
   onAccentColorChange,
-  showVisualizer = false,
-  onShowVisualizerChange,
   showVolumeSlider = false,
   onShowVolumeSliderChange,
   zenMode = false,
@@ -86,6 +82,7 @@ export function SettingsModal({
   textureStyle = 'paper',
   onTextureStyleChange
 }: SettingsModalProps) {
+  const [showAdvanced, setShowAdvanced] = useState(false);
   // Close with Escape or Cmd/Ctrl+,
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
@@ -189,68 +186,6 @@ export function SettingsModal({
             </div>
           </div>
 
-          {/* Appearance Section */}
-          <div>
-            <h3 className="text-sm font-medium text-white/60 mb-3 px-1">Background Style</h3>
-            <div className="space-y-2">
-              <button
-                onClick={() => onBackgroundStyleChange?.('default')}
-                className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all ${
-                  backgroundStyle === 'default'
-                    ? activeBorder
-                    : 'bg-white/5 border-white/10 hover:bg-white/8 hover:border-white/15'
-                }`}
-              >
-                <div className="text-left">
-                  <span className={`text-sm block font-light ${backgroundStyle === 'default' ? 'text-white' : 'text-white/70'}`}>Default</span>
-                  <span className="text-xs text-white/40">Subtle ambient gradients</span>
-                </div>
-              </button>
-
-              <button
-                onClick={() => onBackgroundStyleChange?.('particles')}
-                className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all ${
-                  backgroundStyle === 'particles'
-                    ? activeBorder
-                    : 'bg-white/5 border-white/10 hover:bg-white/8 hover:border-white/15'
-                }`}
-              >
-                <div className="text-left">
-                  <span className={`text-sm block font-light ${backgroundStyle === 'particles' ? 'text-white' : 'text-white/70'}`}>Particles</span>
-                  <span className="text-xs text-white/40">Floating particles & waves</span>
-                </div>
-              </button>
-
-              <button
-                onClick={() => onBackgroundStyleChange?.('liquid')}
-                className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all ${
-                  backgroundStyle === 'liquid'
-                    ? activeBorder
-                    : 'bg-white/5 border-white/10 hover:bg-white/8 hover:border-white/15'
-                }`}
-              >
-                <div className="text-left">
-                  <span className={`text-sm block font-light ${backgroundStyle === 'liquid' ? 'text-white' : 'text-white/70'}`}>Liquid (Classic)</span>
-                  <span className="text-xs text-white/40">Large flowing gradients</span>
-                </div>
-              </button>
-
-              <button
-                onClick={() => onBackgroundStyleChange?.('mesh')}
-                className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all ${
-                  backgroundStyle === 'mesh'
-                    ? activeBorder
-                    : 'bg-white/5 border-white/10 hover:bg-white/8 hover:border-white/15'
-                }`}
-              >
-                <div className="text-left">
-                  <span className={`text-sm block font-light ${backgroundStyle === 'mesh' ? 'text-white' : 'text-white/85'}`}>Fluid Mesh</span>
-                  <span className="text-xs text-white/40 font-light">Spotify-style ultra melting colors</span>
-                </div>
-              </button>
-            </div>
-          </div>
-
           {/* Color Theme Preset */}
           <div>
             <h3 className="text-sm font-medium text-white/60 mb-3 px-1">Theme Preset</h3>
@@ -342,88 +277,69 @@ export function SettingsModal({
             </div>
           </div>
 
-          {/* Background Texture Section */}
+          {/* Background Texture — simple on/off toggle */}
+          <Toggle
+            checked={textureStyle !== 'none'}
+            onChange={(on) => onTextureStyleChange?.(on ? 'paper' : 'none')}
+            label="Film Grain Texture"
+            description="Subtle noise overlay for a tactile, matte-paper feel"
+            accentColor={accentColor}
+          />
+
+          {/* Advanced settings — collapsed by default */}
           <div>
-            <h3 className="text-sm font-medium text-white/60 mb-3 px-1">Background Texture</h3>
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                onClick={() => onTextureStyleChange?.('paper')}
-                className={`flex flex-col items-center justify-center p-3.5 rounded-xl border transition-all gap-1.5 cursor-pointer ${
-                  textureStyle === 'paper'
-                    ? activeBorder
-                    : 'bg-white/5 border-white/10 hover:bg-white/8 hover:border-white/15'
-                }`}
-              >
-                <span className={`text-xs block font-semibold ${textureStyle === 'paper' ? 'text-white' : 'text-white/60'}`}>Organic Paper</span>
-                <span className="text-[9px] text-white/35 font-light">Subtle tactile pulp</span>
-              </button>
+            <button
+              onClick={() => setShowAdvanced(p => !p)}
+              className="flex items-center gap-2 w-full text-left text-sm font-medium text-white/40 hover:text-white/60 transition-colors mb-1 px-1 cursor-pointer"
+            >
+              <ChevronDown
+                className={`w-3.5 h-3.5 transition-transform duration-200 ${showAdvanced ? 'rotate-180' : ''}`}
+              />
+              Advanced
+            </button>
 
-              <button
-                onClick={() => onTextureStyleChange?.('dots')}
-                className={`flex flex-col items-center justify-center p-3.5 rounded-xl border transition-all gap-1.5 cursor-pointer ${
-                  textureStyle === 'dots'
-                    ? activeBorder
-                    : 'bg-white/5 border-white/10 hover:bg-white/8 hover:border-white/15'
-                }`}
-              >
-                <span className={`text-xs block font-semibold ${textureStyle === 'dots' ? 'text-white' : 'text-white/60'}`}>Halftone Dots</span>
-                <span className="text-[9px] text-white/35 font-light">Rotated print dots</span>
-              </button>
-
-              <button
-                onClick={() => onTextureStyleChange?.('none')}
-                className={`flex flex-col items-center justify-center p-3.5 rounded-xl border transition-all gap-1.5 cursor-pointer ${
-                  textureStyle === 'none'
-                    ? activeBorder
-                    : 'bg-white/5 border-white/10 hover:bg-white/8 hover:border-white/15'
-                }`}
-              >
-                <span className={`text-xs block font-semibold ${textureStyle === 'none' ? 'text-white' : 'text-white/60'}`}>Pure Glass</span>
-                <span className="text-[9px] text-white/35 font-light">Clean glass layers</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Interface Preferences */}
-          <div>
-            <h3 className="text-sm font-medium text-white/60 mb-3 px-1">Interface & Experience</h3>
-            <div className="space-y-3">
-              <Toggle 
-                checked={showVisualizer} 
-                onChange={(c) => onShowVisualizerChange?.(c)} 
-                label="360° Audio Visualizer Ring" 
-                description="Glow-reactive radial spectrum wave behind album cover"
-                accentColor={accentColor}
-              />
-              <Toggle 
-                checked={zenMode} 
-                onChange={(c) => onZenModeChange?.(c)} 
-                label="Zen Mode" 
-                description="Auto-hide UI controls when the mouse is idle"
-                accentColor={accentColor}
-              />
-              <Toggle 
-                checked={showVolumeSlider} 
-                onChange={(c) => onShowVolumeSliderChange?.(c)} 
-                label="External Volume Slider" 
-                description="Show a persistent volume slider outside the artwork"
-                accentColor={accentColor}
-              />
-              <Toggle 
-                checked={enable3DTilt} 
-                onChange={(c) => onEnable3DTiltChange?.(c)} 
-                label="3D Hover Effects" 
-                description="Tilt the artwork card when moving the mouse"
-                accentColor={accentColor}
-              />
-              <Toggle 
-                checked={showSettingsButton} 
-                onChange={(c) => onShowSettingsButtonChange?.(c)} 
-                label="Show Settings Button" 
-                description="Show a persistent Settings button in the bottom controls row"
-                accentColor={accentColor}
-              />
-            </div>
+            <AnimatePresence initial={false}>
+              {showAdvanced && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.25, ease: 'easeInOut' }}
+                  style={{ overflow: 'hidden' }}
+                >
+                  <div className="space-y-3 pt-2">
+                    <Toggle 
+                      checked={zenMode} 
+                      onChange={(c) => onZenModeChange?.(c)} 
+                      label="Zen Mode" 
+                      description="Auto-hide UI controls when the mouse is idle"
+                      accentColor={accentColor}
+                    />
+                    <Toggle 
+                      checked={showVolumeSlider} 
+                      onChange={(c) => onShowVolumeSliderChange?.(c)} 
+                      label="Volume Slider" 
+                      description="Show a persistent volume slider outside the artwork"
+                      accentColor={accentColor}
+                    />
+                    <Toggle 
+                      checked={enable3DTilt} 
+                      onChange={(c) => onEnable3DTiltChange?.(c)} 
+                      label="3D Hover Effects" 
+                      description="Tilt the artwork card when moving the mouse"
+                      accentColor={accentColor}
+                    />
+                    <Toggle 
+                      checked={showSettingsButton} 
+                      onChange={(c) => onShowSettingsButtonChange?.(c)} 
+                      label="Show Settings Button" 
+                      description="Show a persistent ⚙ button in the player controls"
+                      accentColor={accentColor}
+                    />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* Keyboard Shortcuts Trigger */}

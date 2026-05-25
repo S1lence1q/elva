@@ -7,295 +7,91 @@ import { MusicPlayer } from './components/MusicPlayer';
 import { OnboardingTour, tourSteps } from './components/OnboardingTour';
 import { AccentColor, ACCENT_THEMES } from './components/themeUtils';
 import { SettingsModal } from './components/SettingsModal';
-import paperTexture from '../paper_texture.png';
+import { BrandingHeader } from './components/BrandingHeader';
+import { ArtistProfileView } from './components/ArtistProfileView';
+import { SearchSection } from './components/SearchSection';
+import { DashboardNavigation, DashboardTab } from './components/DashboardNavigation';
+import { DiscoverView } from './components/DiscoverView';
+import { ProfileHubView } from './components/ProfileHubView';
+import { KeyboardShortcutsModal } from './components/KeyboardShortcutsModal';
+import { FluidBackground } from './components/FluidBackground';
+
+import { SearchResult, VerifiedArtist } from './types';
+import {
+  decodeHTMLEntities,
+  getArtistDynamicColors,
+  fetchWithTimeout,
+  robustFetch,
+  fetchFromFirstSuccessfulInstance,
+  fetchVideoDetails,
+  executeSearchAPI,
+  executeChannelUploadsAPI,
+  shouldShowArtistCard,
+  getArtistName
+} from './utils/apiUtils';
 
 type AppState = 'landing' | 'processing' | 'ready';
 
-interface SearchResult {
-  id: string;
-  title: string;
-  artist: string;
-  thumbnail: string;
-  videoId: string;
-  channelId?: string;
-}
-
-const decodeHTMLEntities = (text: string): string => {
-  try {
-    const textarea = document.createElement('textarea');
-    textarea.innerHTML = text;
-    return textarea.value;
-  } catch (e) {
-    return text;
+const SHORTCUT_ARTISTS: VerifiedArtist[] = [
+  {
+    name: 'KESI',
+    thumbnail: 'https://cdn-images.dzcdn.net/images/artist/50656cb54b66a32d095c3e0532c9dc32/250x250-000000-80-0-0.jpg',
+    disambiguation: 'Danish Rapper • DK',
+    country: 'DK',
+    tags: ['Hip-Hop', 'Rap', 'DK']
+  },
+  {
+    name: 'Kundo',
+    thumbnail: 'https://cdn-images.dzcdn.net/images/artist/131038dafd05745de3ed8a9173c28ba6/250x250-000000-80-0-0.jpg',
+    disambiguation: 'Danish Rapper • DK',
+    country: 'DK',
+    tags: ['Hip-Hop', 'Rap', 'DK']
+  },
+  {
+    name: 'Lamin',
+    thumbnail: 'https://cdn-images.dzcdn.net/images/artist/7375da7e864a9cf0bdd6add7578df724/250x250-000000-80-0-0.jpg',
+    disambiguation: 'Danish Rapper • DK',
+    country: 'DK',
+    tags: ['Hip-Hop', 'Rap', 'DK']
+  },
+  {
+    name: 'Artigeardit',
+    thumbnail: 'https://cdn-images.dzcdn.net/images/artist/54920f6d4791b6923f008effd0b3b2ef/250x250-000000-80-0-0.jpg',
+    disambiguation: 'Danish Rapper • DK',
+    country: 'DK',
+    tags: ['Hip-Hop', 'Rap', 'DK']
   }
-};
-
-const getArtistDynamicColors = (name: string) => {
-  const nameLower = name.toLowerCase();
-  
-  if (nameLower.includes('kundo')) {
-    // Beautiful emerald / mint green tint matching Kundo's signature aesthetics
-    return {
-      accent: '#10b981',
-      glow: 'rgba(16, 185, 129, 0.15)',
-      bgGlow: 'rgba(16, 185, 129, 0.38)',
-      solidGlow: 'rgba(16, 185, 129, 0.55)',
-      gradient: 'from-emerald-500/30 to-transparent',
-      rgbaGlow: 'rgba(16, 185, 129, 0.22)'
-    };
-  }
-  
-  if (nameLower.includes('kesi')) {
-    // Stunning warm sunset amber gold matching Kesi's branding
-    return {
-      accent: '#f59e0b',
-      glow: 'rgba(245, 158, 11, 0.15)',
-      bgGlow: 'rgba(245, 158, 11, 0.38)',
-      solidGlow: 'rgba(245, 158, 11, 0.55)',
-      gradient: 'from-amber-500/30 to-transparent',
-      rgbaGlow: 'rgba(245, 158, 11, 0.22)'
-    };
-  }
-
-  // Fallback HSL generator (deterministic and highly premium)
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const h = Math.abs(hash % 360);
-  const s = 70 + (Math.abs(hash) % 15);
-  const l = 40 + (Math.abs(hash) % 12);
-  
-  return {
-    accent: `hsl(${h}, ${s}%, ${l}%)`,
-    glow: `hsla(${h}, ${s}%, ${l}%, 0.15)`,
-    bgGlow: `hsla(${h}, ${s}%, ${l}%, 0.32)`,
-    solidGlow: `hsla(${h}, ${s}%, ${l}%, 0.5)`,
-    gradient: `from-[hsl(${h},${s}%,${l}%)] to-transparent`,
-    rgbaGlow: `hsla(${h}, ${s}%, ${l}%, 0.2)`
-  };
-};
-
-const fetchWithTimeout = async (url: string, options: RequestInit = {}, timeoutMs: number = 4000): Promise<Response> => {
-  const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), timeoutMs);
-  
-  const signal = options.signal;
-  if (signal) {
-    signal.addEventListener('abort', () => controller.abort());
-    if (signal.aborted) controller.abort();
-  }
-
-  try {
-    const response = await fetch(url, {
-      ...options,
-      signal: controller.signal
-    });
-    clearTimeout(id);
-    return response;
-  } catch (err) {
-    clearTimeout(id);
-    throw err;
-  }
-};
-
-const robustFetch = async (url: string, signal?: AbortSignal, skipProxies: boolean = false): Promise<Response> => {
-  // 1. Try directly (most Invidious/Piped public instances natively support CORS)
-  try {
-    const response = await fetchWithTimeout(url, { signal });
-    if (response.ok) return response;
-  } catch (e) {
-    console.warn(`Direct fetch failed for ${url}:`, e);
-  }
-
-  if (skipProxies) {
-    throw new Error(`Direct fetch failed for ${url} and proxies were skipped.`);
-  }
-
-  // 2. Try via allorigins proxy (very stable)
-  try {
-    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-    const response = await fetchWithTimeout(proxyUrl, { signal });
-    if (response.ok) return response;
-  } catch (e) {
-    console.warn(`AllOrigins proxy fetch failed for ${url}:`, e);
-  }
-
-  // 3. Try via corsproxy.io (fallback)
-  try {
-    const proxyUrl = `https://corsproxy.io/?url=${encodeURIComponent(url)}`;
-    const response = await fetchWithTimeout(proxyUrl, { signal });
-    if (response.ok) return response;
-  } catch (e) {
-    console.warn(`corsproxy.io fetch failed for ${url}:`, e);
-  }
-
-  throw new Error(`Failed to fetch ${url} directly or via proxies.`);
-};
-
-const fetchFromFirstSuccessfulInstance = async <T extends unknown>(
-  instances: string[],
-  fetchFn: (instance: string, signal: AbortSignal) => Promise<T>,
-  timeoutMs: number = 3000
-): Promise<T> => {
-  const globalController = new AbortController();
-  
-  const promises = instances.map(async (instance) => {
-    const instanceController = new AbortController();
-    
-    // Listen to global abort (e.g. if another instance succeeded)
-    const abortListener = () => instanceController.abort();
-    globalController.signal.addEventListener('abort', abortListener);
-    
-    const timeoutId = setTimeout(() => instanceController.abort(), timeoutMs);
-    try {
-      const res = await fetchFn(instance, instanceController.signal);
-      clearTimeout(timeoutId);
-      // Success! Abort all other instances
-      globalController.abort();
-      return res;
-    } catch (err) {
-      clearTimeout(timeoutId);
-      throw err;
-    } finally {
-      globalController.signal.removeEventListener('abort', abortListener);
-    }
-  });
-
-  return new Promise((resolve, reject) => {
-    let rejectedCount = 0;
-    if (promises.length === 0) {
-      reject(new Error('No instances provided'));
-      return;
-    }
-    promises.forEach((p) => {
-      p.then(resolve).catch(() => {
-        rejectedCount++;
-        if (rejectedCount === promises.length) {
-          reject(new Error('All instances failed'));
-        }
-      });
-    });
-  });
-};
-
-const fetchVideoDetails = async (videoId: string): Promise<{ title: string; artist: string; artworkUrl: string }> => {
-  const apiKey = (import.meta as any).env.VITE_YOUTUBE_API_KEY;
-
-  if (apiKey) {
-    try {
-      const response = await fetchWithTimeout(
-        `https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${videoId}&key=${apiKey}`
-      );
-      if (response.ok) {
-        const data = await response.json();
-        if (data && data.items && data.items.length > 0) {
-          const item = data.items[0];
-          return {
-            title: decodeHTMLEntities(item.snippet.title),
-            artist: decodeHTMLEntities(item.snippet.channelTitle || 'Unknown Artist'),
-            artworkUrl: `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`
-          };
-        }
-      }
-    } catch (error) {
-      console.error('Failed to fetch video details via official API:', error);
-    }
-  }
-
-  // Fallback: Invidious/Piped
-  const PIPED_INSTANCES = [
-    'https://api.piped.private.coffee',
-    'https://pipedapi.kavin.rocks',
-    'https://pipedapi.lunar.icu',
-    'https://pipedapi.colby.host',
-    'https://api.piped.yt',
-    'https://pipedapi.tokhmi.xyz'
-  ];
-
-  const INVIDIOUS_INSTANCES = [
-    'https://yewtu.be',
-    'https://invidious.io.lol',
-    'https://iv.melmac.space'
-  ];
-
-  // Try PIPED details concurrently (direct only)
-  try {
-    const details = await fetchFromFirstSuccessfulInstance(
-      PIPED_INSTANCES,
-      async (instance, signal) => {
-        const response = await robustFetch(`${instance}/streams/${videoId}`, signal, true); // SKIP PROXIES
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const data = await response.json();
-        return {
-          title: decodeHTMLEntities(data.title || 'YouTube Stream'),
-          artist: decodeHTMLEntities(data.uploader || 'Web Stream'),
-          artworkUrl: `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`
-        };
-      },
-      1800
-    );
-    return details;
-  } catch (pipedErr) {
-    console.warn('All Piped instances failed direct video details, trying Invidious directly:', pipedErr);
-  }
-
-  // Try INVIDIOUS details concurrently (direct only)
-  try {
-    const details = await fetchFromFirstSuccessfulInstance(
-      INVIDIOUS_INSTANCES,
-      async (instance, signal) => {
-        const response = await robustFetch(`${instance}/api/v1/videos/${videoId}`, signal, true); // SKIP PROXIES
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const data = await response.json();
-        return {
-          title: decodeHTMLEntities(data.title || 'YouTube Stream'),
-          artist: decodeHTMLEntities(data.author || 'Web Stream'),
-          artworkUrl: `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`
-        };
-      },
-      1800
-    );
-    return details;
-  } catch (invidiousErr) {
-    console.warn('All Invidious instances failed direct video details, trying single proxy fallback:', invidiousErr);
-  }
-
-  // ULTIMATE FALLBACK: Try a single Piped instance with proxies allowed
-  try {
-    const response = await robustFetch(`${PIPED_INSTANCES[0]}/streams/${videoId}`, undefined, false); // ALLOW PROXIES
-    if (response.ok) {
-      const data = await response.json();
-      return {
-        title: decodeHTMLEntities(data.title || 'YouTube Stream'),
-        artist: decodeHTMLEntities(data.uploader || 'Web Stream'),
-        artworkUrl: `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`
-      };
-    }
-  } catch (proxyErr) {
-    console.error('All direct and proxy video details failed:', proxyErr);
-  }
-
-  return {
-    title: 'YouTube Stream',
-    artist: 'Web Stream',
-    artworkUrl: `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`
-  };
-};
-
-interface VerifiedArtist {
-  name: string;
-  thumbnail: string;
-  channelId?: string;
-  disambiguation?: string;
-  country?: string;
-  tags?: string[];
-  isTopic?: boolean;
-}
+];
 
 export default function App() {
   const [appState, setAppState] = useState<AppState>('landing');
   const [showSettings, setShowSettings] = useState(false);
+
+  const [activeTab, setActiveTab] = useState<DashboardTab>('home');
+  const [favorites, setFavorites] = useState<SearchResult[]>(() => {
+    try {
+      const stored = localStorage.getItem('elva_favorites');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const handleToggleFavorite = (song: SearchResult) => {
+    setFavorites((prev) => {
+      const exists = prev.some((item) => item.id === song.id);
+      let updated;
+      if (exists) {
+        updated = prev.filter((item) => item.id !== song.id);
+        toast.info('Fjernet fra favoritter', { description: song.title });
+      } else {
+        updated = [...prev, song];
+        toast.success('Tilføjet til favoritter', { description: song.title });
+      }
+      localStorage.setItem('elva_favorites', JSON.stringify(updated));
+      return updated;
+    });
+  };
   const [isIntroActive, setIsIntroActive] = useState(() => {
     const hasSeenIntro = sessionStorage.getItem('elva_intro_seen');
     return !hasSeenIntro;
@@ -310,6 +106,20 @@ export default function App() {
   const [isVerifyingArtist, setIsVerifyingArtist] = useState(false);
   const [artistTracks, setArtistTracks] = useState<SearchResult[]>([]);
   const [isLoadingArtist, setIsLoadingArtist] = useState(false);
+  const [recentArtists, setRecentArtists] = useState<VerifiedArtist[]>(() => {
+    try {
+      const stored = localStorage.getItem('elva_recent_artists');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to load recent artists from localStorage:', e);
+    }
+    return SHORTCUT_ARTISTS;
+  });
 
   const [queue, setQueue] = useState<SearchResult[]>([]);
   const [songData, setSongData] = useState<{
@@ -319,6 +129,30 @@ export default function App() {
     audioUrl: string;
     videoId?: string;
   } | null>(null);
+
+  // Ref for the root container to performantly track and apply mouse coordinates for spotlight grids without React re-renders
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      containerRef.current.style.setProperty('--mouse-x', `${x}px`);
+      containerRef.current.style.setProperty('--mouse-y', `${y}px`);
+    };
+
+    const container = containerRef.current;
+    if (container) {
+      container.addEventListener('mousemove', handleMouseMove);
+    }
+    return () => {
+      if (container) {
+        container.removeEventListener('mousemove', handleMouseMove);
+      }
+    };
+  }, []);
 
   // Accent Color Theme System
   const [accentColor, setAccentColor] = useState<AccentColor>(() => {
@@ -354,14 +188,6 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('elva_theme_preset', themePreset);
   }, [themePreset]);
-
-  const [showVisualizer, setShowVisualizer] = useState(() => {
-    return localStorage.getItem('elva_show_visualizer') === 'true';
-  });
-
-  useEffect(() => {
-    localStorage.setItem('elva_show_visualizer', String(showVisualizer));
-  }, [showVisualizer]);
 
   const [zenMode, setZenMode] = useState(() => {
     return localStorage.getItem('elva_zen_mode') === 'true';
@@ -405,6 +231,73 @@ export default function App() {
 
   const theme = ACCENT_THEMES[accentColor];
   const artistColors = selectedArtist ? getArtistDynamicColors(selectedArtist.name) : null;
+
+  // Helper to retrieve normalized WebGL colors representing current active context
+  const getWebGLBackgroundColors = () => {
+    if (selectedArtist && artistColors) {
+      const nameLower = selectedArtist.name.toLowerCase();
+      if (nameLower.includes('kundo')) {
+        return {
+          c1: '#1b3024', // Deep forest sage green base
+          c2: '#5c8f72', // Sophisticated dusty sage green glow
+          c3: '#2a2438', // Deep muted lavender-purple contrast shadow
+        };
+      }
+      if (nameLower.includes('kesi')) {
+        return {
+          c1: '#3d261c', // Deep roasted coffee brown base
+          c2: '#a88870', // Dusty warm sand / elegant linen glow
+          c3: '#4a3728', // Dull dark bronze / clay contrast shadow
+        };
+      }
+      if (nameLower.includes('lamin')) {
+        return {
+          c1: '#21182c', // Deep lavender-indigo slate base
+          c2: '#7c638e', // Dusty glowing amethyst/lavender
+          c3: '#182030', // Dull dark slate shadow
+        };
+      }
+      return {
+        c1: artistColors.accent,
+        c2: artistColors.bgGlow,
+        c3: '#040406',
+      };
+    }
+    switch (accentColor) {
+      case 'emerald':
+        return {
+          c1: '#1b3024', // Deep forest sage green base
+          c2: '#5c8f72', // Sophisticated dusty sage green glow
+          c3: '#2a2438', // Deep muted lavender-purple contrast shadow
+        };
+      case 'sand':
+        return {
+          c1: '#3d261c', // Deep roasted coffee brown base
+          c2: '#a88870', // Dusty warm sand / elegant linen glow
+          c3: '#4a3728', // Dull dark bronze / clay contrast shadow
+        };
+      case 'wine':
+        return {
+          c1: '#36131c', // Deep dark burgundy base
+          c2: '#b08e92', // Dusty rose pink highlight glow
+          c3: '#253047', // Dull dark slate-blue shadow
+        };
+      case 'navy':
+        return {
+          c1: '#0f172a', // Deep slate blue-black base
+          c2: '#63738a', // Dusty muted blue-grey glow
+          c3: '#4338ca', // Deeper dark indigo shadow
+        };
+      default:
+        return {
+          c1: '#1b3024',
+          c2: '#5c8f72',
+          c3: '#2a2438',
+        };
+    }
+  };
+
+  const bgColors = getWebGLBackgroundColors();
 
   // Helper mappings for dynamic class bindings
   const welcomeBgB = {
@@ -501,101 +394,9 @@ export default function App() {
   const isFirstVisit = useRef(!sessionStorage.getItem('elva_intro_seen')).current;
   const hasSelectedArtistOnce = useRef(false);
 
-  // Stagger animation timelines for absolute premium flow
-  const letterVariants = {
-    initial: { opacity: 0, y: isFirstVisit ? 40 : 15, rotateX: isFirstVisit ? -90 : 0 },
-    animate: (i: number) => {
-      const returning = hasSelectedArtistOnce.current;
-      return {
-        opacity: 1,
-        y: 0,
-        rotateX: 0,
-        transition: {
-          delay: returning ? 0 : (isFirstVisit ? 0.8 + i * 0.15 : 0.05 + i * 0.06),
-          duration: returning ? 0.15 : (isFirstVisit ? 0.8 : 0.5),
-          ease: [0.16, 1, 0.3, 1]
-        }
-      };
-    }
-  };
 
-  const topLineVariants = {
-    initial: { scaleX: 0 },
-    animate: () => {
-      const returning = hasSelectedArtistOnce.current;
-      return {
-        scaleX: 1,
-        transition: {
-          delay: returning ? 0 : (isFirstVisit ? 1.6 : 0.2),
-          duration: returning ? 0.15 : (isFirstVisit ? 1.0 : 0.6),
-          ease: "easeOut"
-        }
-      };
-    }
-  };
 
-  const bottomLineVariants = {
-    initial: { scaleX: 0 },
-    animate: () => {
-      const returning = hasSelectedArtistOnce.current;
-      return {
-        scaleX: 1,
-        transition: {
-          delay: returning ? 0 : (isFirstVisit ? 1.8 : 0.25),
-          duration: returning ? 0.15 : (isFirstVisit ? 1.0 : 0.6),
-          ease: "easeOut"
-        }
-      };
-    }
-  };
 
-  const taglineVariants = {
-    initial: { opacity: 0, y: 10 },
-    animate: () => {
-      const returning = hasSelectedArtistOnce.current;
-      return {
-        opacity: 0.3,
-        y: 0,
-        transition: {
-          delay: returning ? 0 : (isFirstVisit ? 2.2 : 0.3),
-          duration: returning ? 0.15 : (isFirstVisit ? 0.8 : 0.5),
-          ease: "easeOut"
-        }
-      };
-    }
-  };
-
-  const inviteVariants = {
-    initial: { opacity: 0, y: 5 },
-    animate: () => {
-      const returning = hasSelectedArtistOnce.current;
-      return {
-        opacity: 0.25,
-        y: 0,
-        transition: {
-          delay: returning ? 0 : (isFirstVisit ? 2.7 : 0.5),
-          duration: returning ? 0.15 : (isFirstVisit ? 0.8 : 0.5),
-          ease: "easeOut"
-        }
-      };
-    }
-  };
-
-  const searchInputVariants = {
-    initial: { opacity: 0, y: 25 },
-    animate: () => {
-      const returning = hasSelectedArtistOnce.current;
-      return {
-        opacity: 1,
-        y: 0,
-        transition: {
-          delay: returning ? 0 : (isFirstVisit ? 2.5 : 0.4),
-          duration: returning ? 0.2 : (isFirstVisit ? 1.4 : 0.8),
-          ease: [0.16, 1, 0.3, 1]
-        }
-      };
-    }
-  };
 
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
@@ -781,429 +582,7 @@ export default function App() {
     }, 1500);
   };
 
-  const executeSearchAPI = async (query: string, limit: number = 8): Promise<SearchResult[]> => {
-    if (!query.trim()) return [];
 
-    const apiKey = (import.meta as any).env.VITE_YOUTUBE_API_KEY;
-
-    if (apiKey) {
-      // Use Official YouTube Data API v3 (100% stable, free up to 10k/day)
-      try {
-        const response = await fetchWithTimeout(
-          `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=${limit}&q=${encodeURIComponent(
-            query
-          )}&type=video&key=${apiKey}`
-        );
-        if (!response.ok) {
-          const errData = await response.json().catch(() => ({}));
-          throw new Error(errData.error?.message || `HTTP ${response.status}`);
-        }
-        const data = await response.json();
-        if (data && data.items) {
-          const validItems = data.items.filter((item: any) => item.id && item.id.videoId && item.id.videoId.length === 11);
-          return validItems.map((item: any) => {
-            const videoId = item.id.videoId;
-            return {
-              id: videoId,
-              title: decodeHTMLEntities(item.snippet.title),
-              artist: decodeHTMLEntities(item.snippet.channelTitle || 'Unknown Artist'),
-              thumbnail: `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`,
-              videoId: videoId,
-              channelId: item.snippet.channelId
-            };
-          });
-        }
-      } catch (error: any) {
-        console.error('Official YouTube search failed:', error);
-      }
-    }
-
-    // FALLBACK: Robust Piped/Invidious loop if no API key or if official API fails
-    const PIPED_INSTANCES = [
-      'https://api.piped.private.coffee',
-      'https://pipedapi.kavin.rocks',
-      'https://pipedapi.lunar.icu',
-      'https://pipedapi.colby.host',
-      'https://api.piped.yt',
-      'https://pipedapi.tokhmi.xyz',
-      'https://pipedapi.moomoo.me'
-    ];
-
-    const INVIDIOUS_INSTANCES = [
-      'https://yewtu.be',
-      'https://invidious.io.lol',
-      'https://invidious.flokinet.to',
-      'https://iv.melmac.space',
-      'https://invidious.snopyta.org'
-    ];
-
-    // Try PIPED search concurrently (direct only)
-    try {
-      const results = await fetchFromFirstSuccessfulInstance(
-        PIPED_INSTANCES,
-        async (instance, signal) => {
-          let targetUrl = `${instance}/search?q=${encodeURIComponent(query)}&filter=music_songs`;
-          let response = await robustFetch(targetUrl, signal, true); // SKIP PROXIES
-          if (!response.ok) throw new Error(`HTTP ${response.status}`);
-          let data = await response.json();
-          let items = data && data.items && Array.isArray(data.items) ? data.items : [];
-
-          // Robust Fallback: If no items found with music_songs filter, try standard search (no filter) on same instance
-          if (items.length === 0) {
-            const fallbackUrl = `${instance}/search?q=${encodeURIComponent(query)}`;
-            const fallbackRes = await robustFetch(fallbackUrl, signal, true);
-            if (fallbackRes.ok) {
-              const fallbackData = await fallbackRes.json();
-              if (fallbackData && fallbackData.items && Array.isArray(fallbackData.items)) {
-                items = fallbackData.items;
-              }
-            }
-          }
-
-          if (items.length > 0) {
-            const validStreams = items.filter((item: any) => {
-              if (!item.url) return false;
-              const ytMatch = item.url.match(/(?:v=|\/watch\?v=)([^"&?\/\s]{11})/i);
-              const videoId = ytMatch ? ytMatch[1] : null;
-              const isPlayable = !item.type || item.type === 'stream' || item.type === 'video' || item.type === 'music_song';
-              return videoId && videoId.length === 11 && isPlayable;
-            });
-
-            const mapped = validStreams.map((item: any) => {
-              const ytMatch = item.url.match(/(?:v=|\/watch\?v=)([^"&?\/\s]{11})/i);
-              const videoId = ytMatch![1];
-              let channelId = item.uploaderId;
-              if (!channelId && item.uploaderUrl) {
-                const chMatch = item.uploaderUrl.match(/\/channel\/([^\/]+)/i);
-                if (chMatch) channelId = chMatch[1];
-              }
-              return {
-                id: videoId,
-                title: decodeHTMLEntities(item.title),
-                artist: decodeHTMLEntities(item.uploaderName || 'Unknown Artist'),
-                thumbnail: `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`,
-                videoId: videoId,
-                channelId: channelId
-              };
-            });
-
-            if (mapped.length > 0) return mapped;
-          }
-          throw new Error('Empty search items');
-        },
-        1800
-      );
-      return results.slice(0, limit);
-    } catch (pipedErr) {
-      console.warn('All Piped instances failed direct search, trying Invidious directly:', pipedErr);
-    }
-
-    // Try INVIDIOUS search concurrently (direct only)
-    try {
-      const results = await fetchFromFirstSuccessfulInstance(
-        INVIDIOUS_INSTANCES,
-        async (instance, signal) => {
-          const targetUrl = `${instance}/api/v1/search?q=${encodeURIComponent(query)}&type=video`;
-          const response = await robustFetch(targetUrl, signal, true); // SKIP PROXIES
-          if (!response.ok) throw new Error(`HTTP ${response.status}`);
-          const data = await response.json();
-          if (Array.isArray(data)) {
-            const validVideos = data.filter((item: any) => {
-              const videoId = item.videoId;
-              const isPlayable = !item.type || item.type === 'video' || item.type === 'short';
-              return videoId && videoId.length === 11 && isPlayable;
-            });
-
-            const mapped = validVideos.map((item: any) => {
-              const videoId = item.videoId;
-              return {
-                id: videoId,
-                title: decodeHTMLEntities(item.title),
-                artist: decodeHTMLEntities(item.author || 'Unknown Artist'),
-                thumbnail: `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`,
-                videoId: videoId,
-                channelId: item.authorId
-              };
-            });
-
-            if (mapped.length > 0) return mapped;
-          }
-          throw new Error('Empty search items');
-        },
-        1800
-      );
-      return results.slice(0, limit);
-    } catch (invidiousErr) {
-      console.warn('All Invidious instances failed direct search, trying single proxy fallback:', invidiousErr);
-    }
-
-    // ULTIMATE FALLBACK: Hit a single instance WITH proxy allowed, so we don't spam!
-    try {
-      let targetUrl = `${PIPED_INSTANCES[0]}/search?q=${encodeURIComponent(query)}&filter=music_songs`;
-      let response = await robustFetch(targetUrl, undefined, false); // ALLOW PROXIES
-      if (response.ok) {
-        let data = await response.json();
-        let items = data && data.items && Array.isArray(data.items) ? data.items : [];
-
-        // Try standard search fallback if music_songs filter returns empty
-        if (items.length === 0) {
-          targetUrl = `${PIPED_INSTANCES[0]}/search?q=${encodeURIComponent(query)}`;
-          response = await robustFetch(targetUrl, undefined, false);
-          if (response.ok) {
-            const fallbackData = await response.json();
-            if (fallbackData && fallbackData.items && Array.isArray(fallbackData.items)) {
-              items = fallbackData.items;
-            }
-          }
-        }
-
-        if (items.length > 0) {
-          const validStreams = items.filter((item: any) => {
-            if (!item.url) return false;
-            const ytMatch = item.url.match(/(?:v=|\/watch\?v=)([^"&?\/\s]{11})/i);
-            const videoId = ytMatch ? ytMatch[1] : null;
-            return videoId && videoId.length === 11;
-          });
-          const mapped = validStreams.map((item: any) => {
-            const ytMatch = item.url.match(/(?:v=|\/watch\?v=)([^"&?\/\s]{11})/i);
-            const videoId = ytMatch![1];
-            return {
-              id: videoId,
-              title: decodeHTMLEntities(item.title),
-              artist: decodeHTMLEntities(item.uploaderName || 'Unknown Artist'),
-              thumbnail: `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`,
-              videoId: videoId
-            };
-          });
-          if (mapped.length > 0) return mapped.slice(0, limit);
-        }
-      }
-    } catch (proxyErr) {
-      console.error('All direct and proxy searches failed:', proxyErr);
-    }
-
-    return [];
-  };
-
-  const executeChannelUploadsAPI = async (channelId: string, limit: number = 50): Promise<SearchResult[]> => {
-    if (!channelId) return [];
-
-    const apiKey = (import.meta as any).env.VITE_YOUTUBE_API_KEY;
-
-    if (apiKey) {
-      try {
-        const uploadsPlaylistId = channelId.startsWith('UC') ? channelId.replace(/^UC/, 'UU') : channelId;
-        const response = await fetchWithTimeout(
-          `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=${limit}&playlistId=${uploadsPlaylistId}&key=${apiKey}`
-        );
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
-        const data = await response.json();
-        if (data && data.items) {
-          return data.items.map((item: any) => {
-            const videoId = item.snippet.resourceId?.videoId || '';
-            return {
-              id: videoId,
-              title: decodeHTMLEntities(item.snippet.title),
-              artist: decodeHTMLEntities(item.snippet.channelTitle || 'Unknown Artist'),
-              thumbnail: `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`,
-              videoId: videoId,
-              channelId: channelId
-            };
-          }).filter((item: any) => item.id.length === 11);
-        }
-      } catch (error) {
-        console.error('Official YouTube playlistItems fetch failed:', error);
-      }
-    }
-
-    const PIPED_INSTANCES = [
-      'https://api.piped.private.coffee',
-      'https://pipedapi.kavin.rocks',
-      'https://pipedapi.lunar.icu',
-      'https://pipedapi.colby.host',
-      'https://api.piped.yt',
-      'https://pipedapi.tokhmi.xyz',
-      'https://pipedapi.moomoo.me'
-    ];
-
-    const INVIDIOUS_INSTANCES = [
-      'https://yewtu.be',
-      'https://invidious.io.lol',
-      'https://invidious.flokinet.to',
-      'https://iv.melmac.space',
-      'https://invidious.snopyta.org'
-    ];
-
-    // Try PIPED instances concurrently (direct only)
-    try {
-      const results = await fetchFromFirstSuccessfulInstance(
-        PIPED_INSTANCES,
-        async (instance, signal) => {
-          const targetUrl = `${instance}/channel/${channelId}`;
-          const response = await robustFetch(targetUrl, signal, true); // SKIP PROXIES
-          if (!response.ok) throw new Error(`HTTP ${response.status}`);
-          const data = await response.json();
-          if (data && data.relatedStreams && Array.isArray(data.relatedStreams)) {
-            const mapped = data.relatedStreams.map((item: any) => {
-              const ytMatch = item.url.match(/(?:v=|\/watch\?v=)([^"&?\/\s]{11})/i);
-              const videoId = ytMatch ? ytMatch[1] : '';
-              return {
-                id: videoId,
-                title: decodeHTMLEntities(item.title),
-                artist: decodeHTMLEntities(item.uploaderName || 'Unknown Artist'),
-                thumbnail: `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`,
-                videoId: videoId,
-                channelId: channelId
-              };
-            }).filter((item: any) => item.id.length === 11);
-
-            if (mapped.length > 0) return mapped;
-          }
-          throw new Error('Empty relatedStreams');
-        },
-        1800
-      );
-      return results.slice(0, limit);
-    } catch (pipedErr) {
-      console.warn('All Piped instances failed direct channel uploads, trying Invidious directly:', pipedErr);
-    }
-
-    // Try INVIDIOUS instances concurrently (direct only)
-    try {
-      const results = await fetchFromFirstSuccessfulInstance(
-        INVIDIOUS_INSTANCES,
-        async (instance, signal) => {
-          const targetUrl = `${instance}/api/v1/channels/${channelId}`;
-          const response = await robustFetch(targetUrl, signal, true); // SKIP PROXIES
-          if (!response.ok) throw new Error(`HTTP ${response.status}`);
-          const data = await response.json();
-          const videos = Array.isArray(data) ? data : (data.videos || data.relatedStreams || []);
-          
-          const mapped = videos.map((item: any) => {
-            const videoId = item.videoId;
-            return {
-              id: videoId,
-              title: decodeHTMLEntities(item.title),
-              artist: decodeHTMLEntities(item.author || 'Unknown Artist'),
-              thumbnail: `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`,
-              videoId: videoId,
-              channelId: channelId
-            };
-          }).filter((item: any) => item.id && item.id.length === 11);
-
-          if (mapped.length > 0) return mapped;
-          throw new Error('Empty videos');
-        },
-        1800
-      );
-      return results.slice(0, limit);
-    } catch (invidiousErr) {
-      console.warn('All Invidious instances failed direct channel uploads, trying single proxy fallback:', invidiousErr);
-    }
-
-    // ULTIMATE FALLBACK: Try a single Piped instance with proxies
-    try {
-      const targetUrl = `${PIPED_INSTANCES[0]}/channel/${channelId}`;
-      const response = await robustFetch(targetUrl, undefined, false); // ALLOW PROXIES
-      if (response.ok) {
-        const data = await response.json();
-        if (data && data.relatedStreams && Array.isArray(data.relatedStreams)) {
-          const mapped = data.relatedStreams.map((item: any) => {
-            const ytMatch = item.url.match(/(?:v=|\/watch\?v=)([^"&?\/\s]{11})/i);
-            const videoId = ytMatch ? ytMatch[1] : '';
-            return {
-              id: videoId,
-              title: decodeHTMLEntities(item.title),
-              artist: decodeHTMLEntities(item.uploaderName || 'Unknown Artist'),
-              thumbnail: `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`,
-              videoId: videoId,
-              channelId: channelId
-            };
-          }).filter((item: any) => item.id.length === 11);
-          if (mapped.length > 0) return mapped.slice(0, limit);
-        }
-      }
-    } catch (proxyErr) {
-      console.error('All direct and proxy channel fetches failed:', proxyErr);
-    }
-
-    return [];
-  };
-  // Helper to determine if query matches an artist profile search
-  const shouldShowArtistCard = (query: string) => {
-    const trimmed = query.trim().toLowerCase();
-    if (!trimmed) return false;
-    
-    // Skip if it looks like a URL
-    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return false;
-    
-    // Skip if it has more than 3 words (highly unlikely to be a simple artist name search)
-    const words = trimmed.split(/\s+/);
-    if (words.length > 3) return false;
-
-    // Common non-artist keywords
-    const blocklist = [
-      'lyrics', 'remix', 'karaoke', 'live', 'cover', 'instrumental', 'acoustic', 
-      'version', 'song', 'sang', 'video', '24 timer', 'vlog', 'hvad', 'hvornår', 
-      'hvorfor', 'hvem', 'hvordan', 'mp3', 'wav', 'flac', 'prod', 'feat', 'ft.'
-    ];
-    
-    return !blocklist.some(word => trimmed.includes(word));
-  };
-
-  // Helper to extract artist name and high-quality cover art
-  const getArtistName = (query: string, results: SearchResult[]): { name: string; thumbnail: string; channelId?: string } | null => {
-    if (!shouldShowArtistCard(query) || results.length === 0) return null;
-    
-    const queryLower = query.trim().toLowerCase();
-    if (queryLower.length < 2) return null;
-    
-    const match = results.find(r => {
-      const artistLower = r.artist.trim().toLowerCase();
-      
-      const isExactOrOfficialMatch = 
-        artistLower === queryLower ||
-        artistLower === `${queryLower} - topic` ||
-        artistLower === `${queryLower}vevo` ||
-        artistLower === `${queryLower} official` ||
-        artistLower === `${queryLower} music` ||
-        artistLower === `${queryLower} band`;
-      
-      if (isExactOrOfficialMatch) return true;
-      
-      const containsQuery = artistLower.includes(queryLower);
-      const isOfficialEntity = 
-        artistLower.includes('topic') || 
-        artistLower.includes('vevo') || 
-        artistLower.includes('official') || 
-        artistLower.includes('music') ||
-        artistLower.includes('band') ||
-        artistLower.includes('records');
-        
-      if (containsQuery && isOfficialEntity) return true;
-      
-      return false;
-    });
-
-    if (match) {
-      const cleanedName = match.artist
-        .replace(/\s*-\s*Topic$/i, '')
-        .replace(/\s*VEVO$/i, '')
-        .replace(/\s*Official\s*$/i, '')
-        .trim();
-      const isTopic = match.artist.toLowerCase().includes('topic');
-      return {
-        name: cleanedName,
-        thumbnail: match.thumbnail,
-        channelId: match.channelId,
-        isTopic: isTopic
-      };
-    }
-    
-    return null;
-  };
 
   // Verify artist via MusicBrainz API in background to enrich metadata
   useEffect(() => {
@@ -1295,6 +674,18 @@ export default function App() {
   const handleViewArtistProfile = async (artist: VerifiedArtist) => {
     setSelectedArtist(artist);
     hasSelectedArtistOnce.current = true;
+    
+    // Save to recent artists (unique list capped at 4)
+    setRecentArtists(prev => {
+      const filtered = prev.filter(a => a.name.toLowerCase() !== artist.name.toLowerCase());
+      const updated = [artist, ...filtered].slice(0, 4);
+      try {
+        localStorage.setItem('elva_recent_artists', JSON.stringify(updated));
+      } catch (e) {
+        console.warn('Failed to save recent artists to localStorage:', e);
+      }
+      return updated;
+    });
     
     // 1. Instant pre-population from currently active search results to eliminate any loading delay
     const nameLower = artist.name.toLowerCase();
@@ -1409,11 +800,12 @@ export default function App() {
     }
   };
 
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) return;
+  const handleSearch = async (overrideQuery?: string) => {
+    const query = overrideQuery !== undefined ? overrideQuery : searchQuery;
+    if (!query.trim()) return;
 
     setIsSearching(true);
-    const results = await executeSearchAPI(searchQuery);
+    const results = await executeSearchAPI(query);
     setIsSearching(false);
 
     if (results.length > 0) {
@@ -1547,58 +939,55 @@ export default function App() {
   const isSearchMode = searchQuery.trim() !== '' || selectedArtist !== null;
 
   return (
-    <div className="size-full relative overflow-hidden bg-[#0a0a0a] flex items-center justify-center">
+    <div ref={containerRef} className="size-full relative overflow-hidden bg-[#0a0a0a] flex items-center justify-center">
 
-      {/* Subtle ambient background with more color */}
+      {/* Premium Multi-Color Ambient Background & Vector Grid (Shadcn & Cinematic inspired) */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 1.5 }}
         className="absolute inset-0 overflow-hidden"
       >
-        <motion.div
-          animate={{
-            opacity: appState === 'landing' 
-              ? [0.6, 0.8, 0.6] 
-              : [0.15, 0.25, 0.15],
-            scale: [1, 1.1, 1],
-          }}
-          transition={{
-            duration: 10,
-            repeat: Infinity,
-            ease: "easeInOut"
-          }}
-          className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] rounded-full blur-[140px] bg-gradient-to-br ${theme.welcomeFrom} ${theme.welcomeVia} ${theme.welcomeTo}`}
-        />
-        <motion.div
-          animate={{
-            opacity: appState === 'landing' 
-              ? [0.4, 0.6, 0.4] 
-              : [0.08, 0.15, 0.08],
-            scale: [1.1, 1, 1.1],
-          }}
-          transition={{
-            duration: 12,
-            repeat: Infinity,
-            ease: "easeInOut",
-            delay: 1
-          }}
-          className={`absolute top-1/3 left-1/4 w-[500px] h-[500px] rounded-full blur-[110px] bg-gradient-to-br ${welcomeBgB[accentColor]} via-neutral-100/5 to-transparent`}
+        {/* High-Precision Architectural Grid with Intersecting Crosses (Shadcn style) */}
+        <div 
+          className="absolute inset-0 opacity-[0.03] pointer-events-none"
+          style={{
+            backgroundImage: `
+              radial-gradient(circle, rgba(255,255,255,0.15) 1px, transparent 1px),
+              linear-gradient(to right, rgba(255,255,255,0.05) 1px, transparent 1px),
+              linear-gradient(to bottom, rgba(255,255,255,0.05) 1px, transparent 1px)
+            `,
+            backgroundSize: '80px 80px',
+            backgroundPosition: 'center center'
+          }} 
         />
 
-        {/* Cinematic Dynamic Artist Background Glow! */}
-        {selectedArtist && artistColors && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 0.65, scale: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[850px] h-[850px] rounded-full blur-[130px] pointer-events-none z-[1]"
-            style={{
-              background: `radial-gradient(circle, ${artistColors.bgGlow} 0%, ${artistColors.glow} 45%, rgba(10,10,10,0) 80%)`
-            }}
-          />
-        )}
+        {/* Interactive Spotlight Blueprint coordinates grid (Lights up near cursor) */}
+        <div 
+          className="absolute inset-0 opacity-[0.06] pointer-events-none transition-opacity duration-500"
+          style={{
+            backgroundImage: `
+              radial-gradient(circle, rgba(255,255,255,0.3) 1px, transparent 1px),
+              linear-gradient(to right, rgba(255,255,255,0.1) 1px, transparent 1px),
+              linear-gradient(to bottom, rgba(255,255,255,0.1) 1px, transparent 1px)
+            `,
+            backgroundSize: '80px 80px',
+            backgroundPosition: 'center center',
+            maskImage: 'radial-gradient(circle 240px at var(--mouse-x, 50%) var(--mouse-y, 50%), black 0%, transparent 100%)',
+            WebkitMaskImage: 'radial-gradient(circle 240px at var(--mouse-x, 50%) var(--mouse-y, 50%), black 0%, transparent 100%)'
+          }} 
+        />
+
+
+
+        {/* Live WebGL Fluid Background with Dynamic Color Binding */}
+        <FluidBackground 
+          color1={bgColors.c1} 
+          color2={bgColors.c2} 
+          color3={bgColors.c3} 
+          speedMultiplier={backgroundStyle === 'liquid' ? 1.4 : backgroundStyle === 'mesh' ? 0.8 : backgroundStyle === 'particles' ? 1.1 : 0.5}
+        />
+
       </motion.div>
 
       <AnimatePresence>
@@ -1609,8 +998,12 @@ export default function App() {
             animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
             exit={{ opacity: 0, scale: 1.08, filter: 'blur(8px)' }}
             transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-            className={`absolute inset-0 z-10 flex flex-col items-center px-8 w-full h-full justify-start pb-12 transition-all duration-300 ease-[0.16,1,0.3,1] ${
-              selectedArtist ? 'pt-6 md:pt-8' : 'pt-20 md:pt-28'
+            className={`absolute inset-0 z-10 flex flex-col items-center px-0 w-full h-full justify-start pb-12 transition-all duration-300 ease-[0.16,1,0.3,1] ${
+              selectedArtist 
+                ? 'pt-6 md:pt-8' 
+                : (activeTab !== 'home' || searchQuery.trim() !== '')
+                  ? 'pt-0'
+                  : 'pt-20 md:pt-28'
             }`}
           >
             {/* Animated gradient orbs during intro */}
@@ -1619,576 +1012,130 @@ export default function App() {
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: [0, 0.2, 0.3, 0], scale: [0.8, 1.25, 1.55, 2.1] }}
                 transition={{ duration: 3, ease: "easeOut" }}
-                className={`absolute w-[950px] h-[950px] rounded-full blur-[140px] bg-gradient-to-tr ${theme.glowFrom} ${theme.glowVia} ${theme.glowTo} pointer-events-none`}
+                className="absolute w-[950px] h-[950px] rounded-full blur-[140px] bg-gradient-to-tr from-indigo-950/20 via-blue-900/10 to-transparent pointer-events-none"
               />
             )}
 
+            {/* Localized deep dark radial gradient vignette centered behind UI elements for razor-sharp readability - set to extreme low opacity to satisfy 'fjerne den næsten helt' */}
+            {selectedArtist === null && activeTab === 'home' && searchQuery.trim() === '' && (
+              <div 
+                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[45%] w-[880px] h-[520px] rounded-full pointer-events-none z-0 opacity-[0.04]" 
+                style={{
+                  background: 'radial-gradient(circle at center, rgba(0, 0, 0, 0.72) 0%, rgba(0, 0, 0, 0.45) 45%, rgba(0,0,0,0) 80%)',
+                  filter: 'blur(35px)'
+                }}
+              />
+            )}
 
+            {/* Hero branding - elegant and refined (only shown on home tab without query) */}
+            {selectedArtist === null && activeTab === 'home' && searchQuery.trim() === '' && (
+              <BrandingHeader
+                accentColor={accentColor}
+                hasSeenTour={hasSeenTour}
+                tourType={tourType}
+                startTour={startTour}
+                isFirstVisit={isFirstVisit}
+                hasSelectedArtist={hasSelectedArtistOnce.current}
+              />
+            )}
 
-            {/* Elegant Background Textures based on user preference */}
-            {textureStyle !== 'none' && (
-              <>
-                <div 
-                  className="absolute inset-0 pointer-events-none z-0 overflow-hidden"
-                  style={{
-                    maskImage: 'radial-gradient(circle at center, transparent 15%, rgba(0, 0, 0, 0.3) 55%, black 100%)',
-                    WebkitMaskImage: 'radial-gradient(circle at center, transparent 15%, rgba(0, 0, 0, 0.3) 55%, black 100%)'
-                  }}
-                >
-                  {textureStyle === 'paper' ? (
-                    /* Beautiful Organic Cardstock Paper Texture (Option 2) - Whisper quiet opacity */
-                    <div 
-                      className="absolute inset-0 opacity-[0.016] mix-blend-overlay"
-                      style={{
-                        backgroundImage: `url(${paperTexture})`,
-                        backgroundSize: '280px 280px',
-                        backgroundRepeat: 'repeat'
-                      }}
-                    />
-                  ) : (
-                    /* Elegant Vintage Newsprint Halftone Dot Screen (Option 1) - Whisper quiet opacity */
-                    <div 
-                      className="absolute inset-0 opacity-[0.022]"
-                      style={{
-                        backgroundImage: 'radial-gradient(circle, rgba(255, 255, 255, 0.4) 0.8px, transparent 0.8px)',
-                        backgroundSize: '5px 5px',
-                        transform: 'rotate(15deg) scale(1.35)',
-                        transformOrigin: 'center center'
-                      }}
-                    />
-                  )}
+            {/* Standard Tab Navigation under Hero Logo */}
+            {selectedArtist === null && activeTab === 'home' && searchQuery.trim() === '' && (
+              <DashboardNavigation
+                activeTab={activeTab}
+                onTabChange={setActiveTab}
+                accentColor={accentColor}
+              />
+            )}
+
+            {/* Sleek Compact Header Bar (only visible when in search/discover/profile view) */}
+            {selectedArtist === null && (activeTab !== 'home' || searchQuery.trim() !== '') && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                className="w-full border-b border-white/[0.06] bg-[#0a0a0a]/50 backdrop-blur-xl relative z-30 shrink-0 flex justify-center mb-6"
+              >
+                <div className="w-full max-w-[898px] px-6 flex items-center justify-between py-4">
+                  {/* Sleek inline logo */}
+                  <button
+                    onClick={() => {
+                      setActiveTab('home');
+                      setSearchQuery('');
+                      setSearchResults([]);
+                    }}
+                    className="text-2xl font-normal tracking-[0.08em] bg-clip-text text-transparent bg-gradient-to-r from-white via-white/80 to-white/60 px-[2px] hover:opacity-85 cursor-pointer select-none transition-all"
+                    style={{ fontFamily: '"Kaobe", serif' }}
+                  >
+                    Elva
+                  </button>
+
+                  {/* Dashboard Navigation in the center */}
+                  <DashboardNavigation
+                    activeTab={activeTab}
+                    onTabChange={setActiveTab}
+                    accentColor={accentColor}
+                  />
+
+                  {/* Empty space or a small guide button on the right to keep balance */}
+                  <div className="w-[60px] h-1" />
                 </div>
-
-                {/* Microscopic paper noise texture to complement the texture */}
-                <div 
-                  className="absolute inset-0 pointer-events-none opacity-[0.012] mix-blend-overlay z-0" 
-                  style={{ 
-                    backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`
-                  }} 
-                />
-              </>
-            )}
-            {/* Hero branding - elegant and refined */}
-            {selectedArtist === null && (
-              <div className="flex flex-col items-center gap-6 mb-8 shrink-0">
-                {/* Refined Elva wordmark */}
-                <motion.div
-                  className="relative flex flex-col items-center"
-                >
-                  {/* Subtle decorative lines with color */}
-                  <motion.div
-                    variants={topLineVariants}
-                    initial="initial"
-                    animate="animate"
-                    className="relative w-24 h-px mb-8"
-                  >
-                    <div className={`absolute inset-0 bg-gradient-to-r from-transparent ${viaAccent30[accentColor]} to-transparent`} />
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
-                  </motion.div>
-
-                  {/* Main wordmark with colored gradient */}
-                  <div className="relative">
-                    <div className="flex items-center select-none pb-2">
-                      {['E', 'l', 'v', 'a'].map((letter, i) => (
-                        <motion.span
-                          key={i}
-                          custom={i}
-                          variants={letterVariants}
-                          initial="initial"
-                          animate="animate"
-                          className={`text-8xl font-normal tracking-[0.06em] ${theme.glowText} bg-clip-text text-transparent px-[2px]`}
-                          style={{
-                            fontFamily: '"Kaobe", serif',
-                            textShadow: 'none'
-                          }}
-                        >
-                          {letter}
-                        </motion.span>
-                      ))}
-                    </div>
-
-                    {/* Subtle shimmer effect with color - smooth back and forth */}
-                    <motion.div
-                      animate={{
-                        x: ['-150%', '150%'],
-                      }}
-                      transition={{
-                        duration: 4.5,
-                        repeat: Infinity,
-                        repeatType: "reverse",
-                        ease: "easeInOut"
-                      }}
-                      className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent blur-sm"
-                      style={{ mixBlendMode: 'overlay' }}
-                    />
-                  </div>
-
-                  {/* Bottom decorative line with color */}
-                  <motion.div
-                    variants={bottomLineVariants}
-                    initial="initial"
-                    animate="animate"
-                    className="relative w-24 h-px mt-8"
-                  >
-                    <div className={`absolute inset-0 bg-gradient-to-r from-transparent ${viaAccent20[accentColor]} to-transparent`} />
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
-                  </motion.div>
-                </motion.div>
-
-                {/* Tagline - more subtle */}
-                <motion.p
-                  variants={taglineVariants}
-                  initial="initial"
-                  animate="animate"
-                  className="text-[10px] text-white/30 tracking-[0.4em] uppercase font-light"
-                >
-                  Listen Deeper
-                </motion.p>
-
-                {/* Minimalist Inline Tour Invite */}
-                {!hasSeenTour && tourType === null && (
-                  <motion.p
-                    variants={inviteVariants}
-                    initial="initial"
-                    animate="animate"
-                    whileHover={{ opacity: 0.65 }}
-                    className="mt-6 text-[10px] font-extralight text-white tracking-[0.15em] transition-all duration-300 uppercase cursor-pointer"
-                  >
-                    New to Elva?{' '}
-                    <button
-                      onClick={startTour}
-                      className={`underline decoration-white/20 hover:decoration-current ${theme.textHover} ${theme.text} cursor-pointer transition-colors`}
-                    >
-                      Take a 15s tour
-                    </button>
-                  </motion.p>
-                )}
-              </div>
+              </motion.div>
             )}
 
-            {/* Input section or Immersive Artist View */}
+            {/* Input section or Immersive Views */}
             <AnimatePresence mode="wait">
-                  {selectedArtist ? (
-                    /* NEW Cinematic Widescreen Artist Page */
-                    <motion.div
-                      key="immersive-artist-view"
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-                      className="w-full max-w-5xl px-4 flex flex-col h-[calc(100vh-80px)] overflow-y-auto scrollbar-none z-10"
-                    >
-                      {/* Navigation bar above the layout */}
-                      <div className="flex items-center justify-between w-full pb-3 border-b border-white/5 shrink-0 px-2 select-none">
-                        <button
-                          onClick={() => {
-                            setSelectedArtist(null);
-                            setArtistTracks([]);
-                          }}
-                          className="flex items-center gap-1.5 text-white/50 hover:text-white transition-all cursor-pointer group/back text-xs font-semibold py-1 px-3 rounded-full hover:bg-white/5 -ml-3"
-                          title="Back to search results"
-                        >
-                          <ArrowLeft className="w-3.5 h-3.5 group-hover/back:-translate-x-0.5 transition-transform" />
-                          <span>Back to Search</span>
-                        </button>
-                        <div 
-                          className="text-lg tracking-[0.2em] uppercase font-light text-white select-none cursor-pointer hover:opacity-85 transition-opacity -mr-2"
-                          style={{ fontFamily: '"Kaobe", serif' }}
-                          onClick={() => {
-                            setSelectedArtist(null);
-                            setArtistTracks([]);
-                          }}
-                        >
-                          Elva
-                        </div>
-                      </div>
-
-                      {/* Immersive Widescreen Artist Hero Banner */}
-                      <div className="relative w-full rounded-3xl overflow-hidden border border-white/[0.06] bg-white/[0.01] backdrop-blur-2xl shadow-2xl py-4 px-6 md:py-5 md:px-8 flex flex-col md:flex-row items-center gap-6 md:gap-8 shrink-0 mt-4">
-                        {/* Ambient dynamic theme glow behind/inside the banner */}
-                        {artistColors && (
-                          <div 
-                            className="absolute top-0 right-0 w-80 h-80 rounded-full blur-[75px] opacity-40 pointer-events-none"
-                            style={{
-                              background: `radial-gradient(circle, ${artistColors.solidGlow} 0%, rgba(255,255,255,0) 70%)`
-                            }}
-                          />
-                        )}
-                        
-                        {/* Giant circular avatar with high-end border */}
-                        <div className="relative w-36 h-36 md:w-48 md:h-48 rounded-full overflow-hidden border-2 border-white/10 shadow-2xl transition-transform duration-500 hover:scale-105 shrink-0 z-10">
-                          <img src={selectedArtist.thumbnail} alt={selectedArtist.name} className="w-full h-full object-cover scale-105" />
-                        </div>
-                        
-                        {/* Hero Info Text (aligned bottom-left on desktop) */}
-                        <div className="flex flex-col text-center md:text-left relative z-10">
-                          <div className="flex items-center justify-center md:justify-start gap-2">
-                            <span className="flex items-center gap-1 text-[9px] font-bold text-white/50 bg-white/5 border border-white/10 px-2.5 py-0.5 rounded-md uppercase tracking-wider">
-                              ✦ Verified Artist
-                            </span>
-                          </div>
-                          
-                          <h2 
-                            className="text-5xl md:text-7xl lg:text-8xl font-normal text-white mt-3 md:mt-4 tracking-wide leading-none"
-                            style={{ fontFamily: '"Kaobe", serif' }}
-                          >
-                            {selectedArtist.name}
-                          </h2>
-                          
-                          <p className="text-[10px] md:text-xs text-white/40 font-bold tracking-[0.25em] uppercase mt-3 md:mt-4">
-                            {selectedArtist.name.toLowerCase().includes('kesi') || selectedArtist.name.toLowerCase().includes('kundo')
-                              ? 'DANISH RAPPER • DK'
-                              : (() => {
-                                  const countryText = selectedArtist.country ? selectedArtist.country.toUpperCase() : 'DK';
-                                  const tags = (selectedArtist.tags || []).slice(0, 2).map(t => t.toUpperCase());
-                                  if (tags.length === 0) tags.push('ARTIST');
-                                  return `${tags.join(' • ')} • ${countryText}`;
-                                })()
-                            }
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Single Column Discography (Full Width & Premium Center-aligned) */}
-                      <div className="flex flex-col gap-6 mt-6 pb-24 w-full max-w-4xl mx-auto">
-                        
-                        {/* COLUMN 1: Discography Section */}
-                        <div className="w-full flex flex-col relative">
-
-                          <div className="flex items-center justify-between pb-3 border-b border-white/5 shrink-0 z-10 relative">
-                            <span className="text-[10px] text-white/40 font-bold uppercase tracking-wider">Official Releases</span>
-                            <span className="text-[10px] text-white/30 font-medium uppercase tracking-wider bg-white/5 border border-white/5 px-2.5 py-0.5 rounded-md">
-                              {artistTracks.length} tracks
-                            </span>
-                          </div>
-                          
-                          {/* Spacious track list flowing naturally */}
-                          <div className="w-full space-y-2 mt-4 z-10 relative">
-                            {isLoadingArtist ? (
-                              /* Pulsing skeleton list */
-                              <div className="space-y-3">
-                                {[1, 2, 3, 4, 5].map((i) => (
-                                  <div key={i} className="flex items-center gap-4 p-3 rounded-2xl border border-white/[0.02] bg-white/[0.01] animate-pulse">
-                                    <div className="w-4 h-4 bg-white/5 rounded shrink-0" />
-                                    <div className="w-10 h-10 bg-white/5 rounded-lg shrink-0" />
-                                    <div className="flex-1 space-y-1.5">
-                                      <div className="w-1/3 h-3 bg-white/10 rounded" />
-                                      <div className="w-1/4 h-2 bg-white/5 rounded" />
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            ) : artistTracks.length === 0 ? (
-                              <div className="py-16 text-center text-white/30">
-                                <Music className="w-10 h-10 text-white/10 mx-auto mb-3" />
-                                <p className="text-xs font-semibold uppercase tracking-wider text-white/40">No songs found</p>
-                                <p className="text-[10px] text-white/20 mt-1">Please try searching directly or another artist.</p>
-                              </div>
-                            ) : (
-                              <div className="space-y-1.5">
-                                {artistTracks.map((track, index) => {
-                                  const isFocused = focusedResultIndex === index;
-                                  const trackNumber = String(index + 1).padStart(2, '0');
-                                  return (
-                                    <motion.div
-                                      key={`artist-track-${track.id}`}
-                                      initial={{ opacity: 0, y: 5 }}
-                                      animate={{ opacity: 1, y: 0 }}
-                                      className={`group w-full flex items-center gap-4 py-4 px-6 rounded-2xl border transition-all duration-300 cursor-pointer ${
-                                        loadingSongId === track.id
-                                          ? `${theme.borderActive} ${theme.bgActive}`
-                                          : isFocused
-                                          ? 'bg-white/[0.06] border-white/20 shadow-md scale-[1.005]'
-                                          : 'bg-white/[0.01] hover:bg-white/[0.04] border border-white/[0.02] hover:border-white/10 shadow-sm'
-                                      }`}
-                                      onClick={() => {
-                                        if (!loadingSongId) handleSelectSong(track);
-                                      }}
-                                    >
-                                      <span className="text-[10px] font-mono text-white/25 group-hover:text-white/45 transition-colors shrink-0 w-6 text-right">
-                                        {trackNumber}
-                                      </span>
-
-                                      <div className="relative w-11 h-11 rounded-xl overflow-hidden flex-shrink-0 bg-neutral-900 border border-white/5 shadow-md">
-                                        <img src={track.thumbnail} alt={track.title} className="w-full h-full object-cover" />
-                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                          {loadingSongId === track.id ? (
-                                            <motion.div
-                                              animate={{ rotate: 360 }}
-                                              transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}
-                                              className={`w-4 h-4 rounded-full border border-white/20 ${theme.borderT}`}
-                                            />
-                                          ) : (
-                                            <Play className="w-4 h-4 text-white fill-white scale-90" />
-                                          )}
-                                        </div>
-                                      </div>
-
-                                      <div className="flex-1 text-left min-w-0">
-                                        <h3 className={`text-sm md:text-base font-semibold truncate transition-colors duration-300 ${
-                                          loadingSongId === track.id ? `${theme.text}` : 'text-white/90 group-hover:text-white tracking-tight'
-                                        }`}>
-                                          {track.title}
-                                        </h3>
-                                        <p className="text-[10px] text-white/40 truncate mt-0.5 font-light">
-                                          {track.artist}
-                                        </p>
-                                      </div>
-
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleAddToQueue(track);
-                                        }}
-                                        className={`opacity-0 group-hover:opacity-100 flex items-center gap-1.5 px-4 py-2 text-[10px] font-bold ${theme.textLight} ${theme.bgFade} hover:${theme.bgHover} border ${theme.borderLight} hover:${theme.borderActive} rounded-full transition-all duration-300 shrink-0 cursor-pointer`}
-                                        title="Add to queue"
-                                      >
-                                        <Plus className={`w-3.5 h-3.5 ${theme.text}`} />
-                                        <span>Queue</span>
-                                      </button>
-                                    </motion.div>
-                                  );
-                                })}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </motion.div>
-                  ) : (
-                /* Search input section */
-                <motion.div
-                  key="search-input-section"
-                  variants={searchInputVariants}
-                  initial="initial"
-                  animate="animate"
-                  className="w-full max-w-2xl space-y-6"
-                >
-                  {/* Main input - clean with subtle details */}
-                  <div className="relative group">
-                    {/* Subtle corner accents */}
-                    <div className="absolute -top-px -left-px w-8 h-8 border-t border-l border-white/0 group-focus-within:border-white/20 rounded-tl-3xl transition-all duration-500" />
-                    <div className="absolute -top-px -right-px w-8 h-8 border-t border-r border-white/0 group-focus-within:border-white/20 rounded-tr-3xl transition-all duration-500" />
-                    <div className="absolute -bottom-px -left-px w-8 h-8 border-b border-l border-white/0 group-focus-within:border-white/20 rounded-bl-3xl transition-all duration-500" />
-                    <div className="absolute -bottom-px -right-px w-8 h-8 border-b border-r border-white/0 group-focus-within:border-white/20 rounded-br-3xl transition-all duration-500" />
-
-                    <div className="relative">
-                      <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-white/30 group-focus-within:text-white/50 transition-colors duration-300" />
-                      <input
-                        id="search-input"
-                        type="text"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        onKeyPress={(e) => {
-                          if (e.key === 'Enter') {
-                            if (searchQuery.match(/^https?:\/\//)) {
-                              handleUrlSubmit(searchQuery);
-                            } else {
-                              handleSearch();
-                            }
-                          }
-                        }}
-                        placeholder="Search or paste a link..."
-                        autoFocus
-                        className="w-full pl-16 pr-8 py-6 rounded-3xl bg-white/[0.02] border border-white/[0.08] text-white/90 placeholder-white/25 text-lg font-light tracking-wide focus:outline-none focus:border-white/15 focus:bg-white/[0.04] transition-all duration-300 backdrop-blur-2xl"
-                      />
-
-                      {/* Subtle inner shadow for depth */}
-                      <div className="absolute inset-0 rounded-3xl pointer-events-none shadow-[inset_0_1px_2px_rgba(0,0,0,0.2)]" />
-                    </div>
-                  </div>
-
-                  {/* Search results */}
-                  <AnimatePresence>
-                    {isSearching && (
-                      <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="text-center py-16 text-white/40 text-sm"
-                      >
-                        <motion.div
-                          animate={{ rotate: 360 }}
-                          transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                          className="w-6 h-6 mx-auto mb-4 border border-white/20 border-t-white/50 rounded-full"
-                        />
-                        Searching...
-                      </motion.div>
-                    )}
-                    {!isSearching && searchResults.length > 0 && (
-                      <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ duration: 0.3 }}
-                        className="space-y-4 max-h-[550px] md:max-h-[60vh] overflow-y-auto px-1 scrollbar-none w-full"
-                      >
-                        {/* Search Results List with Glowing Premium Clickable Artist Profile Card */}
-                        <>
-                          {shouldShowArtistCard(searchQuery) && verifiedArtist && (
-                            (() => {
-                              const artist = verifiedArtist;
-                              const isFocused = focusedResultIndex === 0;
-                              return (
-                                <motion.div
-                                  initial={{ opacity: 0, y: -10 }}
-                                  animate={{ opacity: 1, y: 0 }}
-                                  onClick={() => handleViewArtistProfile(artist)}
-                                  className={`relative overflow-hidden p-6 rounded-3xl bg-gradient-to-br ${theme.fromGradient} to-white/[0.01] border transition-all duration-300 mb-6 flex items-center justify-between gap-6 group shadow-lg cursor-pointer active:scale-[0.99] backdrop-blur-xl w-full ${
-                                    isFocused
-                                      ? 'border-white/30 bg-white/[0.04] scale-[1.01]'
-                                      : `${theme.borderCard} hover:${theme.borderHover} hover:${theme.fromGradientHover} hover:to-white/[0.02]`
-                                  }`}
-                                >
-                                  <div className="flex items-center gap-5 relative z-10">
-                                    {/* Beautifully scaled-up circular avatar with theme border */}
-                                    <div className={`relative w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden border-2 ${theme.border} flex-shrink-0 shadow-xl group-hover:scale-105 ${groupHoverBorder400_40[accentColor]} transition-all duration-300`}>
-                                      <img src={artist.thumbnail} alt={artist.name} className="w-full h-full object-cover scale-105" />
-                                    </div>
-                                    <div className="flex flex-col text-left">
-                                      <div className="flex items-center gap-1.5">
-                                        <span className={`text-[10px] md:text-xs font-bold ${theme.badgeText} tracking-wider ${theme.badgeBg} border ${theme.borderAccent} px-2 py-0.5 rounded-md uppercase`}>
-                                          ✦ Verified Artist
-                                        </span>
-                                      </div>
-                                      <h4 className={`text-base md:text-xl font-black text-white mt-1.5 ${theme.textHoverLight} transition-colors tracking-tight leading-tight`}>{artist.name}</h4>
-                                      {artist.disambiguation && (
-                                        <p className="text-[11px] md:text-xs text-white/60 font-semibold mt-1 leading-snug">
-                                          {artist.disambiguation} {artist.country && `(${artist.country})`}
-                                        </p>
-                                      )}
-                                      {!artist.disambiguation && artist.country && (
-                                        <p className="text-[11px] md:text-xs text-white/60 font-semibold mt-1">
-                                          Artist from {artist.country}
-                                        </p>
-                                      )}
-                                      {artist.tags && artist.tags.length > 0 && (
-                                        <div className="flex flex-wrap gap-1.5 mt-2.5">
-                                          {artist.tags.slice(0, 3).map((tag) => (
-                                            <span
-                                              key={tag}
-                                              className={`text-[10px] font-bold text-white/40 bg-white/5 border border-white/10 px-2 py-0.5 rounded-md uppercase tracking-wider ${groupHoverBorder500_10[accentColor]} ${groupHoverText300_60[accentColor]} transition-colors`}
-                                            >
-                                              {tag}
-                                            </span>
-                                          ))}
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                  <ChevronRight className={`w-6 h-6 text-white/20 ${groupHoverText400[accentColor]} group-hover:translate-x-0.5 transition-all duration-300 shrink-0 self-center relative z-10`} />
-                                </motion.div>
-                              );
-                            })()
-                          )}
-
-                          {searchResults.map((result, index) => {
-                            const hasArtistCard = shouldShowArtistCard(searchQuery) && verifiedArtist;
-                            const actualIndex = hasArtistCard ? index + 1 : index;
-                            const isFocused = focusedResultIndex === actualIndex;
-
-                            return (
-                              <motion.div
-                                key={result.id}
-                                initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                                animate={{ opacity: 1, y: 0, scale: 1 }}
-                                whileHover={{ scale: 1.015 }}
-                                whileTap={{ scale: 0.96 }}
-                                onClick={() => {
-                                  if (!loadingSongId) handleSelectSong(result);
-                                }}
-                                transition={{
-                                  delay: index * 0.08,
-                                  duration: 0.4,
-                                  ease: [0.16, 1, 0.3, 1]
-                                }}
-                                className={`group relative w-full flex items-center gap-4 p-3.5 rounded-2xl border transition-all duration-300 backdrop-blur-xl cursor-pointer ${
-                                  loadingSongId === result.id
-                                    ? `${theme.borderActive} ${theme.bgActive}`
-                                    : isFocused
-                                    ? 'bg-white/[0.06] border-white/20 shadow-md scale-[1.015]'
-                                    : 'bg-white/[0.02] border-white/[0.06] hover:bg-white/[0.06] hover:border-white/15'
-                                }`}
-                              >
-                                {/* Subtle highlight on hover */}
-                                <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-white/0 via-white/[0.02] to-white/0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-
-                                {/* Thumbnail Container */}
-                                <div className="relative w-16 h-16 rounded-xl overflow-hidden flex-shrink-0">
-                                  <img
-                                    src={result.thumbnail}
-                                    alt={result.title}
-                                    className={`w-full h-full object-cover transition-opacity duration-300 ${loadingSongId === result.id ? 'opacity-40' : ''}`}
-                                  />
-                                  <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-all flex items-center justify-center">
-                                    {loadingSongId === result.id ? (
-                                      <motion.div
-                                        animate={{ rotate: 360 }}
-                                        transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}
-                                        className={`w-5 h-5 rounded-full border border-white/20 ${theme.borderT}`}
-                                      />
-                                    ) : (
-                                      <Music className="w-5 h-5 text-white/0 group-hover:text-white/80 transition-colors" />
-                                    )}
-                                  </div>
-                                </div>
-
-                                {/* Song Info */}
-                                <div className="relative flex-1 text-left min-w-0">
-                                  <h3 className={`text-sm font-medium truncate transition-colors duration-300 ${
-                                    loadingSongId === result.id ? `${theme.text} font-semibold` : 'text-white/75 group-hover:text-white/95'
-                                  }`}>
-                                    {result.title}
-                                  </h3>
-                                  <p className="text-white/35 text-xs truncate mt-1">
-                                    {result.artist}
-                                  </p>
-                                </div>
-
-                                {/* Add to queue */}
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleAddToQueue(result);
-                                  }}
-                                  className="relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-white/10 transition-all opacity-0 group-hover:opacity-100 duration-200"
-                                  title="Add to queue"
-                                >
-                                  <Plus className="w-3.5 h-3.5 text-white/40" />
-                                  <span className="text-xs text-white/40">Queue</span>
-                                </button>
-                              </motion.div>
-                            );
-                          })}
-                        </>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-
-                  {/* Discreet upload option with better styling */}
-                  {!isSearching && searchResults.length === 0 && (
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: 1 }}
-                      className="text-center pt-4"
-                    >
-                      <label id="upload-button" className="inline-flex items-center gap-2 cursor-pointer group">
-                        <input
-                          type="file"
-                          accept="audio/*"
-                          onChange={handleFileSelect}
-                          className="hidden"
-                        />
-                        <span className="text-sm text-white/30 group-hover:text-white/50 transition-colors">
-                          or
-                        </span>
-                        <span className="text-sm text-white/40 group-hover:text-white/60 transition-colors border-b border-white/20 group-hover:border-white/40">
-                          upload a file
-                        </span>
-                      </label>
-                    </motion.div>
-                  )}
-                </motion.div>
+              {selectedArtist ? (
+                <ArtistProfileView
+                  selectedArtist={selectedArtist}
+                  artistColors={artistColors}
+                  artistTracks={artistTracks}
+                  isLoadingArtist={isLoadingArtist}
+                  focusedResultIndex={focusedResultIndex}
+                  loadingSongId={loadingSongId}
+                  handleSelectSong={handleSelectSong}
+                  handleAddToQueue={handleAddToQueue}
+                  setSelectedArtist={setSelectedArtist}
+                  setArtistTracks={setArtistTracks}
+                  theme={theme}
+                />
+              ) : activeTab === 'discover' ? (
+                <DiscoverView
+                  onSelectSong={handleSelectSong}
+                  onAddToQueue={handleAddToQueue}
+                  accentColor={accentColor}
+                  favorites={favorites}
+                  onToggleFavorite={handleToggleFavorite}
+                />
+              ) : activeTab === 'profile' ? (
+                <ProfileHubView
+                  favorites={favorites}
+                  onToggleFavorite={handleToggleFavorite}
+                  onSelectSong={handleSelectSong}
+                  onAddToQueue={handleAddToQueue}
+                  accentColor={accentColor}
+                />
+              ) : (
+                <SearchSection
+                  searchQuery={searchQuery}
+                  setSearchQuery={setSearchQuery}
+                  isSearching={isSearching}
+                  searchResults={searchResults}
+                  recentArtists={recentArtists}
+                  verifiedArtist={verifiedArtist}
+                  focusedResultIndex={focusedResultIndex}
+                  loadingSongId={loadingSongId}
+                  handleViewArtistProfile={handleViewArtistProfile}
+                  handleUrlSubmit={handleUrlSubmit}
+                  handleSearch={handleSearch}
+                  handleSelectSong={handleSelectSong}
+                  handleAddToQueue={handleAddToQueue}
+                  handleFileSelect={handleFileSelect}
+                  theme={theme}
+                  isFirstVisit={isFirstVisit}
+                  hasSelectedArtist={hasSelectedArtistOnce.current}
+                />
               )}
             </AnimatePresence>
 
@@ -2261,6 +1208,8 @@ export default function App() {
               onSelectFromQueue={handleSelectFromQueue}
               onAddToQueue={handleAddToQueue}
               onSelectSong={handleSelectSong}
+              favorites={favorites}
+              onToggleFavorite={handleToggleFavorite}
               onSearch={executeSearchAPI}
               onFetchChannelUploads={executeChannelUploadsAPI}
               tourType={tourType}
@@ -2271,8 +1220,6 @@ export default function App() {
               onBackgroundStyleChange={setBackgroundStyle}
               themePreset={themePreset}
               onThemePresetChange={setThemePreset}
-              showVisualizer={showVisualizer}
-              onShowVisualizerChange={setShowVisualizer}
               zenMode={zenMode}
               onZenModeChange={setZenMode}
               showVolumeSlider={showVolumeSlider}
@@ -2327,8 +1274,6 @@ export default function App() {
             onBackgroundStyleChange={setBackgroundStyle}
             themePreset={themePreset}
             onThemePresetChange={setThemePreset}
-            showVisualizer={showVisualizer}
-            onShowVisualizerChange={setShowVisualizer}
             zenMode={zenMode}
             onZenModeChange={setZenMode}
             showVolumeSlider={showVolumeSlider}
@@ -2352,79 +1297,11 @@ export default function App() {
       />
 
       {/* Keyboard Shortcuts Map Overlay */}
-      <AnimatePresence>
-        {showShortcutMap && (
-          <div 
-            className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-2xl pointer-events-auto cursor-default"
-            onClick={() => setShowShortcutMap(false)}
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.94, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.94, y: 15 }}
-              transition={{ type: 'spring', stiffness: 140, damping: 22 }}
-              className="w-[500px] rounded-[32px] border border-white/10 bg-[#0f0f11]/85 p-8 relative overflow-hidden shadow-[0_30px_70px_rgba(0,0,0,0.9)]"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Subtle top ambient color gradient */}
-              <div className={`absolute -top-16 -right-16 w-36 h-36 rounded-full ${theme.bg} blur-3xl pointer-events-none`} />
-              <div className={`absolute -bottom-16 -left-16 w-36 h-36 rounded-full ${theme.bgFade} blur-3xl pointer-events-none`} />
-
-              {/* Title Header */}
-              <div className="flex items-center justify-between mb-8 border-b border-white/[0.06] pb-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-xl bg-white/5 border border-white/10">
-                    <Keyboard className={`w-5 h-5 ${theme.text}`} />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-medium tracking-tight text-white/95 leading-none">Keyboard Shortcuts</h3>
-                    <p className="text-[11px] font-light text-white/40 mt-1 uppercase tracking-wider">Elva Power-User Map</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowShortcutMap(false)}
-                  className="p-1.5 rounded-full text-white/30 hover:text-white/60 hover:bg-white/5 transition-all cursor-pointer"
-                  title="Close Map"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              {/* Grid of keys */}
-              <div className="space-y-4 text-xs">
-                {[
-                  { keys: ['Space'], desc: 'Play / Pause music' },
-                  { keys: ['↑', '↓'], desc: 'Adjust volume (Premium HUD)' },
-                  { keys: ['M'], desc: 'Mute / Unmute audio' },
-                  { keys: ['←', '→'], desc: 'Seek 5s backward / forward' },
-                  { keys: ['L'], desc: 'Flip artwork / toggle live lyrics' },
-                  { keys: ['⌘', ','], desc: 'Open settings menu' },
-                  { keys: ['?'], desc: 'Toggle keyboard shortcut map' },
-                  { keys: ['Esc'], desc: 'Close any active overlays / map' }
-                ].map((item, idx) => (
-                  <div key={idx} className="flex items-center justify-between py-2 border-b border-white/[0.02]">
-                    <span className="font-light text-white/60 tracking-wide">{item.desc}</span>
-                    <div className="flex items-center gap-1.5">
-                      {item.keys.map((k, kIdx) => (
-                        <kbd 
-                          key={kIdx} 
-                          className="px-2.5 py-1 rounded-[6px] bg-white/[0.04] border border-white/10 text-white/80 font-mono text-[10px] uppercase font-semibold shadow-[0_2px_4px_rgba(0,0,0,0.3)] tracking-tight min-w-[24px] text-center"
-                        >
-                          {k}
-                        </kbd>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-8 text-center">
-                <span className="text-[10px] text-white/30 font-light tracking-widest uppercase">Press ? or Esc to close at any time</span>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      <KeyboardShortcutsModal
+        isOpen={showShortcutMap}
+        onClose={() => setShowShortcutMap(false)}
+        accentColor={accentColor}
+      />
 
 
 
@@ -2451,6 +1328,36 @@ export default function App() {
           }
         }} 
       />
+
+      {/* Premium Global Matte-Paper/Dots Texture Overlay (Placed on top of everything at z-[150] for uniform tactile paper finish) */}
+      {textureStyle === 'paper' && (
+        <div 
+          className="fixed inset-0 w-full h-full opacity-[0.08] mix-blend-overlay pointer-events-none z-[150]" 
+          style={{ 
+            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.80' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`
+          }} 
+        />
+      )}
+      
+      {textureStyle === 'dots' && (
+        <>
+          <div 
+            className="fixed inset-0 opacity-[0.022] pointer-events-none z-[150]"
+            style={{
+              backgroundImage: 'radial-gradient(circle, rgba(255, 255, 255, 0.4) 0.8px, transparent 0.8px)',
+              backgroundSize: '5px 5px',
+              transform: 'rotate(15deg) scale(1.35)',
+              transformOrigin: 'center center'
+            }}
+          />
+          <div 
+            className="fixed inset-0 pointer-events-none opacity-[0.008] mix-blend-overlay z-[150]" 
+            style={{ 
+              backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`
+            }} 
+          />
+        </>
+      )}
     </div>
   );
 }

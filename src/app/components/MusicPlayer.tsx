@@ -13,7 +13,11 @@ import * as Slider from '@radix-ui/react-slider';
 import { toast } from 'sonner';
 import { Queue } from './Queue';
 import { SettingsModal } from './SettingsModal';
+import { LyricsPanel } from './LyricsPanel';
+import { PlayerControls } from './PlayerControls';
 import { AccentColor, ACCENT_THEMES } from './themeUtils';
+import { LyricLine } from '../types';
+import { FluidBackground } from './FluidBackground';
 
 interface QueueItem {
   id: string;
@@ -31,10 +35,7 @@ interface SearchResult {
   videoId: string;
 }
 
-interface LyricLine {
-  time: number;
-  text: string;
-}
+
 
 interface MusicPlayerProps {
   songData: {
@@ -64,8 +65,6 @@ interface MusicPlayerProps {
   onBackgroundStyleChange?: (style: 'default' | 'particles' | 'liquid' | 'mesh') => void;
   themePreset?: 'dynamic' | 'cyberpunk' | 'obsidian' | 'aurora' | 'sunset';
   onThemePresetChange?: (theme: 'dynamic' | 'cyberpunk' | 'obsidian' | 'aurora' | 'sunset') => void;
-  showVisualizer?: boolean;
-  onShowVisualizerChange?: (show: boolean) => void;
   zenMode?: boolean;
   onZenModeChange?: (zen: boolean) => void;
   showVolumeSlider?: boolean;
@@ -74,6 +73,8 @@ interface MusicPlayerProps {
   onEnable3DTiltChange?: (enable: boolean) => void;
   showSettingsButton?: boolean;
   onShowSettingsButtonChange?: (show: boolean) => void;
+  favorites?: SearchResult[];
+  onToggleFavorite?: (song: SearchResult) => void;
 }
 
 // Generate beautiful, dynamic, vibrant HSL theme palettes by hashing the song title/artist
@@ -203,7 +204,6 @@ const THEME_PRESETS = {
   }
 };
 
-let globalAudioSource: MediaElementAudioSourceNode | null = null;
 let globalAudioContext: AudioContext | null = null;
 let globalAnalyser: AnalyserNode | null = null;
 
@@ -229,8 +229,6 @@ export function MusicPlayer({
   onBackgroundStyleChange,
   themePreset = 'dynamic',
   onThemePresetChange,
-  showVisualizer = false,
-  onShowVisualizerChange,
   zenMode = false,
   onZenModeChange,
   showVolumeSlider = true,
@@ -238,7 +236,9 @@ export function MusicPlayer({
   enable3DTilt = true,
   onEnable3DTiltChange,
   showSettingsButton = false,
-  onShowSettingsButtonChange
+  onShowSettingsButtonChange,
+  favorites = [],
+  onToggleFavorite
 }: MusicPlayerProps) {
   const theme = ACCENT_THEMES[accentColor];
 
@@ -282,6 +282,7 @@ export function MusicPlayer({
   const progressTimerRef = useRef<any>(null);
   const isPlayingRef = useRef(isPlaying);
   const lastToggleTimeRef = useRef(0);
+  const isTransitioningRef = useRef(false);
   const setPlaying = (value: boolean) => {
     isPlayingRef.current = value;
     setIsPlaying(value);
@@ -299,6 +300,98 @@ export function MusicPlayer({
   }, [volume]);
 
   const handleNextSongRef = useRef<() => Promise<void>>(async () => {});
+
+  const handleAddToPlaylist = (playlistId: string) => {
+    try {
+      const stored = localStorage.getItem('elva_playlists');
+      const plist: any[] = stored ? JSON.parse(stored) : [];
+      const playlist = plist.find(p => p.id === playlistId);
+      
+      if (playlist) {
+        const currentTrack = {
+          id: songData.videoId || songData.audioUrl,
+          videoId: songData.videoId || '',
+          title: songData.title,
+          artist: songData.artist,
+          thumbnail: songData.artworkUrl
+        };
+        
+        // Avoid duplicate tracks in same playlist
+        if (playlist.tracks.some((t: any) => t.id === currentTrack.id)) {
+          toast.info('Allerede tilføjet til denne playliste');
+          return;
+        }
+        
+        playlist.tracks.push(currentTrack);
+        localStorage.setItem('elva_playlists', JSON.stringify(plist));
+        
+        // Dispatch custom event to notify ProfileHubView
+        window.dispatchEvent(new Event('elva-playlists-updated'));
+        
+        toast.success(`Tilføjet til ${playlist.name}`, {
+          description: songData.title
+        });
+      }
+    } catch (e) {
+      console.warn('Failed to add track to playlist:', e);
+    }
+  };
+
+  // Automatic play-count & listening-time tracker (15 seconds trigger)
+  useEffect(() => {
+    if (!isPlaying) return;
+    
+    let playTimer = setTimeout(() => {
+      // 1. Increment play count for this track
+      try {
+        const stored = localStorage.getItem('elva_play_counts');
+        const counts: any = stored ? JSON.parse(stored) : {};
+        
+        const trackId = songData.videoId || songData.audioUrl;
+        if (!counts[trackId]) {
+          counts[trackId] = {
+            title: songData.title,
+            artist: songData.artist,
+            count: 0,
+            lastPlayed: Date.now()
+          };
+        }
+        counts[trackId].count += 1;
+        counts[trackId].lastPlayed = Date.now();
+        localStorage.setItem('elva_play_counts', JSON.stringify(counts));
+        
+        // 2. Increment weekly stats lytte-tid
+        const storedWeekly = localStorage.getItem('elva_weekly_time');
+        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const currentDayName = days[new Date().getDay()];
+        
+        let stats: { day: string; min: number }[] = storedWeekly ? JSON.parse(storedWeekly) : [
+          { day: 'Mon', min: 12 },
+          { day: 'Tue', min: 45 },
+          { day: 'Wed', min: 25 },
+          { day: 'Thu', min: 60 },
+          { day: 'Fri', min: 85 },
+          { day: 'Sat', min: 110 },
+          { day: 'Sun', min: 50 }
+        ];
+        
+        const dayStat = stats.find(s => s.day === currentDayName);
+        if (dayStat) {
+          dayStat.min += 3; // Add 3 minutes per play
+        } else {
+          stats.push({ day: currentDayName, min: 3 });
+        }
+        localStorage.setItem('elva_weekly_time', JSON.stringify(stats));
+
+        // Dispatch a custom event to notify ProfileHubView to update stats reactively!
+        window.dispatchEvent(new Event('elva-stats-updated'));
+      } catch (e) {
+        console.warn('Failed to update stats in localStorage:', e);
+      }
+    }, 15000); // 15 seconds trigger
+
+    return () => clearTimeout(playTimer);
+  }, [songData.videoId, songData.audioUrl, isPlaying]);
 
 
   const fadeVolume = (target: number, duration: number): Promise<void> => {
@@ -355,14 +448,8 @@ export function MusicPlayer({
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const smoothedValuesRef = useRef<number[]>(new Array(128).fill(0));
-  const visualizerParticlesRef = useRef<{x: number, y: number, vx: number, vy: number, alpha: number, size: number, color: string}[]>([]);
-  const colorsRef = useRef(dominantColors);
-  
-  useEffect(() => {
-    colorsRef.current = dominantColors;
-  }, [dominantColors]);
+  const audioSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
+
 
   useEffect(() => {
     if (themePreset === 'dynamic') {
@@ -391,12 +478,15 @@ export function MusicPlayer({
       }
       const analyser = globalAnalyser;
       
-      if (!globalAudioSource) {
-        globalAudioSource = ctx.createMediaElementSource(audioRef.current);
+      // Use local component-level audio source node to avoid memory leaks
+      // and ensure re-mount connects the active audio element correctly.
+      if (!audioSourceRef.current) {
+        audioSourceRef.current = ctx.createMediaElementSource(audioRef.current);
       }
+      const source = audioSourceRef.current;
       
-      globalAudioSource.disconnect();
-      globalAudioSource.connect(analyser);
+      source.disconnect();
+      source.connect(analyser);
       analyser.disconnect();
       analyser.connect(ctx.destination);
       
@@ -407,189 +497,7 @@ export function MusicPlayer({
     }
   };
 
-  // Dynamic 360° visualizer canvas drawing loop
-  useEffect(() => {
-    if (!showVisualizer) return;
 
-    let animationFrameId: number;
-    
-    const draw = () => {
-      const canvas = canvasRef.current;
-      if (!canvas) {
-        animationFrameId = requestAnimationFrame(draw);
-        return;
-      }
-
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        animationFrameId = requestAnimationFrame(draw);
-        return;
-      }
-
-      const width = canvas.width;
-      const height = canvas.height;
-      const cx = width / 2;
-      const cy = height / 2;
-
-      ctx.clearRect(0, 0, width, height);
-
-      // Get frequency data
-      const isAudioAPIActive = !!(analyserRef.current && !songData.videoId);
-      const bufferLength = analyserRef.current ? analyserRef.current.frequencyBinCount : 128;
-      const dataArray = new Uint8Array(bufferLength);
-      
-      if (isAudioAPIActive && analyserRef.current) {
-        analyserRef.current.getByteFrequencyData(dataArray);
-      }
-
-      // Fallback/Simulated data
-      const time = performance.now() * 0.001;
-      const simData: number[] = [];
-      const numBars = 96;
-
-      for (let i = 0; i < numBars; i++) {
-        if (isPlaying) {
-          // Beat pulse around 120BPM (2Hz frequency)
-          const bassPulse = Math.max(0, Math.sin(time * Math.PI * 2) * 0.8 + 0.2);
-          const subBass = Math.max(0, Math.sin(time * Math.PI * 0.5) * 0.5);
-          
-          let val = 0;
-          if (i < 12) {
-            val = (bassPulse * 0.75 + subBass * 0.25) * 190 + Math.sin(time * 12 + i) * 35 + Math.random() * 20;
-          } else if (i < 48) {
-            val = (Math.sin(time * 5 + i * 0.25) * 0.55 + 0.45) * 130 + Math.sin(time * 10 + i * 0.6) * 20 + Math.random() * 15;
-          } else {
-            val = (Math.sin(time * 14 + i * 0.15) * 0.4 + 0.4) * 85 + Math.random() * 25;
-          }
-          simData.push(Math.max(15, Math.min(255, val)));
-        } else {
-          // Slow ambient breathing
-          const breathing = (Math.sin(time * 1.5 + i * 0.1) * 0.5 + 0.5) * 12;
-          simData.push(breathing);
-        }
-      }
-
-      // Setup drawing values
-      const baseRadius = 265;
-      const maxSpikeHeight = 90;
-
-      // Draw particle system
-      const particles = visualizerParticlesRef.current;
-      for (let i = particles.length - 1; i >= 0; i--) {
-        const p = particles[i];
-        p.x += p.vx;
-        p.y += p.vy;
-        p.vx *= 0.98;
-        p.vy *= 0.98;
-        p.alpha -= 0.012;
-
-        if (p.alpha <= 0) {
-          particles.splice(i, 1);
-          continue;
-        }
-
-        ctx.save();
-        ctx.globalAlpha = p.alpha;
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = p.color;
-        ctx.fillStyle = p.color;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-      }
-
-      // Prepare gradient colors for the ring spikes
-      const primaryColor = colorsRef.current.primary.replace('0.6', '1');
-      const accentColor = colorsRef.current.accent.replace('0.4', '1');
-      const secondaryColor = colorsRef.current.secondary.replace('0.5', '1');
-
-      // Draw beautiful subtle background glow ring
-      let averageVolume = 0;
-      for (let i = 0; i < numBars; i++) {
-        const mapIdx = i < numBars / 2 ? i : numBars - 1 - i;
-        const rawVal = isAudioAPIActive ? dataArray[mapIdx] : simData[mapIdx];
-        averageVolume += rawVal;
-      }
-      averageVolume /= numBars;
-
-      ctx.save();
-      const glowGrad = ctx.createRadialGradient(cx, cy, baseRadius - 20, cx, cy, baseRadius + 80);
-      glowGrad.addColorStop(0, colorsRef.current.primary.replace('0.6', '0.0'));
-      glowGrad.addColorStop(0.3, colorsRef.current.primary.replace('0.6', '0.12'));
-      glowGrad.addColorStop(0.7, colorsRef.current.accent.replace('0.4', '0.08'));
-      glowGrad.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = glowGrad;
-      ctx.beginPath();
-      const reactiveRadiusOffset = (averageVolume / 255) * 15;
-      ctx.arc(cx, cy, baseRadius + 70 + reactiveRadiusOffset, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-
-      // Draw the radial spikes
-      for (let i = 0; i < numBars; i++) {
-        const angle = (i / numBars) * Math.PI * 2;
-        
-        const mapIdx = i < numBars / 2 ? i : numBars - 1 - i;
-        const rawVal = isAudioAPIActive ? dataArray[mapIdx] : simData[mapIdx];
-        
-        const targetVal = rawVal || 0;
-        if (!smoothedValuesRef.current[i]) smoothedValuesRef.current[i] = 0;
-        smoothedValuesRef.current[i] = smoothedValuesRef.current[i] * 0.78 + targetVal * 0.22;
-        const val = smoothedValuesRef.current[i];
-
-        const barHeight = (val / 255) * maxSpikeHeight;
-        
-        const cos = Math.cos(angle);
-        const sin = Math.sin(angle);
-
-        const xStart = cx + cos * baseRadius;
-        const yStart = cy + sin * baseRadius;
-        const xEnd = cx + cos * (baseRadius + barHeight);
-        const yEnd = cy + sin * (baseRadius + barHeight);
-
-        ctx.beginPath();
-        const lineGrad = ctx.createLinearGradient(xStart, yStart, xEnd, yEnd);
-        lineGrad.addColorStop(0, colorsRef.current.primary.replace('0.6', '0.3'));
-        lineGrad.addColorStop(0.5, colorsRef.current.accent.replace('0.4', '0.8'));
-        lineGrad.addColorStop(1, colorsRef.current.secondary.replace('0.5', '0.9'));
-        
-        ctx.strokeStyle = lineGrad;
-        ctx.lineWidth = 2.5;
-        ctx.lineCap = 'round';
-        ctx.moveTo(xStart, yStart);
-        ctx.lineTo(xEnd, yEnd);
-        ctx.stroke();
-
-        if (barHeight > 15) {
-          ctx.beginPath();
-          ctx.arc(xEnd, yEnd, 1.5, 0, Math.PI * 2);
-          ctx.fillStyle = colorsRef.current.secondary.replace('0.5', '1');
-          ctx.fill();
-        }
-
-        if (isPlaying && val > 165 && Math.random() < 0.12) {
-          const speed = 1.2 + Math.random() * 2.5;
-          particles.push({
-            x: xEnd,
-            y: yEnd,
-            vx: cos * speed + (Math.random() - 0.5) * 0.8,
-            vy: sin * speed + (Math.random() - 0.5) * 0.8,
-            alpha: 1.0,
-            size: 1.5 + Math.random() * 2.5,
-            color: Math.random() > 0.5 ? accentColor : secondaryColor
-          });
-        }
-      }
-
-      animationFrameId = requestAnimationFrame(draw);
-    };
-
-    animationFrameId = requestAnimationFrame(draw);
-    return () => {
-      cancelAnimationFrame(animationFrameId);
-    };
-  }, [showVisualizer, isPlaying, songData.videoId]);
 
   // Optimized pre-calculated particles trajectory array (responsively mapped using %)
   const optimizedParticles = useMemo(() => {
@@ -619,18 +527,7 @@ export function MusicPlayer({
   const [isLoadingLyrics, setIsLoadingLyrics] = useState(false);
   const [currentLyricIndex, setCurrentLyricIndex] = useState(-1);
   const [isLyricsSynced, setIsLyricsSynced] = useState(false);
-  const lyricContainerRef = useRef<HTMLDivElement>(null);
-  const activeLyricRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to active lyric
-  useEffect(() => {
-    if (showLyrics && isLyricsSynced && activeLyricRef.current && lyricContainerRef.current) {
-      activeLyricRef.current.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center',
-      });
-    }
-  }, [currentLyricIndex, showLyrics, isLyricsSynced]);
 
   // Sync lyrics with time
   useEffect(() => {
@@ -919,9 +816,11 @@ export function MusicPlayer({
   };
 
   // Load YT IFrame API and handle audio/video playback
+  const isYouTubeMode = !!songData.videoId;
+
+  // Manage YouTube player instance creation and destruction
   useEffect(() => {
-    if (songData.videoId) {
-      // YouTube Video
+    if (isYouTubeMode) {
       if (audioRef.current) {
         audioRef.current.pause();
       }
@@ -957,13 +856,17 @@ export function MusicPlayer({
                 handleNextSongRef.current();
               } else if (e.data === window.YT.PlayerState.PLAYING) {
                 setPlaying(true);
+                isTransitioningRef.current = false;
                 setDuration(e.target.getDuration());
                 // Fade in if the fader is at 0 or low
                 if (faderRef.current < 0.1) {
                   fadeVolume(1, 800);
                 }
               } else if (e.data === window.YT.PlayerState.PAUSED) {
-                setPlaying(false);
+                // Ignore pause event during initial load transition
+                if (!isTransitioningRef.current) {
+                  setPlaying(false);
+                }
               }
             }
           }
@@ -980,10 +883,36 @@ export function MusicPlayer({
           createYTPlayer();
         };
       } else if (!ytPlayerRef.current) {
-        // If window.YT is already loaded but player ref is null (due to remounting),
-        // instantiate the YT.Player immediately!
         createYTPlayer();
-      } else if (ytPlayerRef.current && ytPlayerRef.current.loadVideoById) {
+      }
+    }
+
+    return () => {
+      // Cancel active fade animations to prevent animation frame leaks
+      if (faderAnimationRef.current) {
+        cancelAnimationFrame(faderAnimationRef.current);
+        faderAnimationRef.current = null;
+      }
+
+      // Destroy YouTube player instance to release memory completely
+      if (ytPlayerRef.current) {
+        try {
+          if (typeof ytPlayerRef.current.destroy === 'function') {
+            ytPlayerRef.current.destroy();
+          }
+        } catch (e) {
+          console.warn("Failed to destroy YT Player on song change/unmount:", e);
+        }
+        ytPlayerRef.current = null;
+      }
+    };
+  }, [isYouTubeMode]);
+
+  // Load new video when videoId changes
+  useEffect(() => {
+    if (isYouTubeMode && songData.videoId) {
+      isTransitioningRef.current = true;
+      if (ytPlayerRef.current && typeof ytPlayerRef.current.loadVideoById === 'function') {
         // Start at 0 volume and load track!
         faderRef.current = 0;
         try { ytPlayerRef.current.setVolume(0); } catch(e){}
@@ -992,8 +921,12 @@ export function MusicPlayer({
         ytPlayerRef.current.playVideo();
         fadeVolume(1, 800);
       }
-    } else if (songData.audioUrl) {
-      // Local Audio File
+    }
+  }, [songData.videoId, isYouTubeMode]);
+
+  // Manage local audio playback
+  useEffect(() => {
+    if (!isYouTubeMode && songData.audioUrl) {
       if (ytPlayerRef.current && ytPlayerRef.current.pauseVideo) {
         try { ytPlayerRef.current.pauseVideo(); } catch(e){}
       }
@@ -1014,7 +947,18 @@ export function MusicPlayer({
           .catch(console.error);
       }
     }
-  }, [songData.videoId, songData.audioUrl]);
+
+    return () => {
+      // Pause local audio and clear source to release hardware audio decoders/buffers
+      if (audioRef.current) {
+        try {
+          audioRef.current.pause();
+          audioRef.current.src = "";
+          audioRef.current.load();
+        } catch (e) {}
+      }
+    };
+  }, [isYouTubeMode, songData.audioUrl]);
 
   // Sync isPlaying state to players
   useEffect(() => {
@@ -1339,6 +1283,37 @@ export function MusicPlayer({
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [isPlaying, currentTime, volume, preMuteVolume]);
 
+  // Master Cleanup Effect for Component Unmount to prevent any background loops, intervals, or threads
+  useEffect(() => {
+    return () => {
+      // Clear timers and animation frames to prevent CPU/memory leaks
+      if (volumeHUDTimeoutRef.current) {
+        clearTimeout(volumeHUDTimeoutRef.current);
+      }
+      if (faderAnimationRef.current) {
+        cancelAnimationFrame(faderAnimationRef.current);
+      }
+      if (progressTimerRef.current) {
+        clearInterval(progressTimerRef.current);
+      }
+      
+      // Disconnect local audio source node to free Web Audio memory
+      if (audioSourceRef.current) {
+        try {
+          audioSourceRef.current.disconnect();
+        } catch (e) {}
+        audioSourceRef.current = null;
+      }
+      
+      // Suspend global AudioContext to release system-level hardware audio threads
+      if (globalAudioContext && globalAudioContext.state === 'running') {
+        try {
+          globalAudioContext.suspend();
+        } catch (e) {}
+      }
+    };
+  }, []);
+
   return (
     <div 
       className={`size-full relative overflow-hidden bg-[#0a0a0a] flex items-center justify-center transition-all bg-transition ${isUserIdle && zenMode ? 'cursor-none' : ''}`}
@@ -1404,8 +1379,6 @@ export function MusicPlayer({
                 onThemePresetChange={onThemePresetChange}
                 accentColor={accentColor}
                 onAccentColorChange={onAccentColorChange}
-                showVisualizer={showVisualizer}
-                onShowVisualizerChange={onShowVisualizerChange}
                 zenMode={zenMode}
                 onZenModeChange={onZenModeChange}
                 showVolumeSlider={showVolumeSlider}
@@ -1485,286 +1458,14 @@ export function MusicPlayer({
         className="absolute inset-0 overflow-hidden"
         style={{ willChange: 'opacity' }}
       >
-        {backgroundStyle === 'particles' && (
-          <>
-            {/* Advanced animated particles */}
-            {optimizedParticles.map((p) => (
-              <motion.div
-                key={`particle-${p.id}`}
-                initial={{
-                  x: `${p.xStart}%`,
-                  y: `${p.yStart}%`,
-                  scale: 0,
-                }}
-                animate={{
-                  x: p.xValues,
-                  y: p.yValues,
-                  scale: [0, p.scaleMax, 0],
-                  opacity: [0, 0.15, 0],
-                }}
-                transition={{
-                  duration: p.duration,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                  delay: p.delay,
-                }}
-                className="absolute w-2 h-2 rounded-full"
-                style={{
-                  background: p.id % 3 === 0
-                    ? 'var(--theme-primary)'
-                    : p.id % 3 === 1
-                    ? 'var(--theme-secondary)'
-                    : 'var(--theme-accent)',
-                  filter: 'blur(2px)',
-                }}
-              />
-            ))}
+        {/* Live WebGL Fluid Background with Dynamic Song Color Binding */}
+        <FluidBackground 
+          color1={dominantColors.primary} 
+          color2={dominantColors.secondary} 
+          color3={dominantColors.accent} 
+          speedMultiplier={backgroundStyle === 'liquid' ? 1.4 : backgroundStyle === 'mesh' ? 0.8 : backgroundStyle === 'particles' ? 1.1 : 0.5}
+        />
 
-            {/* Flowing gradient waves — blur reduced 120→70, 100→60 for GPU savings */}
-            <motion.div
-              animate={{
-                rotate: [0, 360],
-                scale: [1, 1.3, 1],
-              }}
-              transition={{
-                rotate: { duration: 60, repeat: Infinity, ease: "linear" },
-                scale: { duration: 25, repeat: Infinity, ease: "easeInOut" },
-              }}
-              className="absolute top-0 left-0 w-full h-full"
-              style={{
-                background: 'conic-gradient(from 0deg at 50% 50%, var(--theme-primary) 0deg, transparent 60deg, var(--theme-secondary) 180deg, transparent 240deg, var(--theme-accent) 300deg, transparent 360deg)',
-                filter: 'blur(70px)',
-                opacity: 0.3,
-              }}
-            />
-
-            <motion.div
-              animate={{
-                rotate: [360, 0],
-                scale: [1.2, 0.9, 1.2],
-              }}
-              transition={{
-                rotate: { duration: 45, repeat: Infinity, ease: "linear" },
-                scale: { duration: 30, repeat: Infinity, ease: "easeInOut" },
-              }}
-              className="absolute bottom-0 right-0 w-full h-full"
-              style={{
-                background: 'conic-gradient(from 180deg at 50% 50%, var(--theme-secondary) 0deg, transparent 90deg, var(--theme-accent) 200deg, transparent 270deg, var(--theme-primary) 320deg, transparent 360deg)',
-                filter: 'blur(60px)',
-                opacity: 0.25,
-              }}
-            />
-          </>
-        )}
-
-        {backgroundStyle === 'liquid' && (
-          <>
-            {/* Liquid blob 1 - top left | size 1200→700, blur 100→60 */}
-            <motion.div
-              animate={{
-                x: [-80, 120, -80],
-                y: [-100, 80, -100],
-                scale: [1, 1.3, 1],
-                rotate: [0, 180, 360],
-              }}
-              transition={{
-                duration: 40,
-                repeat: Infinity,
-                ease: "easeInOut",
-              }}
-              className="absolute -top-48 -left-48 w-[700px] h-[700px] rounded-full"
-              style={{
-                background: 'radial-gradient(circle at 30% 40%, var(--theme-primary), var(--theme-secondary) 50%, transparent 70%)',
-                filter: 'blur(60px)',
-              }}
-            />
-
-            {/* Liquid blob 2 - bottom right | size 1400→800, blur 120→70 */}
-            <motion.div
-              animate={{
-                x: [80, -100, 80],
-                y: [100, -80, 100],
-                scale: [1.1, 1, 1.3, 1.1],
-                rotate: [360, 180, 0],
-              }}
-              transition={{
-                duration: 50,
-                repeat: Infinity,
-                ease: "easeInOut",
-              }}
-              className="absolute -bottom-48 -right-48 w-[800px] h-[800px] rounded-full"
-              style={{
-                background: 'radial-gradient(circle at 70% 60%, var(--theme-secondary), var(--theme-accent) 40%, transparent 65%)',
-                filter: 'blur(70px)',
-              }}
-            />
-
-            {/* Liquid blob 3 - center | size 1100→700, blur 110→65 */}
-            <motion.div
-              animate={{
-                x: [-40, 80, -60, -40],
-                y: [60, -50, 80, 60],
-                scale: [1, 1.3, 1.1, 1],
-                rotate: [45, 225, 405],
-              }}
-              transition={{
-                duration: 45,
-                repeat: Infinity,
-                ease: "easeInOut",
-              }}
-              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] rounded-full"
-              style={{
-                background: 'radial-gradient(circle at 50% 50%, var(--theme-accent), var(--theme-primary) 45%, transparent 70%)',
-                filter: 'blur(65px)',
-              }}
-            />
-          </>
-        )}
-
-        {/* NEW: Fluid Mesh Background (Hybrid Ambient Technique) */}
-        {backgroundStyle === 'mesh' && (
-          <div className="absolute inset-0 overflow-hidden bg-black">
-            {/* Base layer of dominant primary color */}
-            <div 
-              className="absolute inset-0 opacity-50" 
-              style={{ background: 'var(--theme-primary)' }} 
-            />
-            
-            {/* Primary Fluid Layer — blur 80→55, saturate 250→160 */}
-            <motion.div
-              animate={{
-                scale: [1.2, 1.5, 1.2],
-                rotate: [0, 90, 180, 270, 360],
-              }}
-              transition={{ duration: 70, repeat: Infinity, ease: "linear" }}
-              className="absolute inset-[-50%] w-[200%] h-[200%] origin-center opacity-70"
-              style={{
-                backgroundImage: themePreset === 'dynamic'
-                  ? `url(${songData.artworkUrl})`
-                  : 'radial-gradient(circle at 30% 30%, var(--theme-primary) 0%, var(--theme-secondary) 50%, var(--theme-accent) 100%)',
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-                filter: 'blur(55px) saturate(160%) brightness(1.1)',
-              }}
-            />
-
-            {/* Synthetic Color Orb 1 — blur stays 60px (small element) */}
-            <motion.div
-              animate={{
-                x: ["-20vw", "30vw", "-10vw", "-20vw"],
-                y: ["-20vh", "20vh", "30vh", "-20vh"],
-                scale: [1, 1.5, 1.2, 1],
-              }}
-              transition={{ duration: 25, repeat: Infinity, ease: "easeInOut" }}
-              className="absolute top-0 left-0 w-[70vw] h-[70vw] rounded-full mix-blend-overlay opacity-60 pointer-events-none"
-              style={{ 
-                background: 'radial-gradient(circle, var(--theme-secondary) 0%, transparent 70%)', 
-                filter: 'blur(60px)',
-              }}
-            />
-
-            {/* Synthetic Color Orb 2 — blur stays 60px */}
-            <motion.div
-              animate={{
-                x: ["20vw", "-40vw", "10vw", "20vw"],
-                y: ["30vh", "-10vh", "-40vh", "30vh"],
-                scale: [1.2, 1, 1.6, 1.2],
-              }}
-              transition={{ duration: 32, repeat: Infinity, ease: "easeInOut" }}
-              className="absolute bottom-0 right-0 w-[80vw] h-[80vw] rounded-full mix-blend-color-dodge opacity-40 pointer-events-none"
-              style={{ 
-                background: 'radial-gradient(circle, var(--theme-accent) 0%, transparent 70%)', 
-                filter: 'blur(60px)',
-              }}
-            />
-
-            {/* Secondary Artwork Layer — blur 100→65, saturate 200→140 */}
-            <motion.div
-              animate={{
-                scale: [1.5, 1.2, 1.5],
-                rotate: [360, 270, 180, 90, 0],
-              }}
-              transition={{ duration: 85, repeat: Infinity, ease: "linear" }}
-              className="absolute inset-[-50%] w-[200%] h-[200%] origin-center mix-blend-overlay opacity-60"
-              style={{
-                backgroundImage: themePreset === 'dynamic'
-                  ? `url(${songData.artworkUrl})`
-                  : 'radial-gradient(circle at 70% 70%, var(--theme-secondary) 0%, var(--theme-accent) 50%, var(--theme-primary) 100%)',
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-                filter: 'blur(65px) saturate(140%) contrast(1.4)',
-              }}
-            />
-            
-            {/* Subtle grain overlay to prevent color banding and add premium texture */}
-            <div className="absolute inset-0 opacity-[0.05] pointer-events-none mix-blend-overlay" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.8%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22/%3E%3C/svg%3E")' }} />
-          </div>
-        )}
-
-        {backgroundStyle === 'default' && (
-          <>
-            {/* Default blob 1 - top left | size 900→600, blur 150→80 */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{
-                opacity: [0, 0.35, 0.45, 0.35],
-                scale: [1, 1.1, 1],
-                x: [-40, 40, -40],
-                y: [-25, 25, -25],
-              }}
-              transition={{
-                opacity: { duration: 2, ease: "easeOut" },
-                scale: { duration: 15, repeat: Infinity, ease: "easeInOut", delay: 2 },
-                x: { duration: 15, repeat: Infinity, ease: "easeInOut", delay: 2 },
-                y: { duration: 15, repeat: Infinity, ease: "easeInOut", delay: 2 },
-              }}
-              className="absolute -top-24 -left-24 w-[600px] h-[600px] rounded-full blur-[80px] transition-all duration-1000"
-              style={{
-                background: 'radial-gradient(circle, var(--theme-primary) 0%, var(--theme-primary-fade) 40%, transparent 70%)',
-              }}
-            />
-
-            {/* Default blob 2 - bottom right | size 800→550, blur 140→75 */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{
-                opacity: [0, 0.3, 0.4, 0.3],
-                scale: [1, 1.12, 1],
-                x: [40, -40, 40],
-                y: [25, -25, 25],
-              }}
-              transition={{
-                opacity: { duration: 2, delay: 0.3, ease: "easeOut" },
-                scale: { duration: 18, repeat: Infinity, ease: "easeInOut", delay: 2.3 },
-                x: { duration: 18, repeat: Infinity, ease: "easeInOut", delay: 2.3 },
-                y: { duration: 18, repeat: Infinity, ease: "easeInOut", delay: 2.3 },
-              }}
-              className="absolute -bottom-24 -right-24 w-[550px] h-[550px] rounded-full blur-[75px] transition-all duration-1000"
-              style={{
-                background: 'radial-gradient(circle, var(--theme-secondary) 0%, var(--theme-secondary-fade) 40%, transparent 70%)',
-              }}
-            />
-
-            {/* Default blob 3 - center | size 1000→650, blur 160→85 */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{
-                opacity: [0, 0.25, 0.35, 0.25],
-                scale: [1, 1.08, 1],
-                rotate: [0, 90, 0],
-              }}
-              transition={{
-                opacity: { duration: 2, delay: 0.6, ease: "easeOut" },
-                scale: { duration: 20, repeat: Infinity, ease: "easeInOut", delay: 2.6 },
-                rotate: { duration: 20, repeat: Infinity, ease: "easeInOut", delay: 2.6 },
-              }}
-              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] h-[650px] rounded-full blur-[85px] transition-all duration-1000"
-              style={{
-                background: 'radial-gradient(ellipse, var(--theme-accent) 0%, var(--theme-accent-fade) 30%, transparent 60%)',
-              }}
-            />
-          </>
-        )}
 
         {/* Soft immersive dark vignette and top/bottom gradient maps to protect text readability */}
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(0,0,0,0)_40%,rgba(0,0,0,0.6)_100%)] pointer-events-none z-[5]" />
@@ -1792,15 +1493,6 @@ export function MusicPlayer({
           className="relative group/artwork cursor-pointer w-[520px] h-[520px]"
           style={{ perspective: 1200 }}
         >
-          {showVisualizer && (
-            <canvas
-              ref={canvasRef}
-              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-[-1]"
-              style={{ width: '850px', height: '850px' }}
-              width={850}
-              height={850}
-            />
-          )}
           {/* OUTER LAYER: Handles the 180 degree flip animation cleanly without motionValue conflict */}
           <motion.div
             className="w-full h-full relative"
@@ -1876,7 +1568,7 @@ export function MusicPlayer({
           <div
             className="absolute -inset-8 rounded-3xl pointer-events-none transition-opacity duration-1000"
             style={{
-              opacity: isLoaded ? 0.3 : 0,
+              opacity: 0.3,
               background: 'radial-gradient(circle, var(--theme-accent) 0%, transparent 70%)',
               filter: 'blur(30px)',
             }}
@@ -1889,13 +1581,9 @@ export function MusicPlayer({
           <div
             className="relative rounded-3xl overflow-hidden transition-all duration-1000 w-full h-full cursor-pointer"
             style={{
-              boxShadow: isLoaded
-                ? isPlaying 
-                  ? '0 40px 80px var(--theme-primary-shadow), 0 20px 40px var(--theme-secondary-shadow), 0 60px 120px rgba(0,0,0,0.65)'
-                  : '0 20px 40px var(--theme-primary-shadow-idle), 0 10px 20px var(--theme-secondary-shadow-idle), 0 30px 60px rgba(0,0,0,0.45)'
-                : isPlaying
-                  ? '0 40px 80px rgba(0,0,0,0.4), 0 20px 40px rgba(0,0,0,0.3), 0 60px 120px rgba(0,0,0,0.6)'
-                  : '0 20px 40px rgba(0,0,0,0.2), 0 10px 20px rgba(0,0,0,0.15), 0 30px 60px rgba(0,0,0,0.4)',
+              boxShadow: isPlaying 
+                ? '0 40px 80px var(--theme-primary-shadow), 0 20px 40px var(--theme-secondary-shadow), 0 60px 120px rgba(0,0,0,0.65)'
+                : '0 20px 40px var(--theme-primary-shadow-idle), 0 10px 20px var(--theme-secondary-shadow-idle), 0 30px 60px rgba(0,0,0,0.45)',
               isolation: 'isolate'
             }}
             onPointerDown={(e) => {
@@ -1909,271 +1597,72 @@ export function MusicPlayer({
               togglePlayPause();
             }}
           >
-            {/* Previous artwork for crossfade */}
+            {/* Current artwork (drawn behind previous artwork) */}
+            <motion.img
+              src={songData.artworkUrl}
+              alt="Album artwork"
+              className={`w-full h-full object-cover z-[1] ${songData.videoId ? 'scale-[1.35]' : ''}`}
+              style={{
+                filter: `blur(${imageBlur}px)`,
+              }}
+              initial={{ opacity: 0, scale: 1.02 }}
+              animate={{
+                opacity: isLoaded ? (isPlaying ? 1 : 0.8) : 0,
+                scale: 1,
+              }}
+              transition={{
+                opacity: { duration: 0.8, ease: "easeInOut" },
+                scale: { duration: 0.8, ease: "easeInOut" },
+              }}
+            />
+
+            {/* Previous artwork for crossfade (drawn on top with z-[2] to fade out smoothly and reveal current artwork underneath) */}
             {showPreviousArtwork && previousArtwork && (
               <motion.img
                 src={previousArtwork}
                 alt="Previous artwork"
-                className={`absolute inset-0 w-full h-full object-cover ${songData.videoId ? 'scale-[1.35]' : ''}`}
+                className={`absolute inset-0 w-full h-full object-cover z-[2] ${songData.videoId ? 'scale-[1.35]' : ''}`}
                 initial={{ opacity: 1 }}
-                animate={{ opacity: 0 }}
-                transition={{ duration: 0.8, ease: "easeOut" }}
+                animate={{ opacity: isLoaded ? 0 : 1 }}
+                transition={{ duration: 0.8, ease: "easeInOut" }}
               />
             )}
-
-            {/* Current artwork */}
-            <motion.img
-              src={songData.artworkUrl}
-              alt="Album artwork"
-              className={`w-full h-full object-cover ${songData.videoId ? 'scale-[1.35]' : ''}`}
-              style={{
-                filter: `blur(${imageBlur}px)`,
-              }}
-              initial={{ opacity: 0, scale: 1.05 }}
-              animate={{
-                opacity: isLoaded ? (isPlaying ? 1 : 0.8) : 0.7,
-                scale: 1,
-              }}
-              transition={{
-                opacity: { duration: 0.8, ease: "easeOut" },
-                scale: { duration: 0.8, ease: "easeOut" },
-              }}
-            />
 
             {/* Subtle inner glow */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-white/5 pointer-events-none" />
 
-            {/* Interactive overlay - appears on hover */}
-            <div 
-              className={`absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-black/20 transition-all duration-300 ${
-                (isArtworkHovered || !isPlaying || (tourType !== null && currentStep === 1)) ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
-              }`}
-            >
-              {/* Song info - top */}
-              <div className="absolute top-8 left-0 right-0 flex flex-col items-center text-center px-8">
-                <h2 className="text-xl text-white/90 font-medium mb-1 tracking-tight" style={{ letterSpacing: '-0.01em' }}>{songData.title}</h2>
-                <p className="text-sm text-white/60 tracking-wide" style={{ letterSpacing: '0.02em' }}>{songData.artist}</p>
-              </div>
-
-              {/* Controls container */}
-              <div className="absolute inset-0 flex flex-col justify-end p-8">
-                {/* Timeline section */}
-                <div className="space-y-2 mb-6" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
-                  <Slider.Root
-                    value={[currentTime]}
-                    max={duration}
-                    step={0.1}
-                    onValueChange={handleSliderChange}
-                    onKeyDown={(e) => {
-                      if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
-                        e.preventDefault();
-                      }
-                    }}
-                    className="relative flex items-center w-full h-12 cursor-pointer group/slider"
-                  >
-                    {/* Minimalistic waveform backdrop */}
-                    <div className="absolute inset-0 flex items-center gap-[2px] px-0.5">
-                      {waveformData.map((height, i) => {
-                        const progress = (currentTime / duration) * 100;
-                        const barProgress = (i / waveformData.length) * 100;
-                        const isPlayed = barProgress <= progress;
-
-                        return (
-                          <div
-                            key={i}
-                            className="flex-1 rounded-full transition-all duration-150"
-                            style={{
-                              height: `${height * 16}px`,
-                              backgroundColor: isPlayed ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.15)',
-                              opacity: 0.6,
-                            }}
-                          />
-                        );
-                      })}
-                    </div>
-
-                    <Slider.Track className="relative h-[3px] w-full bg-transparent rounded-full overflow-hidden">
-                      <Slider.Range className="absolute h-full bg-transparent" />
-                    </Slider.Track>
-                    <Slider.Thumb
-                      className="block w-3 h-3 rounded-full bg-white opacity-0 group-hover/slider:opacity-100 transition-opacity duration-150 focus:outline-none focus:opacity-100"
-                    />
-                  </Slider.Root>
-
-                  {/* Time display */}
-                  <div className="flex justify-between">
-                    <span className="text-xs text-white/70 tabular-nums font-medium">
-                      {formatTime(currentTime)}
-                    </span>
-                    <span className="text-xs text-white/70 tabular-nums font-medium">
-                      {formatTime(duration)}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Playback controls - under timeline */}
-                <div id="music-controls" className="flex items-center justify-center gap-4" onClick={(e) => e.stopPropagation()}>
-                  {/* Previous song */}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handlePreviousSong();
-                    }}
-                    className="p-3 rounded-full bg-white/5 hover:bg-white/10 active:scale-95 border border-white/10 hover:border-white/20 transition-all cursor-pointer group"
-                    title="Previous Song"
-                  >
-                    <SkipBack className="w-5 h-5 text-white/70 group-hover:text-white transition-colors" />
-                  </button>
-
-                  {/* Play/Pause button */}
-                  <button
-                    onPointerDown={(e) => {
-                      e.stopPropagation();
-                      togglePlayPause();
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      togglePlayPause();
-                    }}
-                    className="relative group/button active:scale-95 transition-all cursor-pointer"
-                    title={isPlaying ? "Pause" : "Play"}
-                  >
-                    <div className="relative px-12 py-4 rounded-full bg-white/10 hover:bg-white/15 border border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.3)] overflow-hidden transition-all">
-                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover/button:translate-x-full transition-transform duration-1000" />
-                      <div className="relative flex items-center justify-center">
-                        {isPlaying ? (
-                          <Pause className="w-6 h-6 text-white fill-white" />
-                        ) : (
-                          <Play className="w-6 h-6 text-white fill-white ml-0.5" />
-                        )}
-                      </div>
-                      <AnimatePresence>
-                        {isPlaying && (
-                          <motion.div
-                            initial={{ scaleX: 0 }}
-                            animate={{ scaleX: 1 }}
-                            exit={{ scaleX: 0 }}
-                            transition={{ duration: 0.3 }}
-                            className="absolute bottom-0 left-0 right-0 h-[1px] bg-white/40 origin-left"
-                          />
-                        )}
-                      </AnimatePresence>
-                    </div>
-                  </button>
-
-                  {/* Next song */}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleNextSong();
-                    }}
-                    className="p-3 rounded-full bg-white/5 hover:bg-white/10 active:scale-95 border border-white/10 hover:border-white/20 transition-all cursor-pointer group"
-                    title="Next Song"
-                  >
-                    <SkipForward className="w-5 h-5 text-white/70 group-hover:text-white transition-colors" />
-                  </button>
-                </div>
-              </div>
-            </div>
+            <PlayerControls
+              songData={songData}
+              currentTime={currentTime}
+              duration={duration}
+              isPlaying={isPlaying}
+              waveformData={waveformData}
+              isArtworkHovered={isArtworkHovered}
+              tourType={tourType}
+              currentStep={currentStep}
+              handleSliderChange={handleSliderChange}
+              handlePreviousSong={handlePreviousSong}
+              handleNextSong={handleNextSong}
+              togglePlayPause={togglePlayPause}
+              formatTime={formatTime}
+              favorites={favorites}
+              onToggleFavorite={onToggleFavorite}
+              onAddToPlaylist={handleAddToPlaylist}
+            />
           </div>
           </div>
           {/* END FRONT FACE */}
 
-          {/* BACK FACE (LYRICS) */}
-          <div
-            className={`absolute inset-0 w-full h-full rounded-[28px] overflow-hidden bg-black/60 backdrop-blur-3xl border border-white/10 shadow-[0_40px_80px_rgba(0,0,0,0.8)] flex flex-col items-center py-10 cursor-default ${
-              !showLyrics ? 'pointer-events-none' : 'pointer-events-auto'
-            }`}
-            style={{
-              backfaceVisibility: 'hidden',
-              transform: 'rotateY(180deg)',
-              visibility: showLyrics ? 'visible' : 'hidden'
-            }}
-            onClick={() => setShowLyrics(false)}
-          >
-            {/* Dynamic internal glow from current colors */}
-            <div
-              className="absolute inset-0 opacity-30 pointer-events-none"
-              style={{
-                background: 'radial-gradient(circle at 50% 10%, var(--theme-primary) 0%, transparent 60%), radial-gradient(circle at 50% 90%, var(--theme-secondary) 0%, transparent 60%)'
-              }}
-            />
-
-
-            {/* Header with optional Unsynced badge */}
-            <div className="flex flex-col items-center gap-1.5 mb-5 relative z-10">
-              <h3 className="text-white/40 text-xs font-semibold tracking-[0.2em] uppercase">Lyrics</h3>
-              {!isLyricsSynced && lyrics.length > 0 && (
-                <span className="text-[10px] text-white/40 bg-white/5 border border-white/10 px-2.5 py-0.5 rounded-full uppercase tracking-wider font-medium">
-                  Plain Lyrics
-                </span>
-              )}
-            </div>
-
-            <div 
-              ref={lyricContainerRef}
-              className="w-full flex-1 overflow-y-auto scrollbar-none relative z-10 px-8 flex flex-col items-center pb-32"
-              onClick={(e) => e.stopPropagation()}
-              style={{ 
-                maskImage: isLyricsSynced 
-                  ? 'linear-gradient(to bottom, transparent, black 10%, black 90%, transparent)' 
-                  : 'none' 
-              }}
-            >
-              {isLyricsSynced && <div className="min-h-[40%]" />} {/* Spacer only for synced centering */}
-              
-              {isLoadingLyrics ? (
-                <div className="flex flex-col items-center justify-center gap-4 h-full">
-                  <div className={`w-6 h-6 border-2 border-white/20 ${theme.borderT} rounded-full animate-spin`} />
-                  <p className="text-white/40 text-sm tracking-widest uppercase">Fetching lyrics...</p>
-                </div>
-              ) : lyrics.length > 0 ? (
-                lyrics.map((line, idx) => {
-                  if (isLyricsSynced) {
-                    const isActive = idx === currentLyricIndex;
-                    return (
-                      <div
-                        key={idx}
-                        ref={isActive ? activeLyricRef : null}
-                        onClick={(e) => { e.stopPropagation(); seekToAbsoluteTime(line.time); }}
-                        className={`w-full text-center py-4 cursor-pointer transition-all duration-500 ease-out ${
-                          isActive
-                            ? 'opacity-100 scale-105 filter-none'
-                            : 'opacity-30 scale-100 blur-[1px] hover:opacity-60'
-                        }`}
-                      >
-                        <p className={`font-medium tracking-tight ${
-                          isActive ? 'text-2xl text-white drop-shadow-[0_0_12px_rgba(255,255,255,0.4)]' : 'text-xl text-white/80'
-                        }`}>
-                          {line.text}
-                        </p>
-                      </div>
-                    );
-                  } else {
-                    // Static lyrics mode: fully visible, cleanly spaced scrollable lines
-                    return (
-                      <div
-                        key={idx}
-                        className="w-full text-center py-2.5 opacity-80 hover:opacity-100 transition-all duration-200"
-                      >
-                        <p className="text-[19px] text-white/90 font-normal tracking-tight leading-relaxed select-text">
-                          {line.text}
-                        </p>
-                      </div>
-                    );
-                  }
-                })
-              ) : (
-                <div className="flex flex-col items-center justify-center h-full text-center px-4">
-                  <p className="text-white/50 text-lg font-medium tracking-wide">Lyrics not found</p>
-                  <p className="text-white/30 text-sm mt-2 font-light">Enjoy the rhythm and melody instead ♪</p>
-                </div>
-              )}
-              
-              {isLyricsSynced && <div className="min-h-[60%]" />}
-            </div>
-          </div>
-          {/* END BACK FACE */}
+          <LyricsPanel
+            showLyrics={showLyrics}
+            lyrics={lyrics}
+            isLoadingLyrics={isLoadingLyrics}
+            isLyricsSynced={isLyricsSynced}
+            currentLyricIndex={currentLyricIndex}
+            seekToAbsoluteTime={seekToAbsoluteTime}
+            setShowLyrics={setShowLyrics}
+            theme={theme}
+          />
             </motion.div>
           </motion.div>
         </div>

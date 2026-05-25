@@ -262,3 +262,20 @@
     line-height: 1.5;
   }
 }
+
+@keyframes grain-jitter {
+  0%, 100% { transform: translate(0, 0) scale(1.0); }
+  10% { transform: translate(-0.5%, -1%) scale(1.03) rotate(0.5deg); }
+  20% { transform: translate(1%, 0.5%) scale(0.98) rotate(-0.5deg); }
+  30% { transform: translate(-1.5%, -0.5%) scale(1.01) rotate(1deg); }
+  40% { transform: translate(0.5%, -1.5%) scale(0.97) rotate(-1deg); }
+  50% { transform: translate(-0.5%, 1%) scale(1.04) rotate(0.5deg); }
+  60% { transform: translate(1.5%, 0.5%) scale(0.96) rotate(0deg); }
+  70% { transform: translate(-1.5%, -0.5%) scale(1.02) rotate(-0.5deg); }
+  80% { transform: translate(0.5%, 1%) scale(1.01) rotate(1deg); }
+  90% { transform: translate(-1%, -1.5%) scale(0.99) rotate(-1deg); }
+}
+
+.animate-grain {
+  animation: grain-jitter 0.6s steps(10) infinite;
+}
