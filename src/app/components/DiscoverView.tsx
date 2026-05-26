@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { Play, Plus, Compass, Flame, Heart } from 'lucide-react';
+import { Play, Plus, Compass, Flame, Heart, Sparkles } from 'lucide-react';
 import { SearchResult } from '../types';
 import { AccentColor, ACCENT_THEMES } from './themeUtils';
 
