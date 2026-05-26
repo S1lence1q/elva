@@ -180,7 +180,15 @@ export const ArtistProfileView: React.FC<ArtistProfileViewProps> = ({
                       </span>
 
                       <div className="relative w-11 h-11 rounded-lg overflow-hidden flex-shrink-0 bg-neutral-900 border border-white/5 shadow-md">
-                        <img src={track.thumbnail} alt={track.title} className="w-full h-full object-cover" />
+                        <img 
+                          src={track.thumbnail} 
+                          alt={track.title} 
+                          onError={(e) => {
+                            e.currentTarget.onerror = null;
+                            e.currentTarget.src = `https://img.youtube.com/vi/${track.videoId}/mqdefault.jpg`;
+                          }}
+                          className="w-full h-full object-cover" 
+                        />
                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                           {loadingSongId === track.id ? (
                             <motion.div

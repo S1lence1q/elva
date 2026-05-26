@@ -1601,6 +1601,15 @@ export function MusicPlayer({
             <motion.img
               src={songData.artworkUrl}
               alt="Album artwork"
+              onError={(e) => {
+                e.currentTarget.onerror = null;
+                const src = e.currentTarget.src;
+                if (src.includes('maxresdefault.jpg')) {
+                  e.currentTarget.src = src.replace('maxresdefault.jpg', 'mqdefault.jpg');
+                } else if (songData.videoId) {
+                  e.currentTarget.src = `https://img.youtube.com/vi/${songData.videoId}/mqdefault.jpg`;
+                }
+              }}
               className={`w-full h-full object-cover z-[1] ${songData.videoId ? 'scale-[1.35]' : ''}`}
               style={{
                 filter: `blur(${imageBlur}px)`,
@@ -1621,6 +1630,15 @@ export function MusicPlayer({
               <motion.img
                 src={previousArtwork}
                 alt="Previous artwork"
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  const src = e.currentTarget.src;
+                  if (src.includes('maxresdefault.jpg')) {
+                    e.currentTarget.src = src.replace('maxresdefault.jpg', 'mqdefault.jpg');
+                  } else if (songData.videoId) {
+                    e.currentTarget.src = `https://img.youtube.com/vi/${songData.videoId}/mqdefault.jpg`;
+                  }
+                }}
                 className={`absolute inset-0 w-full h-full object-cover z-[2] ${songData.videoId ? 'scale-[1.35]' : ''}`}
                 initial={{ opacity: 1 }}
                 animate={{ opacity: isLoaded ? 0 : 1 }}

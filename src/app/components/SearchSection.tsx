@@ -303,6 +303,10 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
                       <img
                         src={result.thumbnail}
                         alt={result.title}
+                        onError={(e) => {
+                          e.currentTarget.onerror = null;
+                          e.currentTarget.src = `https://img.youtube.com/vi/${result.videoId}/mqdefault.jpg`;
+                        }}
                         className={`w-full h-full object-cover transition-opacity duration-300 ${loadingSongId === result.id ? 'opacity-40' : ''}`}
                       />
                       <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-all flex items-center justify-center">

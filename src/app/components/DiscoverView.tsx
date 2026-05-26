@@ -23,49 +23,56 @@ const TRENDING_SONGS: SearchResult[] = [
     thumbnail: 'https://img.youtube.com/vi/P5UWjgb-YaY/maxresdefault.jpg'
   },
   {
-    id: 's_v7qSskn4c',
-    videoId: 's_v7qSskn4c',
-    title: 'Heller Fri',
+    id: 'FATeu0NreyG',
+    videoId: 'FATeu0NreyG',
+    title: 'North Face',
     artist: 'Kundo & Lamin',
-    thumbnail: 'https://img.youtube.com/vi/s_v7qSskn4c/maxresdefault.jpg'
+    thumbnail: 'https://img.youtube.com/vi/FATeu0NreyG/maxresdefault.jpg'
   },
   {
-    id: 'f9jJ_w7T9pQ',
-    videoId: 'f9jJ_w7T9pQ',
+    id: 'IQ2HTsYUUT4',
+    videoId: 'IQ2HTsYUUT4',
     title: 'Søvnløs',
     artist: 'KESI',
-    thumbnail: 'https://img.youtube.com/vi/f9jJ_w7T9pQ/maxresdefault.jpg'
+    thumbnail: 'https://img.youtube.com/vi/IQ2HTsYUUT4/maxresdefault.jpg'
   },
   {
-    id: '9lZJ02v1KzM',
-    videoId: '9lZJ02v1KzM',
+    id: 'F3z7Qk9F90I',
+    videoId: 'F3z7Qk9F90I',
     title: 'Er Her',
     artist: 'Artigeardit & KESI',
-    thumbnail: 'https://img.youtube.com/vi/9lZJ02v1KzM/maxresdefault.jpg'
+    thumbnail: 'https://img.youtube.com/vi/F3z7Qk9F90I/maxresdefault.jpg'
   }
 ];
 
 const DAILY_RECOMMENDATIONS: SearchResult[] = [
   {
-    id: '4NRXx6U8ABQ',
+    id: 'WnsQA8aW51E',
     videoId: 'WnsQA8aW51E',
-    title: 'Gode Dage, Onde Dage',
+    title: 'Gode Dage, Gode Drinks',
     artist: 'Lamin',
     thumbnail: 'https://img.youtube.com/vi/WnsQA8aW51E/maxresdefault.jpg'
   },
   {
-    id: '9JbM4oE4h4w',
-    videoId: 'm8mPki_tB1w',
-    title: 'For Billede',
-    artist: 'Kundo',
-    thumbnail: 'https://img.youtube.com/vi/m8mPki_tB1w/maxresdefault.jpg'
+    id: '0hN9lZ4N8g8',
+    videoId: '0hN9lZ4N8g8',
+    title: 'Signaler',
+    artist: 'MAS feat. Kundo',
+    thumbnail: 'https://img.youtube.com/vi/0hN9lZ4N8g8/maxresdefault.jpg'
   },
   {
-    id: '2Vv-BfVoq4g',
-    videoId: '450p7gOxZqI',
+    id: 'eVli1Y-ISIU',
+    videoId: 'eVli1Y-ISIU',
+    title: 'Espresso',
+    artist: 'Sabrina Carpenter',
+    thumbnail: 'https://img.youtube.com/vi/eVli1Y-ISIU/maxresdefault.jpg'
+  },
+  {
+    id: '4NRXx6U8ABQ',
+    videoId: '4NRXx6U8ABQ',
     title: 'Blinding Lights',
     artist: 'The Weeknd',
-    thumbnail: 'https://img.youtube.com/vi/450p7gOxZqI/maxresdefault.jpg'
+    thumbnail: 'https://img.youtube.com/vi/4NRXx6U8ABQ/maxresdefault.jpg'
   }
 ];
 
@@ -80,29 +87,33 @@ const MOOD_PLAYLISTS: MoodPlaylist[] = [
   {
     id: 'late_night',
     name: 'Late Night Drive',
-    description: 'Intense hip-hop and melancholic vibes for the late night hours.',
+    description: 'Intense Danish hip-hop and late night atmospheric vibes.',
     tracks: [
-      { id: 's_v7qSskn4c', videoId: 's_v7qSskn4c', title: 'Heller Fri', artist: 'Kundo & Lamin', thumbnail: 'https://img.youtube.com/vi/s_v7qSskn4c/maxresdefault.jpg' },
+      { id: 'FATeu0NreyG', videoId: 'FATeu0NreyG', title: 'North Face', artist: 'Kundo & Lamin', thumbnail: 'https://img.youtube.com/vi/FATeu0NreyG/maxresdefault.jpg' },
       { id: 'P5UWjgb-YaY', videoId: 'P5UWjgb-YaY', title: 'Overleve', artist: 'Ukendt Kunstner', thumbnail: 'https://img.youtube.com/vi/P5UWjgb-YaY/maxresdefault.jpg' },
-      { id: 'f9jJ_w7T9pQ', videoId: 'f9jJ_w7T9pQ', title: 'Søvnløs', artist: 'KESI', thumbnail: 'https://img.youtube.com/vi/f9jJ_w7T9pQ/maxresdefault.jpg' }
+      { id: 'IQ2HTsYUUT4', videoId: 'IQ2HTsYUUT4', title: 'Søvnløs', artist: 'KESI', thumbnail: 'https://img.youtube.com/vi/IQ2HTsYUUT4/maxresdefault.jpg' },
+      { id: 'WnsQA8aW51E', videoId: 'WnsQA8aW51E', title: 'Gode Dage, Gode Drinks', artist: 'Lamin', thumbnail: 'https://img.youtube.com/vi/WnsQA8aW51E/maxresdefault.jpg' }
+    ]
+  },
+  {
+    id: 'spotify_hits',
+    name: 'Spotify Top Hits',
+    description: 'The absolute biggest global tracks and chart-toppers right now.',
+    tracks: [
+      { id: 'eVli1Y-ISIU', videoId: 'eVli1Y-ISIU', title: 'Espresso', artist: 'Sabrina Carpenter', thumbnail: 'https://img.youtube.com/vi/eVli1Y-ISIU/maxresdefault.jpg' },
+      { id: 'BY_X0W162RM', videoId: 'BY_X0W162RM', title: 'CHIHIRO', artist: 'Billie Eilish', thumbnail: 'https://img.youtube.com/vi/BY_X0W162RM/maxresdefault.jpg' },
+      { id: 'HucYoZlMTn4', videoId: 'HucYoZlMTn4', title: 'Not Like Us', artist: 'Kendrick Lamar', thumbnail: 'https://img.youtube.com/vi/HucYoZlMTn4/maxresdefault.jpg' },
+      { id: 'bUX8MDNQda4', videoId: 'bUX8MDNQda4', title: 'MILLION DOLLAR BABY', artist: 'Tommy Richman', thumbnail: 'https://img.youtube.com/vi/bUX8MDNQda4/maxresdefault.jpg' }
     ]
   },
   {
     id: 'deep_focus',
-    name: 'Deep Focus',
-    description: 'Relaxing lo-fi, ambient, and neoclassical calm for concentration.',
+    name: 'Deep Focus & Study',
+    description: 'Relaxing ambient sounds, soft neo-classical, and lofi for concentration.',
     tracks: [
       { id: '5qap5aO4i9A', videoId: '5qap5aO4i9A', title: 'Lofi Hip Hop Radio', artist: 'Lofi Girl', thumbnail: 'https://img.youtube.com/vi/5qap5aO4i9A/maxresdefault.jpg' },
-      { id: 'tNkZsLkLgp0', videoId: 'tNkZsLkLgp0', title: 'Gymnopédie No. 1', artist: 'Erik Satie', thumbnail: 'https://img.youtube.com/vi/tNkZsLkLgp0/maxresdefault.jpg' }
-    ]
-  },
-  {
-    id: 'intense_vibe',
-    name: 'Intense Vibe',
-    description: 'High energy, heavy beats, and raw rap to get you in the zone.',
-    tracks: [
-      { id: 'WnsQA8aW51E', videoId: 'WnsQA8aW51E', title: 'Gode Dage, Onde Dage', artist: 'Lamin', thumbnail: 'https://img.youtube.com/vi/WnsQA8aW51E/maxresdefault.jpg' },
-      { id: '9lZJ02v1KzM', videoId: '9lZJ02v1KzM', title: 'Er Her', artist: 'Artigeardit & KESI', thumbnail: 'https://img.youtube.com/vi/9lZJ02v1KzM/maxresdefault.jpg' }
+      { id: 'tNkZsLkLgp0', videoId: 'tNkZsLkLgp0', title: 'Gymnopédie No. 1', artist: 'Erik Satie', thumbnail: 'https://img.youtube.com/vi/tNkZsLkLgp0/maxresdefault.jpg' },
+      { id: 'UfcAVejsrU4', videoId: 'UfcAVejsrU4', title: 'Weightless', artist: 'Marconi Union', thumbnail: 'https://img.youtube.com/vi/UfcAVejsrU4/maxresdefault.jpg' }
     ]
   }
 ];
@@ -112,13 +123,13 @@ const MOOD_META: Record<string, { color: string; glow: string }> = {
     color: '#a855f7', // Purple
     glow: 'rgba(168, 85, 247, 0.25)',
   },
+  spotify_hits: {
+    color: '#f43f5e', // Rose/Pink
+    glow: 'rgba(244, 63, 94, 0.25)',
+  },
   deep_focus: {
     color: '#10b981', // Emerald
     glow: 'rgba(16, 185, 129, 0.25)',
-  },
-  intense_vibe: {
-    color: '#f43f5e', // Rose
-    glow: 'rgba(244, 63, 94, 0.25)',
   }
 };
 
@@ -222,7 +233,15 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
               >
                 <div className="flex items-center gap-3.5">
                   <div className="relative w-12 h-12 rounded-xl overflow-hidden shadow-md shrink-0">
-                    <img src={song.thumbnail} alt={song.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    <img 
+                      src={song.thumbnail} 
+                      alt={song.title} 
+                      onError={(e) => {
+                        e.currentTarget.onerror = null;
+                        e.currentTarget.src = `https://img.youtube.com/vi/${song.videoId}/mqdefault.jpg`;
+                      }}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                    />
                     <button
                       onClick={() => onSelectSong(song)}
                       className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 cursor-pointer"
@@ -277,7 +296,15 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
               >
                 <div className="flex items-center gap-3.5">
                   <div className="relative w-12 h-12 rounded-xl overflow-hidden shadow-md shrink-0">
-                    <img src={song.thumbnail} alt={song.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    <img 
+                      src={song.thumbnail} 
+                      alt={song.title} 
+                      onError={(e) => {
+                        e.currentTarget.onerror = null;
+                        e.currentTarget.src = `https://img.youtube.com/vi/${song.videoId}/mqdefault.jpg`;
+                      }}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                    />
                     <button
                       onClick={() => onSelectSong(song)}
                       className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 cursor-pointer"
