@@ -864,14 +864,48 @@ export default function App() {
     setAppState('ready');
   };
 
-  const handleSelectSong = (result: SearchResult) => {
+  const handleSelectSong = async (result: SearchResult) => {
+    let finalVideoId = result.videoId;
+    let finalArtwork = result.thumbnail;
+
+    // If it's a dynamic live chart song (no preloaded videoId), resolve it on the fly!
+    if (!finalVideoId) {
+      setLoadingSongId(result.id);
+      setAppState('processing');
+      try {
+        const query = `${result.artist} ${result.title} audio`;
+        const resolved = await executeSearchAPI(query, 5);
+        if (resolved && resolved.length > 0) {
+          finalVideoId = resolved[0].videoId;
+          if (!finalArtwork) {
+            finalArtwork = resolved[0].thumbnail;
+          }
+        } else {
+          toast.error("Kunne ikke afspille sang", {
+            description: "Der blev ikke fundet nogen lydstrøm på YouTube."
+          });
+          setLoadingSongId(null);
+          setAppState('landing');
+          return;
+        }
+      } catch (e) {
+        console.error("Failed to dynamically resolve YouTube video ID:", e);
+        toast.error("Fejl ved afspilning", {
+          description: "Kunne ikke hente lydstrømmen for sangen."
+        });
+        setLoadingSongId(null);
+        setAppState('landing');
+        return;
+      }
+    }
+
     if (appState === 'ready') {
       setSongData({
         title: result.title,
         artist: result.artist,
-        artworkUrl: result.thumbnail,
-        audioUrl: `https://www.youtube.com/watch?v=${result.videoId}`,
-        videoId: result.videoId
+        artworkUrl: finalArtwork,
+        audioUrl: `https://www.youtube.com/watch?v=${finalVideoId}`,
+        videoId: finalVideoId
       });
       if (tourType !== null && tourStep === 0) {
         setTourStep(1);
@@ -893,9 +927,9 @@ export default function App() {
         setSongData({
           title: result.title,
           artist: result.artist,
-          artworkUrl: result.thumbnail,
-          audioUrl: `https://www.youtube.com/watch?v=${result.videoId}`,
-          videoId: result.videoId
+          artworkUrl: finalArtwork,
+          audioUrl: `https://www.youtube.com/watch?v=${finalVideoId}`,
+          videoId: finalVideoId
         });
         setAppState('ready');
         setLoadingSongId(null);
@@ -907,7 +941,7 @@ export default function App() {
 
     // Preload image before transitioning
     const img = new Image();
-    img.src = result.thumbnail;
+    img.src = finalArtwork;
     img.onload = proceedToReady;
     img.onerror = proceedToReady;
   };
