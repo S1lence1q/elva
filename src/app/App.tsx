@@ -9,8 +9,8 @@ import { AccentColor, ACCENT_THEMES } from './components/themeUtils';
 import { SettingsModal } from './components/SettingsModal';
 import { BrandingHeader } from './components/BrandingHeader';
 import { ArtistProfileView } from './components/ArtistProfileView';
+import { PlaylistDetailsView, Playlist } from './components/PlaylistDetailsView';
 import { SearchSection } from './components/SearchSection';
-import { DashboardNavigation, DashboardTab } from './components/DashboardNavigation';
 import { DiscoverView } from './components/DiscoverView';
 import { ProfileHubView } from './components/ProfileHubView';
 import { KeyboardShortcutsModal } from './components/KeyboardShortcutsModal';
@@ -42,7 +42,7 @@ const SHORTCUT_ARTISTS: VerifiedArtist[] = [
   },
   {
     name: 'Kundo',
-    thumbnail: 'https://cdn-images.dzcdn.net/images/artist/131038dafd05745de3ed8a9173c28ba6/250x250-000000-80-0-0.jpg',
+    thumbnail: 'https://cdn-images.dzcdn.net/images/cover/2bbca104b7dd8d14bed865e4cebf3c79/500x500-000000-80-0-0.jpg',
     disambiguation: 'Danish Rapper • DK',
     country: 'DK',
     tags: ['Hip-Hop', 'Rap', 'DK']
@@ -67,7 +67,101 @@ export default function App() {
   const [appState, setAppState] = useState<AppState>('landing');
   const [showSettings, setShowSettings] = useState(false);
 
-  const [activeTab, setActiveTab] = useState<DashboardTab>('home');
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [scrollProgress, setScrollProgress] = useState(0);
+  const [scrollVelocity, setScrollVelocity] = useState(0);
+
+  const lastScrollTop = useRef(0);
+  const lastScrollTime = useRef(Date.now());
+  const targetVelocity = useRef(0);
+  const rafRef = useRef<number | null>(null);
+
+  const handleScroll = () => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const scrollTop = container.scrollTop;
+    const scrollHeight = container.scrollHeight - container.clientHeight;
+    
+    if (scrollHeight <= 0) return;
+
+    const progress = scrollTop / scrollHeight;
+    setScrollProgress(progress);
+
+    const now = Date.now();
+    let timeDiff = now - lastScrollTime.current;
+    
+    // If the last scroll event was more than 100ms ago, treat this as a fresh start to avoid time division anomalies
+    if (timeDiff > 100) {
+      timeDiff = 16;
+    }
+
+    const distDiff = Math.abs(scrollTop - lastScrollTop.current);
+    const rawVelocity = distDiff / Math.max(1, timeDiff);
+
+    // Limit maximum instantaneous target velocity to prevent erratic multiplier spikes
+    targetVelocity.current = Math.min(1.2, rawVelocity);
+
+    lastScrollTop.current = scrollTop;
+    lastScrollTime.current = now;
+  };
+
+  useEffect(() => {
+    let active = true;
+
+    const updateVelocity = () => {
+      if (!active) return;
+
+      // Slow, steady physical decay representing viscosity/friction
+      targetVelocity.current *= 0.92;
+      if (targetVelocity.current < 0.001) {
+        targetVelocity.current = 0;
+      }
+
+      // Butter-smooth linear interpolation towards target
+      setScrollVelocity((prev) => {
+        if (targetVelocity.current === 0 && prev === 0) {
+          return 0;
+        }
+        const diff = targetVelocity.current - prev;
+        if (Math.abs(diff) < 0.001) {
+          return targetVelocity.current;
+        }
+        return prev + diff * 0.06; // Fine-tuned damping factor (0.06) for organic responsiveness
+      });
+
+      rafRef.current = requestAnimationFrame(updateVelocity);
+    };
+
+    rafRef.current = requestAnimationFrame(updateVelocity);
+
+    return () => {
+      active = false;
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+      }
+    };
+  }, []);
+
+  const parseHex = (hex: string) => {
+    const clean = hex.replace('#', '');
+    const num = parseInt(clean, 16);
+    return {
+      r: (num >> 16) & 255,
+      g: (num >> 8) & 255,
+      b: num & 255
+    };
+  };
+
+  const lerpColor = (c1: string, c2: string, factor: number): string => {
+    const rgb1 = parseHex(c1);
+    const rgb2 = parseHex(c2);
+    const r = Math.round(rgb1.r + (rgb2.r - rgb1.r) * factor);
+    const g = Math.round(rgb1.g + (rgb2.g - rgb1.g) * factor);
+    const b = Math.round(rgb1.b + (rgb2.b - rgb1.b) * factor);
+    return `rgb(${r}, ${g}, ${b})`;
+  };
+
   const [favorites, setFavorites] = useState<SearchResult[]>(() => {
     try {
       const stored = localStorage.getItem('elva_favorites');
@@ -102,7 +196,16 @@ export default function App() {
 
   // Artist Profile States on Home Page
   const [selectedArtist, setSelectedArtist] = useState<VerifiedArtist | null>(null);
+  const [selectedPlaylist, setSelectedPlaylist] = useState<Playlist | null>(null);
   const [verifiedArtist, setVerifiedArtist] = useState<VerifiedArtist | null>(null);
+  const [resolvedVideoIds, setResolvedVideoIds] = useState<Record<string, string>>(() => {
+    try {
+      const stored = localStorage.getItem('elva_resolved_video_ids');
+      return stored ? JSON.parse(stored) : {};
+    } catch {
+      return {};
+    }
+  });
   const [isVerifyingArtist, setIsVerifyingArtist] = useState(false);
   const [artistTracks, setArtistTracks] = useState<SearchResult[]>([]);
   const [isLoadingArtist, setIsLoadingArtist] = useState(false);
@@ -263,37 +366,26 @@ export default function App() {
         c3: '#040406',
       };
     }
-    switch (accentColor) {
-      case 'emerald':
-        return {
-          c1: '#1b3024', // Deep forest sage green base
-          c2: '#5c8f72', // Sophisticated dusty sage green glow
-          c3: '#2a2438', // Deep muted lavender-purple contrast shadow
-        };
-      case 'sand':
-        return {
-          c1: '#3d261c', // Deep roasted coffee brown base
-          c2: '#a88870', // Dusty warm sand / elegant linen glow
-          c3: '#4a3728', // Dull dark bronze / clay contrast shadow
-        };
-      case 'wine':
-        return {
-          c1: '#36131c', // Deep dark burgundy base
-          c2: '#b08e92', // Dusty rose pink highlight glow
-          c3: '#253047', // Dull dark slate-blue shadow
-        };
-      case 'navy':
-        return {
-          c1: '#0f172a', // Deep slate blue-black base
-          c2: '#63738a', // Dusty muted blue-grey glow
-          c3: '#4338ca', // Deeper dark indigo shadow
-        };
-      default:
-        return {
-          c1: '#1b3024',
-          c2: '#5c8f72',
-          c3: '#2a2438',
-        };
+
+    // 3-way Linear hex interpolation based on vertical scrollProgress
+    const searchColors = { c1: '#1c0d2e', c2: '#3d2810', c3: '#07050d' };
+    const discoverColors = { c1: '#0a2a2d', c2: '#0b1c11', c3: '#040d0e' };
+    const myHubColors = { c1: '#321c4f', c2: '#12233c', c3: '#07050a' };
+
+    if (scrollProgress <= 0.5) {
+      const factor = scrollProgress / 0.5;
+      return {
+        c1: lerpColor(searchColors.c1, discoverColors.c1, factor),
+        c2: lerpColor(searchColors.c2, discoverColors.c2, factor),
+        c3: lerpColor(searchColors.c3, discoverColors.c3, factor)
+      };
+    } else {
+      const factor = (scrollProgress - 0.5) / 0.5;
+      return {
+        c1: lerpColor(discoverColors.c1, myHubColors.c1, factor),
+        c2: lerpColor(discoverColors.c2, myHubColors.c2, factor),
+        c3: lerpColor(discoverColors.c3, myHubColors.c3, factor)
+      };
     }
   };
 
@@ -865,7 +957,7 @@ export default function App() {
   };
 
   const handleSelectSong = async (result: SearchResult) => {
-    let finalVideoId = result.videoId;
+    let finalVideoId = result.videoId || resolvedVideoIds[result.id];
     let finalArtwork = result.thumbnail;
 
     // If it's a dynamic live chart song (no preloaded videoId), resolve it on the fly!
@@ -877,6 +969,14 @@ export default function App() {
         const resolved = await executeSearchAPI(query, 5);
         if (resolved && resolved.length > 0) {
           finalVideoId = resolved[0].videoId;
+          
+          // Cache resolved videoId for lightning-fast subsequent plays
+          setResolvedVideoIds(prev => {
+            const next = { ...prev, [result.id]: finalVideoId };
+            localStorage.setItem('elva_resolved_video_ids', JSON.stringify(next));
+            return next;
+          });
+
           if (!finalArtwork) {
             finalArtwork = resolved[0].thumbnail;
           }
@@ -970,7 +1070,7 @@ export default function App() {
     if (song) handleSelectSong(song);
   };
 
-  const isSearchMode = searchQuery.trim() !== '' || selectedArtist !== null;
+  const isSearchMode = searchQuery.trim() !== '' || selectedArtist !== null || selectedPlaylist !== null;
 
   return (
     <div ref={containerRef} className="size-full relative overflow-hidden bg-[#0a0a0a] flex items-center justify-center">
@@ -1019,7 +1119,10 @@ export default function App() {
           color1={bgColors.c1} 
           color2={bgColors.c2} 
           color3={bgColors.c3} 
-          speedMultiplier={backgroundStyle === 'liquid' ? 1.4 : backgroundStyle === 'mesh' ? 0.8 : backgroundStyle === 'particles' ? 1.1 : 0.5}
+          speedMultiplier={
+            (backgroundStyle === 'liquid' ? 1.4 : backgroundStyle === 'mesh' ? 0.8 : backgroundStyle === 'particles' ? 1.1 : 0.5) +
+            Math.min(2.0, scrollVelocity * 15.0)
+          }
         />
 
       </motion.div>
@@ -1028,17 +1131,12 @@ export default function App() {
         {appState === 'landing' && (
           <motion.div
             key="landing"
+            layout
             initial={{ opacity: 0, scale: 0.97, filter: 'blur(6px)' }}
             animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
             exit={{ opacity: 0, scale: 1.08, filter: 'blur(8px)' }}
             transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-            className={`absolute inset-0 z-10 flex flex-col items-center px-0 w-full h-full justify-start pb-12 transition-all duration-300 ease-[0.16,1,0.3,1] ${
-              selectedArtist 
-                ? 'pt-6 md:pt-8' 
-                : (activeTab !== 'home' || searchQuery.trim() !== '')
-                  ? 'pt-0'
-                  : 'pt-20 md:pt-28'
-            }`}
+            className="absolute inset-0 z-10 flex flex-col items-center px-0 w-full h-full justify-start"
           >
             {/* Animated gradient orbs during intro */}
             {isIntroActive && (
@@ -1046,12 +1144,12 @@ export default function App() {
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: [0, 0.2, 0.3, 0], scale: [0.8, 1.25, 1.55, 2.1] }}
                 transition={{ duration: 3, ease: "easeOut" }}
-                className="absolute w-[950px] h-[950px] rounded-full blur-[140px] bg-gradient-to-tr from-indigo-950/20 via-blue-900/10 to-transparent pointer-events-none"
+                className="absolute w-[950px] h-[950px] rounded-full blur-[140px] bg-gradient-to-tr from-indigo-950/20 via-blue-900/10 to-transparent pointer-events-none z-0"
               />
             )}
 
-            {/* Localized deep dark radial gradient vignette centered behind UI elements for razor-sharp readability - set to extreme low opacity to satisfy 'fjerne den næsten helt' */}
-            {selectedArtist === null && activeTab === 'home' && searchQuery.trim() === '' && (
+            {/* Localized deep dark radial gradient vignette centered behind UI elements for razor-sharp readability */}
+            {selectedArtist === null && selectedPlaylist === null && searchQuery.trim() === '' && (
               <div 
                 className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[45%] w-[880px] h-[520px] rounded-full pointer-events-none z-0 opacity-[0.04]" 
                 style={{
@@ -1061,88 +1159,220 @@ export default function App() {
               />
             )}
 
-            {/* Hero branding - elegant and refined (only shown on home tab without query) */}
-            {selectedArtist === null && activeTab === 'home' && searchQuery.trim() === '' && (
-              <BrandingHeader
-                accentColor={accentColor}
-                hasSeenTour={hasSeenTour}
-                tourType={tourType}
-                startTour={startTour}
-                isFirstVisit={isFirstVisit}
-                hasSelectedArtist={hasSelectedArtistOnce.current}
-              />
-            )}
-
-            {/* Standard Tab Navigation under Hero Logo */}
-            {selectedArtist === null && activeTab === 'home' && searchQuery.trim() === '' && (
-              <DashboardNavigation
-                activeTab={activeTab}
-                onTabChange={setActiveTab}
-                accentColor={accentColor}
-              />
-            )}
-
-            {/* Sleek Compact Header Bar (only visible when in search/discover/profile view) */}
-            {selectedArtist === null && (activeTab !== 'home' || searchQuery.trim() !== '') && (
+            {/* Fixed Branding Tag */}
+            {selectedArtist === null && selectedPlaylist === null && (
               <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-                className="w-full border-b border-white/[0.06] bg-[#0a0a0a]/50 backdrop-blur-xl relative z-30 shrink-0 flex justify-center mb-6"
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ 
+                  opacity: scrollProgress > 0.15 ? 1 : 0, 
+                  y: scrollProgress > 0.15 ? 0 : -10 
+                }}
+                transition={{ duration: 0.35, ease: 'easeOut' }}
+                className="fixed top-6 left-6 z-40 select-none"
+                style={{ pointerEvents: scrollProgress > 0.15 ? 'auto' : 'none' }}
               >
-                <div className="w-full max-w-[898px] px-6 flex items-center justify-between py-4">
-                  {/* Sleek inline logo */}
-                  <button
-                    onClick={() => {
-                      setActiveTab('home');
-                      setSearchQuery('');
-                      setSearchResults([]);
-                    }}
-                    className="text-2xl font-normal tracking-[0.08em] bg-clip-text text-transparent bg-gradient-to-r from-white via-white/80 to-white/60 px-[2px] hover:opacity-85 cursor-pointer select-none transition-all"
-                    style={{ fontFamily: '"Kaobe", serif' }}
-                  >
-                    Elva
-                  </button>
-
-                  {/* Dashboard Navigation in the center */}
-                  <DashboardNavigation
-                    activeTab={activeTab}
-                    onTabChange={setActiveTab}
-                    accentColor={accentColor}
-                  />
-
-                  {/* Empty space or a small guide button on the right to keep balance */}
-                  <div className="w-[60px] h-1" />
-                </div>
+                <button
+                  onClick={() => {
+                    const container = scrollContainerRef.current;
+                    if (container) {
+                      container.scrollTo({
+                        top: 0,
+                        behavior: 'smooth'
+                      });
+                    }
+                  }}
+                  className="text-2xl font-normal tracking-[0.08em] bg-clip-text text-transparent bg-gradient-to-r from-white via-white/80 to-white/60 hover:opacity-80 cursor-pointer transition-all focus:outline-none"
+                  style={{ fontFamily: '"Kaobe", serif' }}
+                >
+                  Elva
+                </button>
               </motion.div>
             )}
 
-            {/* Input section or Immersive Views */}
-            <AnimatePresence mode="wait">
-              {selectedArtist ? (
-                <ArtistProfileView
-                  selectedArtist={selectedArtist}
-                  artistColors={artistColors}
-                  artistTracks={artistTracks}
-                  isLoadingArtist={isLoadingArtist}
-                  focusedResultIndex={focusedResultIndex}
-                  loadingSongId={loadingSongId}
-                  handleSelectSong={handleSelectSong}
-                  handleAddToQueue={handleAddToQueue}
-                  setSelectedArtist={setSelectedArtist}
-                  setArtistTracks={setArtistTracks}
-                  theme={theme}
-                />
-              ) : activeTab === 'discover' ? (
+            {/* Floating Dot Navigator */}
+            {selectedArtist === null && selectedPlaylist === null && (
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                className="fixed right-6 top-1/2 -translate-y-1/2 flex flex-col gap-5 z-40"
+              >
+                {[
+                  { id: 'search', label: 'Search & Home' },
+                  { id: 'discover', label: 'Discover Charts' },
+                  { id: 'myhub', label: 'My Hub Profile' }
+                ].map((dot, index) => {
+                  let isActive = false;
+                  if (index === 0 && scrollProgress < 0.25) isActive = true;
+                  else if (index === 1 && scrollProgress >= 0.25 && scrollProgress < 0.75) isActive = true;
+                  else if (index === 2 && scrollProgress >= 0.75) isActive = true;
+
+                  const handleDotClick = () => {
+                    const container = scrollContainerRef.current;
+                    if (container) {
+                      container.scrollTo({
+                        top: index * container.clientHeight,
+                        behavior: 'smooth'
+                      });
+                    }
+                  };
+
+                  return (
+                    <button
+                      key={dot.id}
+                      onClick={handleDotClick}
+                      className="group relative flex items-center justify-end cursor-pointer focus:outline-none bg-transparent border-none p-0"
+                      title={dot.label}
+                    >
+                      {/* Label Tooltip */}
+                      <span className="absolute right-8 text-[10px] font-semibold uppercase tracking-widest text-white/40 group-hover:text-white opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-2 group-hover:translate-x-0 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-md border border-white/5 whitespace-nowrap pointer-events-none select-none">
+                        {dot.label}
+                      </span>
+                      
+                      {/* Interactive Dot */}
+                      <div className="relative flex items-center justify-center w-6 h-6">
+                        <motion.div
+                          animate={{
+                            scale: isActive ? 1.25 : 1,
+                            backgroundColor: isActive ? 'rgba(255, 255, 255, 0.95)' : 'rgba(255, 255, 255, 0.15)',
+                            boxShadow: isActive 
+                              ? `0 0 15px rgba(255, 255, 255, 0.6), 0 0 5px rgba(255, 255, 255, 0.3)`
+                              : 'none'
+                          }}
+                          transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                          className="w-2 h-2 rounded-full border border-white/10 group-hover:bg-white/40 transition-colors"
+                        />
+                      </div>
+                    </button>
+                  );
+                })}
+              </motion.div>
+            )}
+
+            {/* Immersive Widescreen Overlay Details Views */}
+            <AnimatePresence>
+              {selectedArtist && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.35 }}
+                  className="fixed inset-0 z-30 bg-[#0a0a0c]/90 backdrop-blur-2xl flex flex-col items-center justify-center pt-8 pb-12"
+                >
+                  <ArtistProfileView
+                    selectedArtist={selectedArtist}
+                    artistColors={artistColors}
+                    artistTracks={artistTracks}
+                    isLoadingArtist={isLoadingArtist}
+                    focusedResultIndex={focusedResultIndex}
+                    loadingSongId={loadingSongId}
+                    handleSelectSong={handleSelectSong}
+                    handleAddToQueue={handleAddToQueue}
+                    setSelectedArtist={setSelectedArtist}
+                    setArtistTracks={setArtistTracks}
+                    theme={theme}
+                  />
+                </motion.div>
+              )}
+
+              {selectedPlaylist && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.35 }}
+                  className="fixed inset-0 z-30 bg-[#0a0a0c]/90 backdrop-blur-2xl flex flex-col items-center justify-center pt-8 pb-12"
+                >
+                  <PlaylistDetailsView
+                    playlist={selectedPlaylist}
+                    onClose={() => setSelectedPlaylist(null)}
+                    loadingSongId={loadingSongId}
+                    handleSelectSong={handleSelectSong}
+                    handleAddToQueue={handleAddToQueue}
+                    favorites={favorites}
+                    onToggleFavorite={handleToggleFavorite}
+                    accentColor={accentColor}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Main Stack Viewport Snap-Scrolling Container */}
+            <div
+              ref={scrollContainerRef}
+              onScroll={handleScroll}
+              className={`w-full h-full overflow-y-auto snap-y snap-mandatory scroll-smooth scrollbar-none flex flex-col relative z-10 transition-all duration-500 ${
+                selectedArtist !== null || selectedPlaylist !== null
+                  ? 'opacity-0 pointer-events-none invisible'
+                  : 'opacity-100'
+              }`}
+            >
+              {/* SECTION 1: Search & Home */}
+              <section className="w-full h-full snap-start shrink-0 flex flex-col items-center justify-start relative px-0 pt-16 pb-24 overflow-y-auto scrollbar-none">
+                <div className="w-full flex flex-col items-center overflow-hidden shrink-0">
+                  <div className="h-6 md:h-10 shrink-0 w-full" />
+                  <BrandingHeader
+                    accentColor={accentColor}
+                    hasSeenTour={hasSeenTour}
+                    tourType={tourType}
+                    startTour={startTour}
+                    isFirstVisit={isFirstVisit}
+                    hasSelectedArtist={hasSelectedArtistOnce.current}
+                  />
+                </div>
+                
+                <div className="w-full flex flex-col items-center justify-start mt-6">
+                  <SearchSection
+                    searchQuery={searchQuery}
+                    setSearchQuery={setSearchQuery}
+                    isSearching={isSearching}
+                    searchResults={searchResults}
+                    recentArtists={recentArtists}
+                    verifiedArtist={verifiedArtist}
+                    focusedResultIndex={focusedResultIndex}
+                    loadingSongId={loadingSongId}
+                    handleViewArtistProfile={handleViewArtistProfile}
+                    handleUrlSubmit={handleUrlSubmit}
+                    handleSearch={handleSearch}
+                    handleSelectSong={handleSelectSong}
+                    handleAddToQueue={handleAddToQueue}
+                    handleFileSelect={handleFileSelect}
+                    theme={theme}
+                    isFirstVisit={isFirstVisit}
+                    hasSelectedArtist={hasSelectedArtistOnce.current}
+                  />
+                </div>
+              </section>
+
+              {/* SECTION 2: Discover */}
+              <section className="w-full h-full snap-start shrink-0 flex flex-col items-center justify-start relative px-0 pt-16 pb-24 overflow-y-auto scrollbar-none">
+                {/* Custom Section Header */}
+                <div className="w-full max-w-[898px] px-6 mb-4 flex items-center justify-between shrink-0 select-none">
+                  <h2 className="text-2xl font-normal tracking-[0.08em] bg-clip-text text-transparent bg-gradient-to-r from-white via-white/80 to-white/60" style={{ fontFamily: '"Kaobe", serif' }}>
+                    Discover
+                  </h2>
+                </div>
+
                 <DiscoverView
                   onSelectSong={handleSelectSong}
                   onAddToQueue={handleAddToQueue}
                   accentColor={accentColor}
                   favorites={favorites}
                   onToggleFavorite={handleToggleFavorite}
+                  onSelectPlaylist={(playlist) => setSelectedPlaylist(playlist)}
                 />
-              ) : activeTab === 'profile' ? (
+              </section>
+
+              {/* SECTION 3: My Hub */}
+              <section className="w-full h-full snap-start shrink-0 flex flex-col items-center justify-start relative px-0 pt-16 pb-24 overflow-y-auto scrollbar-none">
+                {/* Custom Section Header */}
+                <div className="w-full max-w-[898px] px-6 mb-4 flex items-center justify-between shrink-0 select-none">
+                  <h2 className="text-2xl font-normal tracking-[0.08em] bg-clip-text text-transparent bg-gradient-to-r from-white via-white/80 to-white/60" style={{ fontFamily: '"Kaobe", serif' }}>
+                    My Hub
+                  </h2>
+                  <span className="text-[10px] text-white/30 font-bold uppercase tracking-[0.2em]">Your Personal Vibe</span>
+                </div>
+
                 <ProfileHubView
                   favorites={favorites}
                   onToggleFavorite={handleToggleFavorite}
@@ -1150,37 +1380,16 @@ export default function App() {
                   onAddToQueue={handleAddToQueue}
                   accentColor={accentColor}
                 />
-              ) : (
-                <SearchSection
-                  searchQuery={searchQuery}
-                  setSearchQuery={setSearchQuery}
-                  isSearching={isSearching}
-                  searchResults={searchResults}
-                  recentArtists={recentArtists}
-                  verifiedArtist={verifiedArtist}
-                  focusedResultIndex={focusedResultIndex}
-                  loadingSongId={loadingSongId}
-                  handleViewArtistProfile={handleViewArtistProfile}
-                  handleUrlSubmit={handleUrlSubmit}
-                  handleSearch={handleSearch}
-                  handleSelectSong={handleSelectSong}
-                  handleAddToQueue={handleAddToQueue}
-                  handleFileSelect={handleFileSelect}
-                  theme={theme}
-                  isFirstVisit={isFirstVisit}
-                  hasSelectedArtist={hasSelectedArtistOnce.current}
-                />
-              )}
-            </AnimatePresence>
+              </section>
+            </div>
 
             {/* Subtle grid overlay for depth */}
-            <div className="absolute inset-0 pointer-events-none opacity-[0.015]">
+            <div className="absolute inset-0 pointer-events-none opacity-[0.015] z-0">
               <div className="absolute inset-0" style={{
                 backgroundImage: 'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)',
                 backgroundSize: '100px 100px'
               }} />
             </div>
-
 
           </motion.div>
         )}

@@ -1,0 +1,271 @@
+import React from 'react';
+import { motion } from 'motion/react';
+import { ArrowLeft, Play, Plus, Music, Heart, Loader2 } from 'lucide-react';
+import { SearchResult } from '../types';
+import { AccentColor, ACCENT_THEMES } from './themeUtils';
+import { toast } from 'sonner';
+
+export interface Playlist {
+  id: string;
+  name: string;
+  description: string;
+  tracks: SearchResult[];
+  thumbnail: string;
+  accent: AccentColor;
+}
+
+interface PlaylistDetailsViewProps {
+  playlist: Playlist;
+  onClose: () => void;
+  loadingSongId: string | null;
+  handleSelectSong: (track: SearchResult) => void;
+  handleAddToQueue: (track: SearchResult) => void;
+  favorites: SearchResult[];
+  onToggleFavorite: (track: SearchResult) => void;
+  accentColor: AccentColor;
+}
+
+export const PlaylistDetailsView: React.FC<PlaylistDetailsViewProps> = ({
+  playlist,
+  onClose,
+  loadingSongId,
+  handleSelectSong,
+  handleAddToQueue,
+  favorites,
+  onToggleFavorite,
+  accentColor
+}) => {
+  // Use the playlist's custom theme to create beautiful bespoke experience
+  const theme = ACCENT_THEMES[playlist.accent] || ACCENT_THEMES[accentColor];
+
+  const handlePlayAll = () => {
+    if (playlist.tracks.length === 0) return;
+    
+    handleSelectSong(playlist.tracks[0]);
+    playlist.tracks.slice(1).forEach(track => {
+      handleAddToQueue(track);
+    });
+
+    toast.success(`Playing ${playlist.name}`, {
+      description: `Loaded ${playlist.tracks.length} tracks into queue.`
+    });
+  };
+
+  const isFavorite = (songId: string) => {
+    return favorites.some(fav => fav.id === songId);
+  };
+
+  return (
+    <motion.div
+      key="immersive-playlist-view"
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+      className="w-full max-w-5xl px-4 flex flex-col h-[calc(100vh-80px)] overflow-y-auto scrollbar-none z-10"
+    >
+      {/* Navigation bar above the layout */}
+      <div className="flex items-center justify-between w-full pb-3 border-b border-white/5 shrink-0 px-2 select-none">
+        <button
+          onClick={onClose}
+          className="flex items-center gap-1.5 text-white/50 hover:text-white transition-all cursor-pointer group/back text-xs font-semibold py-1 px-3 rounded-full hover:bg-white/5 -ml-3"
+          title="Back to Discover"
+        >
+          <ArrowLeft className="w-3.5 h-3.5 group-hover/back:-translate-x-0.5 transition-transform" />
+          <span>Back to Discover</span>
+        </button>
+        <div 
+          className="text-lg tracking-[0.2em] uppercase font-light text-white select-none cursor-pointer hover:opacity-85 transition-opacity -mr-2"
+          style={{ fontFamily: '"Kaobe", serif' }}
+          onClick={onClose}
+        >
+          Elva
+        </div>
+      </div>
+
+      {/* Immersive Widescreen Playlist Hero Banner */}
+      <div className="relative w-full rounded-3xl overflow-hidden border border-white/[0.06] bg-white/[0.01] backdrop-blur-2xl shadow-2xl py-5 px-6 md:py-6 md:px-8 flex flex-col md:flex-row items-center gap-6 md:gap-8 shrink-0 mt-4">
+        {/* Ambient dynamic theme glow behind/inside the banner */}
+        <div 
+          className="absolute top-0 right-0 w-80 h-80 rounded-full blur-[75px] opacity-40 pointer-events-none"
+          style={{
+            background: `radial-gradient(circle, ${playlist.accent === 'wine' ? 'rgba(244, 63, 94, 0.35)' : 'rgba(56, 189, 248, 0.3)'} 0%, rgba(255,255,255,0) 70%)`
+          }}
+        />
+        
+        {/* Giant square cover art with high-end border */}
+        <div className="relative w-36 h-36 md:w-44 md:h-44 rounded-2xl overflow-hidden border border-white/10 shadow-2xl transition-transform duration-500 hover:scale-105 shrink-0 z-10 bg-neutral-950 flex items-center justify-center">
+          {playlist.id === 'dk_hits' || playlist.id === 'global_hits' ? (
+            <div className="w-full h-full relative flex items-center justify-center">
+              {/* Background graphic */}
+              <img src={playlist.thumbnail} alt="" className="w-full h-full object-cover" />
+              
+              {/* Sleek, solid, high-contrast, extremely readable text banner at the bottom */}
+              <div className={`absolute bottom-0 left-0 right-0 py-3 md:py-3.5 text-center z-20 ${
+                playlist.id === 'dk_hits' 
+                  ? 'bg-[#881337] text-rose-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.15)] border-t border-rose-950' 
+                  : 'bg-[#1e1b4b] text-indigo-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.15)] border-t border-indigo-950'
+              }`}>
+                <span className="text-xs md:text-sm font-black uppercase tracking-[0.2em] leading-none select-none block">
+                  {playlist.id === 'dk_hits' ? 'TOP HITS DK' : 'TOP HITS GLOBAL'}
+                </span>
+              </div>
+
+              {/* Dynamic Album Art Overlay (The #1 song's thumbnail in the center-top!) */}
+              {playlist.tracks && playlist.tracks.length > 0 && (
+                <div className="absolute w-[54%] h-[54%] rounded-xl overflow-hidden border border-white/15 shadow-[0_10px_30px_rgba(0,0,0,0.85)] z-10 bg-neutral-950 transition-transform duration-500 hover:scale-105 hover:rotate-[2deg] -translate-y-4">
+                  <img 
+                    src={playlist.tracks[0].thumbnail} 
+                    alt="" 
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              )}
+            </div>
+          ) : (
+            <img src={playlist.thumbnail} alt={playlist.name} className="w-full h-full object-cover scale-105" />
+          )}
+        </div>
+        
+        {/* Hero Info Text */}
+        <div className="flex flex-col text-center md:text-left relative z-10 flex-1 min-w-0">
+          <div className="flex items-center justify-center md:justify-start gap-2">
+            <span className={`flex items-center gap-1 text-[9px] font-bold ${theme.text} bg-white/[0.02] border ${theme.border} px-2.5 py-0.5 rounded-md uppercase tracking-wider`}>
+              ✦ Live Chart
+            </span>
+          </div>
+          
+          <h2 
+            className="text-4xl md:text-5xl lg:text-6xl font-normal text-white mt-3 md:mt-4 tracking-wide leading-tight"
+            style={{ fontFamily: '"Kaobe", serif' }}
+          >
+            {playlist.name}
+          </h2>
+          
+          <p className="text-xs text-white/50 mt-2.5 font-light leading-relaxed max-w-xl">
+            {playlist.description}
+          </p>
+
+          {/* Quick Actions */}
+          <div className="flex items-center justify-center md:justify-start gap-4 mt-5 select-none">
+            <button
+              onClick={handlePlayAll}
+              className={`flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-xs font-bold transition-all hover:scale-[1.03] active:scale-[0.98] cursor-pointer text-black ${
+                playlist.accent === 'wine' ? 'bg-rose-400 hover:bg-rose-350' : 'bg-slate-300 hover:bg-white'
+              }`}
+            >
+              <Play className="w-3.5 h-3.5 fill-current" />
+              Play All
+            </button>
+            <span className="text-[10px] font-semibold text-white/30 uppercase tracking-widest bg-white/5 border border-white/5 px-2.5 py-1.5 rounded-md shrink-0">
+              {playlist.tracks.length} tracks
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Playlist Tracklist Table */}
+      <div className="flex flex-col gap-6 mt-6 pb-24 w-full max-w-4xl mx-auto">
+        <div className="w-full flex flex-col relative">
+          <div className="flex items-center justify-between pb-3 border-b border-white/5 shrink-0 z-10 relative">
+            <span className="text-[10px] text-white/40 font-bold uppercase tracking-wider">Tracks in Chart</span>
+            <span className="text-[10px] text-white/30 font-medium uppercase tracking-wider bg-white/5 border border-white/5 px-2.5 py-0.5 rounded-md">
+              Updated Daily
+            </span>
+          </div>
+          
+          <div className="w-full space-y-2 mt-4 z-10 relative">
+            {playlist.tracks.length === 0 ? (
+              <div className="py-16 text-center text-white/30">
+                <Music className="w-10 h-10 text-white/10 mx-auto mb-3" />
+                <p className="text-xs font-semibold uppercase tracking-wider text-white/40">No songs found in feed</p>
+                <p className="text-[10px] text-white/20 mt-1">Please try again in a moment.</p>
+              </div>
+            ) : (
+              <div className="space-y-0 flex flex-col bg-transparent">
+                {playlist.tracks.map((track, index) => {
+                  const trackNumber = String(index + 1).padStart(2, '0');
+                  const isLoading = loadingSongId === track.id;
+                  return (
+                    <motion.div
+                      key={`playlist-track-${track.id}`}
+                      initial={{ opacity: 0, y: 5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.02, ease: "easeOut" }}
+                      className={`group w-full flex items-center gap-4 py-4 px-3 border-b border-white/5 last:border-b-0 bg-transparent transition-colors duration-200 hover:bg-white/[0.02] cursor-pointer ${
+                        isLoading ? 'bg-white/[0.03]' : ''
+                      }`}
+                      onClick={() => {
+                        if (!loadingSongId) handleSelectSong(track);
+                      }}
+                    >
+                      {/* Song Number */}
+                      <span className="text-xs font-mono text-white/35 group-hover:text-white/60 transition-colors shrink-0 w-6 text-right">
+                        {trackNumber}
+                      </span>
+
+                      {/* Song Thumbnail */}
+                      <div className="relative w-13 h-13 rounded-xl overflow-hidden flex-shrink-0 bg-neutral-900 border border-white/5 shadow-md">
+                        <img 
+                          src={track.thumbnail} 
+                          alt={track.title} 
+                          className="w-full h-full object-cover" 
+                        />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          {isLoading ? (
+                            <motion.div
+                              animate={{ rotate: 360 }}
+                              transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}
+                              className={`w-4 h-4 rounded-full border border-white/20 ${theme.borderT}`}
+                            />
+                          ) : (
+                            <Play className="w-5 h-5 text-white fill-white scale-90" />
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Title & Artist */}
+                      <div className="flex-1 min-w-0 text-left">
+                        <span className="text-[15px] font-semibold text-white/95 group-hover:text-white transition-colors truncate block">
+                          {track.title}
+                        </span>
+                        <span className="text-[13px] text-white/60 truncate block mt-1">
+                          {track.artist}
+                        </span>
+                      </div>
+
+                      {/* Favorite & Queue controls */}
+                      <div className="flex items-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity shrink-0">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onToggleFavorite(track);
+                          }}
+                          className="p-2.5 rounded-xl hover:bg-white/5 text-white/60 hover:text-white transition-all cursor-pointer"
+                          title={isFavorite(track.id) ? "Remove from Favorites" : "Add to Favorites"}
+                        >
+                          <Heart className={`w-4 h-4 ${isFavorite(track.id) ? 'text-red-500 fill-red-500' : ''}`} />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleAddToQueue(track);
+                            toast.success("Added to queue");
+                          }}
+                          className="p-2.5 rounded-xl hover:bg-white/5 text-white/60 hover:text-white transition-all cursor-pointer"
+                          title="Add to queue"
+                        >
+                          <Plus className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+};

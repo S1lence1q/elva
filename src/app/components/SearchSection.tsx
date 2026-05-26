@@ -85,13 +85,14 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
   return (
     <motion.div
       key="search-input-section"
+      layout
       variants={searchInputVariants}
       initial="initial"
       animate="animate"
-      className="w-full max-w-2xl px-6 space-y-6"
+      className="w-full max-w-2xl px-6 space-y-4"
     >
       {/* Main input - clean with subtle details */}
-      <div className="relative group">
+      <motion.div layout className="relative group">
         {/* Subtle corner accents */}
         <div className="absolute -top-px -left-px w-8 h-8 border-t border-l border-white/0 group-focus-within:border-white/20 rounded-tl-3xl transition-all duration-500" />
         <div className="absolute -top-px -right-px w-8 h-8 border-t border-r border-white/0 group-focus-within:border-white/20 rounded-tr-3xl transition-all duration-500" />
@@ -131,58 +132,70 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
           {/* Subtle inner shadow for depth */}
           <div className="absolute inset-0 rounded-3xl pointer-events-none shadow-[inset_0_1px_2px_rgba(0,0,0,0.2)]" />
         </div>
-      </div>
+      </motion.div>
 
-      {/* Bento-Style Minimalist Artist Shortcuts / Recent Searches */}
-      {!localQuery.trim() && !isSearching && searchResults.length === 0 && recentArtists.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-          className="w-full flex flex-col gap-3 pt-3"
-        >
-          <div className="flex items-center justify-between px-1">
-            <span className="text-[10px] text-white/30 font-bold uppercase tracking-[0.2em]">Recent Artists</span>
-          </div>
-          
-          <div className={`grid gap-3 w-full ${
-            recentArtists.length === 1 ? 'grid-cols-1 max-w-xs mx-auto' :
-            recentArtists.length === 2 ? 'grid-cols-1 sm:grid-cols-2 max-w-xl mx-auto' :
-            recentArtists.length === 3 ? 'grid-cols-1 sm:grid-cols-3 max-w-3xl mx-auto' :
-            'grid-cols-2 md:grid-cols-4 w-full'
-          }`}>
-            {recentArtists.map((artist) => (
-              <motion.div
-                key={artist.name}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => {
-                  handleViewArtistProfile(artist);
-                }}
-                className="group flex items-center gap-3.5 p-4 rounded-2xl bg-white/[0.015] hover:bg-white/[0.035] border border-white/[0.03] hover:border-white/[0.09] transition-all duration-300 cursor-pointer shadow-sm relative overflow-hidden"
-              >
-                {/* Subtle inner highlight on hover */}
-                <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-                
-                {/* Profile avatar - w-11 h-11 circular profile */}
-                <div className="relative w-11 h-11 rounded-full overflow-hidden flex-shrink-0 bg-neutral-900 border border-white/5 shadow-inner">
-                  <img src={artist.thumbnail} alt={artist.name} className="w-full h-full object-cover scale-105" />
-                </div>
-                
-                {/* Artist Name & Country details */}
-                <div className="flex flex-col text-left min-w-0">
-                  <span className="text-sm font-semibold text-white/85 group-hover:text-white transition-colors truncate tracking-tight">
-                    {artist.name}
-                  </span>
-                  <span className="text-xs text-white/40 font-light truncate mt-0.5 tracking-wide">
-                    {artist.disambiguation?.split(' • ')[0] || artist.country || 'Artist'}
-                  </span>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </motion.div>
-      )}
+      {/* Bento-Style Minimalist Artist Shortcuts / Recent Searches with smooth height collapsing */}
+      <AnimatePresence>
+        {!searchQuery.trim() && !isSearching && searchResults.length === 0 && recentArtists.length > 0 && (
+          <motion.div
+            key="recent-artists-section"
+            layout
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ 
+              opacity: 1, 
+              height: 'auto',
+              transition: { duration: 0.95, ease: [0.16, 1, 0.3, 1] } 
+            }}
+            exit={{ 
+              opacity: 0, 
+              height: 0,
+              transition: { duration: 0.8, ease: [0.16, 1, 0.3, 1] } 
+            }}
+            className="w-full flex flex-col gap-3 pt-3 overflow-hidden shrink-0"
+          >
+            <div className="flex items-center justify-between px-1">
+              <span className="text-[10px] text-white/30 font-bold uppercase tracking-[0.2em]">Recent Artists</span>
+            </div>
+            
+            <div className={`grid gap-3 w-full ${
+              recentArtists.length === 1 ? 'grid-cols-1 max-w-xs mx-auto' :
+              recentArtists.length === 2 ? 'grid-cols-1 sm:grid-cols-2 max-w-xl mx-auto' :
+              recentArtists.length === 3 ? 'grid-cols-1 sm:grid-cols-3 max-w-3xl mx-auto' :
+              'grid-cols-2 md:grid-cols-4 w-full'
+            }`}>
+              {recentArtists.map((artist) => (
+                <motion.div
+                  key={artist.name}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => {
+                    handleViewArtistProfile(artist);
+                  }}
+                  className="group flex items-center gap-3.5 p-4 rounded-2xl bg-white/[0.015] hover:bg-white/[0.035] border border-white/[0.03] hover:border-white/[0.09] transition-all duration-300 cursor-pointer shadow-sm relative overflow-hidden"
+                >
+                  {/* Subtle inner highlight on hover */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                  
+                  {/* Profile avatar - w-11 h-11 circular profile */}
+                  <div className="relative w-11 h-11 rounded-full overflow-hidden flex-shrink-0 bg-neutral-900 border border-white/5 shadow-inner">
+                    <img src={artist.thumbnail} alt={artist.name} className="w-full h-full object-cover scale-105" />
+                  </div>
+                  
+                  {/* Artist Name & Country details */}
+                  <div className="flex flex-col text-left min-w-0">
+                    <span className="text-sm font-semibold text-white/85 group-hover:text-white transition-colors truncate tracking-tight">
+                      {artist.name}
+                    </span>
+                    <span className="text-xs text-white/40 font-light truncate mt-0.5 tracking-wide">
+                      {artist.disambiguation?.split(' • ')[0] || artist.country || 'Artist'}
+                    </span>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Search results */}
       <AnimatePresence>

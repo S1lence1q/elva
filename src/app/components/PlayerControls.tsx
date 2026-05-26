@@ -68,41 +68,50 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
       }`}
     >
       {/* Song info - top */}
-      <div className="absolute top-8 left-0 right-0 flex flex-col items-center text-center px-8 z-20">
-        <div className="flex items-center gap-2.5 max-w-full justify-center">
-          <h2 className="text-xl text-white/90 font-medium tracking-tight truncate max-w-[200px] sm:max-w-[280px]" style={{ letterSpacing: '-0.01em' }}>
-            {songData.title}
-          </h2>
-          
-          {/* Heart Button */}
+      <div 
+        className="absolute top-8 left-0 right-0 flex flex-col items-center text-center px-8 z-20"
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="w-full relative flex items-center justify-center min-h-[32px]">
+          {/* Heart Button - Absolutely positioned on the left to keep title centered */}
           {onToggleFavorite && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleFavorite({
-                  id: songData.videoId || songData.audioUrl,
-                  videoId: songData.videoId || '',
-                  title: songData.title,
-                  artist: songData.artist,
-                  thumbnail: songData.artworkUrl,
-                });
-              }}
-              className="p-1.5 rounded-xl hover:bg-white/10 text-white/30 hover:text-white cursor-pointer shrink-0 transition-all"
-              title={isFavorite ? "Fjern fra favoritter" : "Marker som favorit"}
-            >
-              <Heart className={`w-4 h-4 ${isFavorite ? 'text-red-500 fill-red-500' : ''}`} />
-            </button>
+            <div className="absolute left-0 top-1/2 -translate-y-1/2">
+              <button
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleFavorite({
+                    id: songData.videoId || songData.audioUrl,
+                    videoId: songData.videoId || '',
+                    title: songData.title,
+                    artist: songData.artist,
+                    thumbnail: songData.artworkUrl,
+                  });
+                }}
+                className="p-2 rounded-xl hover:bg-white/10 text-white/40 hover:text-white cursor-pointer shrink-0 transition-all active:scale-90"
+                title={isFavorite ? "Fjern fra favoritter" : "Marker som favorit"}
+              >
+                <Heart className={`w-4 h-4 ${isFavorite ? 'text-red-500 fill-red-500' : ''}`} />
+              </button>
+            </div>
           )}
 
-          {/* Add to Playlist button */}
+          {/* Title - Absolutely Centered */}
+          <h2 className="text-xl text-white/95 font-semibold tracking-tight truncate max-w-[70%] text-center" style={{ letterSpacing: '-0.01em' }}>
+            {songData.title}
+          </h2>
+
+          {/* Add to Playlist button - Absolutely positioned on the right to keep title centered */}
           {onAddToPlaylist && (
-            <div className="relative shrink-0" onClick={(e) => e.stopPropagation()}>
+            <div className="absolute right-0 top-1/2 -translate-y-1/2" onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
               <button
+                onPointerDown={(e) => e.stopPropagation()}
                 onClick={(e) => {
                   e.stopPropagation();
                   setShowPlaylistMenu(!showPlaylistMenu);
                 }}
-                className={`p-1.5 rounded-xl hover:bg-white/10 text-white/30 hover:text-white cursor-pointer transition-all ${showPlaylistMenu ? 'bg-white/15 text-white' : ''}`}
+                className={`p-2 rounded-xl hover:bg-white/10 text-white/40 hover:text-white cursor-pointer transition-all active:scale-90 ${showPlaylistMenu ? 'bg-white/15 text-white' : ''}`}
                 title="Tilføj til playliste"
               >
                 <ListPlus className="w-4 h-4" />
@@ -116,7 +125,7 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95, y: 10 }}
                     transition={{ duration: 0.2 }}
-                    className="absolute top-8 right-0 w-48 rounded-2xl border border-white/10 bg-black/80 backdrop-blur-2xl p-2.5 shadow-2xl text-left flex flex-col gap-1 z-[100]"
+                    className="absolute top-10 right-0 w-48 rounded-2xl border border-white/10 bg-black/80 backdrop-blur-2xl p-2.5 shadow-2xl text-left flex flex-col gap-1 z-[100]"
                   >
                     <span className="text-[9px] font-bold text-white/30 tracking-wider uppercase px-2 py-1 select-none">Vælg Playliste</span>
                     <div className="max-h-[140px] overflow-y-auto scrollbar-none flex flex-col gap-0.5">
@@ -144,9 +153,8 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
               </AnimatePresence>
             </div>
           )}
-
         </div>
-        <p className="text-sm text-white/60 tracking-wide mt-0.5" style={{ letterSpacing: '0.02em' }}>{songData.artist}</p>
+        <p className="text-sm text-white/60 tracking-wide mt-1.5" style={{ letterSpacing: '0.02em' }}>{songData.artist}</p>
       </div>
 
       {/* Controls container */}

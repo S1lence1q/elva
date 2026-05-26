@@ -145,20 +145,27 @@ export const FluidBackground: React.FC<FluidBackgroundProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   
+  const speedRef = useRef(speedMultiplier);
+
+  // Sync speedMultiplier changes to a mutable ref to prevent WebGL program re-compilation
+  useEffect(() => {
+    speedRef.current = speedMultiplier;
+  }, [speedMultiplier]);
+
   // Keep track of target colors
   const targetColorsRef = useRef<[number, number, number][]>([
-    [0.05, 0.05, 0.05],
-    [0.05, 0.05, 0.05],
-    [0.05, 0.05, 0.05],
-    [0.05, 0.05, 0.05]
+    parseToRgb(color1),
+    parseToRgb(color2),
+    parseToRgb(color3),
+    parseToRgb(color4)
   ]);
 
   // Keep track of active current colors for smooth transitioning
   const currentColorsRef = useRef<[number, number, number][]>([
-    [0.05, 0.05, 0.05],
-    [0.05, 0.05, 0.05],
-    [0.05, 0.05, 0.05],
-    [0.05, 0.05, 0.05]
+    parseToRgb(color1),
+    parseToRgb(color2),
+    parseToRgb(color3),
+    parseToRgb(color4)
   ]);
 
   // Sync props to target refs
@@ -171,18 +178,10 @@ export const FluidBackground: React.FC<FluidBackgroundProps> = ({
     ];
   }, [color1, color2, color3, color4]);
 
-  // WebGL compilation and render loop
+  // WebGL compilation and render loop (Runs exactly once on mount!)
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-
-    // Initialize currentColors to target immediately on first load
-    currentColorsRef.current = [
-      parseToRgb(color1),
-      parseToRgb(color2),
-      parseToRgb(color3),
-      parseToRgb(color4)
-    ];
 
     const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl') as WebGLRenderingContext | null;
     if (!gl) {
@@ -278,7 +277,7 @@ export const FluidBackground: React.FC<FluidBackgroundProps> = ({
       }
 
       // Update shader uniforms
-      localTime += 0.012 * speedMultiplier;
+      localTime += 0.012 * speedRef.current;
       gl.uniform1f(timeLoc, localTime);
       gl.uniform2f(resLoc, canvas.width, canvas.height);
       
@@ -304,7 +303,7 @@ export const FluidBackground: React.FC<FluidBackgroundProps> = ({
       gl.deleteShader(fs);
       gl.deleteProgram(program);
     };
-  }, [speedMultiplier]);
+  }, []);
 
   return (
     <canvas

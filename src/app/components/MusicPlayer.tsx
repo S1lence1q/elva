@@ -1473,33 +1473,50 @@ export function MusicPlayer({
         <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-black/45 to-transparent pointer-events-none z-[5]" />
       </motion.div>
 
-      {/* Main content container */}
       <motion.div
         initial={{ opacity: 0, x: 0 }}
         animate={{ 
           opacity: 1,
-          x: showQueue && isLargeScreen ? -200 : 0
+          x: showQueue && isLargeScreen ? -230 : 0
         }}
         transition={{ 
           opacity: { duration: 0.5, delay: 0.2, ease: "easeOut" },
-          x: { type: 'spring', damping: 26, stiffness: 220 }
+          x: { type: 'spring', stiffness: 350, damping: 32 }
         }}
-        className="relative z-10 flex flex-col items-center px-8 w-full max-w-2xl"
+        className="relative z-10 flex flex-col items-center px-8 w-full"
+        style={{ maxWidth: 1152 }}
       >
-        {/* Album artwork with controls */}
-        <div
-          id="artwork-card"
-          ref={artworkRef}
-          className="relative group/artwork cursor-pointer w-[520px] h-[520px]"
-          style={{ perspective: 1200 }}
-        >
-          {/* OUTER LAYER: Handles the 180 degree flip animation cleanly without motionValue conflict */}
-          <motion.div
-            className="w-full h-full relative"
-            animate={{ rotateY: showLyrics ? 180 : 0 }}
-            transition={{ rotateY: { duration: 0.8, ease: [0.16, 1, 0.3, 1] } }}
-            style={{ transformStyle: 'preserve-3d' }}
+        {/* Layout wrapper: side-by-side absolute translations on large screens for zero-reflow smooth transitions */}
+        <div className={isLargeScreen ? 'relative w-full h-[550px] flex items-center justify-center' : 'flex flex-col items-center justify-center w-full'}>
+          {/* Stacked Artwork Card + micro-hint */}
+          <motion.div 
+            animate={{
+              x: showLyrics && isLargeScreen ? -284 : 0,
+            }}
+            transition={{ type: 'spring', stiffness: 180, damping: 25 }}
+            className="flex flex-col items-center w-[520px] shrink-0 group/artwork"
+            style={{
+              position: isLargeScreen ? 'absolute' : 'relative',
+              left: isLargeScreen ? 'calc(50% - 260px)' : 'auto',
+              top: isLargeScreen ? 0 : 'auto',
+              width: 520,
+              height: 520,
+            }}
           >
+            {/* Album artwork with controls */}
+            <div
+              id="artwork-card"
+              ref={artworkRef}
+              className="relative cursor-pointer w-[520px] h-[520px]"
+              style={{ perspective: 1200 }}
+            >
+              {/* OUTER LAYER: Handles the 180 degree flip animation cleanly without motionValue conflict */}
+              <motion.div
+                className="w-full h-full relative"
+                animate={{ rotateY: showLyrics && !isLargeScreen ? 180 : 0 }}
+                transition={{ rotateY: { duration: 1.4, ease: [0.16, 1, 0.3, 1] } }}
+                style={{ transformStyle: 'preserve-3d' }}
+              >
             {/* INNER LAYER: Handles the buttery smooth mouse tilt tracking */}
             <motion.div
               onMouseEnter={handleMouseEnter}
@@ -1526,10 +1543,10 @@ export function MusicPlayer({
             >
               {/* FRONT FACE */}
               <div 
-                className={`absolute inset-0 w-full h-full ${showLyrics ? 'pointer-events-none' : ''}`} 
+                className={`absolute inset-0 w-full h-full ${showLyrics && !isLargeScreen ? 'pointer-events-none' : ''}`} 
                 style={{ 
                   backfaceVisibility: 'hidden',
-                  visibility: showLyrics ? 'hidden' : 'visible'
+                  visibility: showLyrics && !isLargeScreen ? 'hidden' : 'visible'
                 }}
               >
               {/* Layered glass depth behind artwork - optimized */}
@@ -1579,11 +1596,11 @@ export function MusicPlayer({
 
           {/* Album artwork card with dynamic colored shadows */}
           <div
-            className="relative rounded-3xl overflow-hidden transition-all duration-1000 w-full h-full cursor-pointer"
+            className="relative rounded-3xl overflow-hidden transition-all duration-500 w-full h-full cursor-pointer"
             style={{
               boxShadow: isPlaying 
-                ? '0 40px 80px var(--theme-primary-shadow), 0 20px 40px var(--theme-secondary-shadow), 0 60px 120px rgba(0,0,0,0.65)'
-                : '0 20px 40px var(--theme-primary-shadow-idle), 0 10px 20px var(--theme-secondary-shadow-idle), 0 30px 60px rgba(0,0,0,0.45)',
+                ? '0 30px 60px rgba(0,0,0,0.75), 0 10px 30px var(--theme-primary-fade), 0 5px 15px var(--theme-secondary-fade)'
+                : '0 15px 35px rgba(0,0,0,0.5), 0 5px 15px var(--theme-primary-fade)',
               isolation: 'isolate'
             }}
             onPointerDown={(e) => {
@@ -1671,30 +1688,69 @@ export function MusicPlayer({
           </div>
           {/* END FRONT FACE */}
 
-          <LyricsPanel
-            showLyrics={showLyrics}
-            lyrics={lyrics}
-            isLoadingLyrics={isLoadingLyrics}
-            isLyricsSynced={isLyricsSynced}
-            currentLyricIndex={currentLyricIndex}
-            seekToAbsoluteTime={seekToAbsoluteTime}
-            setShowLyrics={setShowLyrics}
-            theme={theme}
-          />
+          {!isLargeScreen && (
+            <LyricsPanel
+              showLyrics={showLyrics}
+              lyrics={lyrics}
+              isLoadingLyrics={isLoadingLyrics}
+              isLyricsSynced={isLyricsSynced}
+              currentLyricIndex={currentLyricIndex}
+              seekToAbsoluteTime={seekToAbsoluteTime}
+              setShowLyrics={setShowLyrics}
+              theme={theme}
+            />
+          )}
             </motion.div>
           </motion.div>
-        </div>
+          </div>
+          {/* Dynamic micro-hint below the card inside the Stacked Artwork Card container so it translates with it */}
+          <p className="text-[9px] tracking-[0.22em] text-white/20 mt-4 text-center select-none uppercase font-light opacity-0 group-hover/artwork:opacity-100 transition-opacity duration-700 pointer-events-none">
+            {showLyrics ? "Click lyrics or press L to return" : "Click artwork for play/pause or press L for lyrics"}
+          </p>
+          </motion.div>
 
-        {/* Dynamic micro-hint below the card */}
-        <p className="text-[9px] tracking-[0.22em] text-white/20 mt-4 text-center select-none uppercase font-light opacity-0 group-hover/artwork:opacity-100 transition-opacity duration-700 pointer-events-none">
-          {showLyrics ? "Click lyrics or press L to return" : "Click artwork for play/pause or press L for lyrics"}
-        </p>
+          {/* Side-by-Side Lyrics Panel (only rendered on large screens inside AnimatePresence) */}
+          <AnimatePresence>
+            {showLyrics && isLargeScreen && (
+              <motion.div
+                initial={{ opacity: 0, x: 180 }}
+                animate={{ opacity: 1, x: 284 }}
+                exit={{ opacity: 0, x: 180 }}
+                transition={{ type: 'spring', damping: 25, stiffness: 180 }}
+                className="w-[520px] h-[520px] absolute shrink-0"
+                style={{
+                  position: 'absolute',
+                  left: 'calc(50% - 260px)',
+                  top: 0,
+                }}
+              >
+                <LyricsPanel
+                  showLyrics={showLyrics}
+                  lyrics={lyrics}
+                  isLoadingLyrics={isLoadingLyrics}
+                  isLyricsSynced={isLyricsSynced}
+                  currentLyricIndex={currentLyricIndex}
+                  seekToAbsoluteTime={seekToAbsoluteTime}
+                  setShowLyrics={setShowLyrics}
+                  theme={theme}
+                  isSideBySide={true}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
 
         {/* Bottom controls - Add Music, Queue & Settings */}
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: isUserIdle && zenMode ? 0 : 1 }}
-          transition={{ duration: 0.7 }}
+          initial={{ opacity: 0, x: 0 }}
+          animate={{ 
+            opacity: isUserIdle && zenMode ? 0 : 1,
+            x: showLyrics && isLargeScreen ? -284 : 0
+          }}
+          transition={{ 
+            opacity: { duration: 0.7 },
+            x: { type: 'spring', stiffness: 180, damping: 25 }
+          }}
           className={`mt-8 flex items-center justify-center gap-3 ${isUserIdle && zenMode ? 'pointer-events-none' : ''}`}
         >
           {/* Buttons: premium dark high-contrast glassmorphic style */}

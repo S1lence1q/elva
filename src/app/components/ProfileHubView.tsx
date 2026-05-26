@@ -274,7 +274,7 @@ export const ProfileHubView: React.FC<ProfileHubViewProps> = ({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 10 }}
       transition={{ duration: 0.45 }}
-      className="w-full max-w-[898px] relative z-10 flex flex-col gap-6 px-6 pb-24 overflow-y-auto flex-1 scrollbar-none cursor-default"
+      className="w-full max-w-[898px] relative z-10 flex flex-col gap-6 px-6 pt-4 pb-24 cursor-default"
     >
 
       {/* Internal Subtabs */}
