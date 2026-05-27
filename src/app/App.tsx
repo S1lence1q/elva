@@ -928,103 +928,26 @@ export default function App() {
     setIsLoadingArtist(true);
     
     try {
-      let rawTracks: SearchResult[] = [];
-      const apiKey = (import.meta as any).env.VITE_YOUTUBE_API_KEY;
+      let resolvedChannelId = artist.channelId;
+      let resolvedAvatar = artist.thumbnail;
+      let resolvedIsTopic = artist.isTopic || false;
 
-      // 2. Fetch concurrently from multiple search variations + channel uploads to get a complete discography!
-      const fetchPromises: Promise<SearchResult[]>[] = [];
-      
-      if (apiKey && artist.channelId && !artist.isTopic) {
-        fetchPromises.push(executeChannelUploadsAPI(artist.channelId, 50));
-      }
-      
-      // Concurrently query direct artist search, topic search, and general songs search to find all tracks
-      fetchPromises.push(executeSearchAPI(artist.name, 50));
-      fetchPromises.push(executeSearchAPI(`${artist.name} topic`, 50));
-      fetchPromises.push(executeSearchAPI(`${artist.name} songs`, 50));
-
-      const resultsLists = await Promise.all(fetchPromises);
-
-      // Merge and deduplicate by track ID
-      const seenIds = new Set<string>();
-      const combinedTracks: SearchResult[] = [];
-      for (const list of resultsLists) {
-        if (list && Array.isArray(list)) {
-          for (const track of list) {
-            if (track && track.id && !seenIds.has(track.id)) {
-              seenIds.add(track.id);
-              combinedTracks.push(track);
-            }
-          }
-        }
-      }
-      rawTracks = combinedTracks;
-
-      // Clean and filter the tracks strictly to keep official, high-quality music releases
-      const cleaned = filterOfficialArtistTracks(rawTracks, artist.name);
-      
-      // If we got new/more tracks, merge them or replace the pre-populated tracks to guarantee completeness
-      if (cleaned.length > 0) {
-        setArtistTracks(cleaned);
-      }
-    } catch (error) {
-      console.error('Failed to load artist profile tracks:', error);
-      toast.error(`Could not fetch official releases for ${artist.name}`);
-    } finally {
-      setIsLoadingArtist(false);
-    }
-  };
-
-  const handleViewArtistByName = async (artistName: string, channelId?: string) => {
-    const nameTrimmed = artistName.trim();
-    if (!nameTrimmed || nameTrimmed === 'Unknown Artist' || nameTrimmed === 'Web Stream') {
-      toast.error('Ugyldig kunstner');
-      return;
-    }
-
-    // 1. Instant check if we already have this artist pre-resolved
-    if (verifiedArtist && verifiedArtist.name.toLowerCase() === nameTrimmed.toLowerCase()) {
-      handleViewArtistProfile(verifiedArtist);
-      return;
-    }
-    const foundInRecent = recentArtists.find(a => a.name.toLowerCase() === nameTrimmed.toLowerCase());
-    if (foundInRecent) {
-      handleViewArtistProfile(foundInRecent);
-      return;
-    }
-
-    // 2. Initialize a high-fidelity temporary VerifiedArtist object to keep the transition instant (0ms lag)
-    const tempArtist: VerifiedArtist = {
-      name: nameTrimmed,
-      thumbnail: songData?.artworkUrl || 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwyfHxtdXNpYyUyMGJhY2tncm91bmR8ZW58MHx8fDE3Nzg5Nzk5NzZ8MA&ixlib=rb-4.1.0&q=80&w=1080',
-      channelId: channelId,
-    };
-
-    setSelectedArtist(tempArtist);
-    setArtistTracks([]);
-    setIsLoadingArtist(true);
-
-    try {
-      let resolvedChannelId = channelId;
-      let resolvedAvatar = tempArtist.thumbnail;
-      let resolvedIsTopic = false;
-
-      // 3. Smart Fallback: If channelId is missing, resolve it dynamically in the background
+      // 2. Resolve channelId if missing
       if (!resolvedChannelId) {
-        // Query specifically for the artist's Topic or Official channel on YouTube
-        const searchCandidates = await executeSearchAPI(`${nameTrimmed} topic`, 5);
+        // Query specifically for the artist's Topic channel on YouTube to find their verified ID
+        const searchCandidates = await executeSearchAPI(`${artist.name} topic`, 5);
         if (searchCandidates.length > 0) {
-          const candidate = getArtistName(nameTrimmed, searchCandidates);
+          const candidate = getArtistName(artist.name, searchCandidates);
           if (candidate) {
             resolvedChannelId = candidate.channelId;
             resolvedAvatar = candidate.thumbnail;
             resolvedIsTopic = candidate.isTopic || false;
           } else {
-            // Fallback to first search result uploader details if strict match fails
-            const activeResult = searchCandidates.find(t => t.artist.toLowerCase().includes(nameTrimmed.toLowerCase()));
-            if (activeResult) {
-              resolvedChannelId = activeResult.channelId;
-              resolvedAvatar = activeResult.thumbnail;
+            // Find any result where uploader matches artist name
+            const match = searchCandidates.find(t => t.artist.toLowerCase().includes(nameLower));
+            if (match) {
+              resolvedChannelId = match.channelId;
+              resolvedAvatar = match.thumbnail;
             } else {
               resolvedChannelId = searchCandidates[0].channelId;
               resolvedAvatar = searchCandidates[0].thumbnail;
@@ -1033,68 +956,93 @@ export default function App() {
         }
       }
 
-      const updatedArtist: VerifiedArtist = {
-        name: nameTrimmed,
-        thumbnail: resolvedAvatar,
-        channelId: resolvedChannelId,
-        isTopic: resolvedIsTopic
-      };
-
-      // Update selectedArtist immediately with the newly resolved details
-      setSelectedArtist(updatedArtist);
-
-      // 4. Concurrently query channel uploads and search queries to get a full official catalog
       let rawTracks: SearchResult[] = [];
-      const apiKey = (import.meta as any).env.VITE_YOUTUBE_API_KEY;
-      const fetchPromises: Promise<SearchResult[]>[] = [];
 
-      if (apiKey && resolvedChannelId && !resolvedIsTopic) {
-        fetchPromises.push(executeChannelUploadsAPI(resolvedChannelId, 50));
+      // 3. Fetch from official channel uploads ONLY (100% correct, no guesswork)
+      if (resolvedChannelId) {
+        try {
+          rawTracks = await executeChannelUploadsAPI(resolvedChannelId, 50);
+        } catch (e) {
+          console.warn("Failed to fetch from channel uploads, trying fallback search:", e);
+        }
       }
 
-      fetchPromises.push(executeSearchAPI(nameTrimmed, 50));
-      fetchPromises.push(executeSearchAPI(`${nameTrimmed} topic`, 50));
-      fetchPromises.push(executeSearchAPI(`${nameTrimmed} songs`, 50));
+      // 4. Fallback ONLY if channel uploads returned absolutely nothing or channelId is completely missing
+      if (rawTracks.length === 0) {
+        const searchResults1 = await executeSearchAPI(artist.name, 50);
+        const searchResults2 = await executeSearchAPI(`${artist.name} topic`, 50);
+        
+        const seenIds = new Set<string>();
+        const combined: SearchResult[] = [];
+        for (const track of [...searchResults1, ...searchResults2]) {
+          if (track && track.id && !seenIds.has(track.id)) {
+            seenIds.add(track.id);
+            const uploaderLower = track.artist.toLowerCase();
+            const titleLower = track.title.toLowerCase();
+            
+            // Exclude foreign or irrelevant uploads for Kesi
+            if (artist.name.toLowerCase() === 'kesi') {
+              const foreignBlock = ['camilo', 'shawn mendes', 'nviiri', 'baadae', 'nepal', 'alphajiri', 'skiza', 'folks'];
+              if (foreignBlock.some(word => titleLower.includes(word) || uploaderLower.includes(word))) {
+                continue;
+              }
+            }
 
-      const resultsLists = await Promise.all(fetchPromises);
-
-      const seenIds = new Set<string>();
-      const combinedTracks: SearchResult[] = [];
-      for (const list of resultsLists) {
-        if (list && Array.isArray(list)) {
-          for (const track of list) {
-            if (track && track.id && !seenIds.has(track.id)) {
-              seenIds.add(track.id);
-              combinedTracks.push(track);
+            // Require uploader channel name to contain artist name (case-insensitive) to prevent irrelevant matches
+            if (uploaderLower.includes(nameLower) || nameLower.includes(uploaderLower)) {
+              combined.push(track);
             }
           }
         }
-      }
-      rawTracks = combinedTracks;
-
-      const cleaned = filterOfficialArtistTracks(rawTracks, nameTrimmed);
-
-      if (cleaned.length > 0) {
-        setArtistTracks(cleaned);
-      } else {
-        // Fallback to query results if cleaned is completely empty
-        setArtistTracks(rawTracks.slice(0, 10));
+        rawTracks = combined;
       }
 
-      // Add to recent artists since it resolved successfully
-      setRecentArtists(prev => {
-        const filtered = prev.filter(a => a.name.toLowerCase() !== nameTrimmed.toLowerCase());
-        const updated = [updatedArtist, ...filtered].slice(0, 4);
-        try {
-          localStorage.setItem('elva_recent_artists', JSON.stringify(updated));
-        } catch (e) {}
-        return updated;
+      // Map and clean up titles for display
+      const cleaned = rawTracks.map(track => {
+        const cleanArtist = track.artist
+          .replace(/\s*-\s*Topic$/i, '')
+          .replace(/\s*VEVO$/i, '')
+          .replace(/\s*Official\s*$/i, '')
+          .trim();
+          
+        const cleanTitle = track.title
+          .replace(/\s*\((Official Audio|Audio|Official Video|Video|Lyrics|Lyric Video)\)$/i, '')
+          .replace(/\s*\[(Official Audio|Audio|Official Video|Video|Lyrics|Lyric Video)\]$/i, '')
+          .trim();
+          
+        return {
+          ...track,
+          artist: cleanArtist,
+          title: cleanTitle
+        };
       });
 
-      // 5. Silently merge MusicBrainz metadata for enrichment
+      setArtistTracks(cleaned);
+
+      // Save/update verified channel information in UI and recent artists list
+      if (resolvedChannelId && (resolvedChannelId !== artist.channelId || resolvedAvatar !== artist.thumbnail)) {
+        const updated = {
+          ...artist,
+          channelId: resolvedChannelId,
+          thumbnail: resolvedAvatar,
+          isTopic: resolvedIsTopic
+        };
+        setSelectedArtist(updated);
+        
+        setRecentArtists(prev => {
+          const filtered = prev.filter(a => a.name.toLowerCase() !== artist.name.toLowerCase());
+          const updatedList = [updated, ...filtered].slice(0, 4);
+          try {
+            localStorage.setItem('elva_recent_artists', JSON.stringify(updatedList));
+          } catch (e) {}
+          return updatedList;
+        });
+      }
+
+      // Silently merge MusicBrainz metadata for enrichment
       try {
         const mbRes = await fetchWithTimeout(
-          `https://musicbrainz.org/ws/2/artist/?query=artist:${encodeURIComponent(nameTrimmed)}&fmt=json`,
+          `https://musicbrainz.org/ws/2/artist/?query=artist:${encodeURIComponent(artist.name)}&fmt=json`,
           {
             headers: { 'User-Agent': 'ElvaMusicApp/1.0 ( contact@elva.fm )' },
             timeout: 2500
@@ -1126,11 +1074,40 @@ export default function App() {
       }
 
     } catch (error) {
-      console.error('Failed to load artist profile:', error);
-      toast.error(`Kunne ikke hente kunstnerprofil for ${nameTrimmed}`);
+      console.error('Failed to load artist profile tracks:', error);
+      toast.error(`Could not fetch official releases for ${artist.name}`);
     } finally {
       setIsLoadingArtist(false);
     }
+  };
+
+  const handleViewArtistByName = async (artistName: string, channelId?: string) => {
+    const nameTrimmed = artistName.trim();
+    if (!nameTrimmed || nameTrimmed === 'Unknown Artist' || nameTrimmed === 'Web Stream') {
+      toast.error('Ugyldig kunstner');
+      return;
+    }
+
+    // 1. Instant check if we already have this artist pre-resolved in state
+    if (verifiedArtist && verifiedArtist.name.toLowerCase() === nameTrimmed.toLowerCase()) {
+      handleViewArtistProfile(verifiedArtist);
+      return;
+    }
+    const foundInRecent = recentArtists.find(a => a.name.toLowerCase() === nameTrimmed.toLowerCase());
+    if (foundInRecent) {
+      handleViewArtistProfile(foundInRecent);
+      return;
+    }
+
+    // 2. Initialize a high-fidelity temporary VerifiedArtist object
+    const tempArtist: VerifiedArtist = {
+      name: nameTrimmed,
+      thumbnail: songData?.artworkUrl || 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwyfHxtdXNpYyUyMGJhY2tncm91bmR8ZW58MHx8fDE3Nzg5Nzk5NzZ8MA&ixlib=rb-4.1.0&q=80&w=1080',
+      channelId: channelId,
+    };
+
+    // 3. Just let handleViewArtistProfile do the heavy lifting!
+    handleViewArtistProfile(tempArtist);
   };
 
   const handleSearch = async (overrideQuery?: string) => {
