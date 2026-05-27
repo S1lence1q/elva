@@ -760,101 +760,102 @@ export function MusicPlayer({
       }
 
       const avgSat = totalCount > 0 ? totalSat / totalCount : 0;
-      let useMonochromeFallback = avgSat < 0.12;
+      // Truly monochrome (pure black and white / grayscale)
+      let useMonochromeFallback = avgSat < 0.05;
 
       let finalHslColors: { h: number; s: number; l: number }[] = [];
 
       if (useMonochromeFallback) {
-        // Deterministic arktisk-glød generator using song details as hash seed
+        // Premium, ultra-premium dark slate/obsidian/indigo theme for B&W covers
+        // This preserves the monochromatic moody vibe perfectly!
         let hash = 0;
         const str = `${songData.title || ''} ${songData.artist || ''}`;
         for (let i = 0; i < str.length; i++) {
           hash = str.charCodeAt(i) + ((hash << 5) - hash);
         }
         const seed = Math.abs(hash);
-        const h1 = (270 + (seed % 30) - 15 + 360) % 360; // deep midnight purple (255-285)
-        const h2 = (185 + (Math.floor(seed / 3) % 30) - 15 + 360) % 360; // arktisk teal (170-200)
-        const h3 = (225 + (Math.floor(seed / 7) % 30) - 15 + 360) % 360; // skiferblå/space-indigo (210-240)
+        
+        // Muted slate blues and charcoal indigo hues
+        const h1 = (220 + (seed % 20)) % 360; // 220-240 (slate to steel blue)
+        const h2 = (230 + (Math.floor(seed / 3) % 20)) % 360; // 230-250 (deep space indigo)
+        const h3 = (210 + (Math.floor(seed / 7) % 20)) % 360; // 210-230 (cool charcoal)
 
         finalHslColors = [
-          { h: h1, s: 0.60, l: 0.28 },
-          { h: h2, s: 0.65, l: 0.32 },
-          { h: h3, s: 0.50, l: 0.25 }
+          { h: h1, s: 0.15, l: 0.16 }, // extremely elegant, subtle glint
+          { h: h2, s: 0.12, l: 0.12 },
+          { h: h3, s: 0.08, l: 0.14 }
         ];
       } else {
-        // Filter out pixels that are too dark/light/gray for candidates
-        let candidates = pixels.filter(p => p.s >= 0.15 && p.l >= 0.10 && p.l <= 0.90);
-        
-        // If too few candidates, relax constraints
-        if (candidates.length < 10) {
-          candidates = pixels.filter(p => p.l >= 0.05 && p.l <= 0.95);
-        }
+        // Extract authentic colors from the album cover!
+        // We filter candidates that have a tiny bit of visibility
+        let candidates = pixels.filter(p => p.l >= 0.05 && p.l <= 0.95);
 
-        // Sort candidates by scoring function: high saturation and optimal brightness (around 0.4 - 0.6)
+        // Sort candidates by a scoring function that favors higher saturation,
+        // but doesn't completely ignore dark/light regions
         candidates.sort((a, b) => {
-          const scoreA = a.s * 2.0 + (1.0 - Math.abs(0.5 - a.l));
-          const scoreB = b.s * 2.0 + (1.0 - Math.abs(0.5 - b.l));
+          const scoreA = a.s * 1.5 + (0.5 - Math.abs(0.5 - a.l));
+          const scoreB = b.s * 1.5 + (0.5 - Math.abs(0.5 - b.l));
           return scoreB - scoreA;
         });
-
-        const getHueDistance = (hueA: number, hueB: number) => {
-          const diff = Math.abs(hueA - hueB);
-          return Math.min(diff, 360 - diff);
-        };
 
         const selected: { h: number; s: number; l: number }[] = [];
 
         if (candidates.length > 0) {
-          // Select 1st color
+          // 1st color is the most dominant/vibrant pixel
           selected.push({ h: candidates[0].h, s: candidates[0].s, l: candidates[0].l });
 
-          // Find 2nd color (hue distance >= 45 degrees)
-          const color2 = candidates.find(p => getHueDistance(p.h, selected[0].h) >= 45);
+          // Find a 2nd color that is distinct in hue, lightness, or saturation
+          const color2 = candidates.find(p => 
+            Math.min(Math.abs(p.h - selected[0].h), 360 - Math.abs(p.h - selected[0].h)) >= 20 ||
+            Math.abs(p.l - selected[0].l) >= 0.15 ||
+            Math.abs(p.s - selected[0].s) >= 0.15
+          );
+
           if (color2) {
             selected.push({ h: color2.h, s: color2.s, l: color2.l });
-            // Find 3rd color (hue distance >= 45 degrees from both)
+
+            // Find a 3rd color distinct from both
             const color3 = candidates.find(p => 
-              getHueDistance(p.h, selected[0].h) >= 45 && 
-              getHueDistance(p.h, selected[1].h) >= 45
+              (Math.min(Math.abs(p.h - selected[0].h), 360 - Math.abs(p.h - selected[0].h)) >= 20 ||
+               Math.abs(p.l - selected[0].l) >= 0.15 ||
+               Math.abs(p.s - selected[0].s) >= 0.15) &&
+              (Math.min(Math.abs(p.h - selected[1].h), 360 - Math.abs(p.h - selected[1].h)) >= 20 ||
+               Math.abs(p.l - selected[1].l) >= 0.15 ||
+               Math.abs(p.s - selected[1].s) >= 0.15)
             );
+
             if (color3) {
               selected.push({ h: color3.h, s: color3.s, l: color3.l });
             }
           }
         }
 
-        // If we couldn't find 3 hue-distinct colors, fill using triadic offsets
+        // Fallbacks for tight analogous/monochromatic palettes (keeps them 100% faithful to the artwork!)
         if (selected.length === 1) {
-          const h1 = selected[0].h;
-          const s1 = selected[0].s;
-          const l1 = selected[0].l;
-          selected.push({ h: (h1 + 120) % 360, s: s1, l: l1 });
-          selected.push({ h: (h1 + 240) % 360, s: s1, l: l1 });
+          const c = selected[0];
+          // Create gorgeous harmonized shades of the EXACT SAME HUE!
+          selected.push({ h: c.h, s: Math.max(0.1, c.s - 0.1), l: Math.max(0.08, c.l - 0.08) }); // darker shade
+          selected.push({ h: c.h, s: Math.min(1.0, c.s + 0.15), l: Math.min(0.50, c.l + 0.12) }); // lighter shade
         } else if (selected.length === 2) {
-          const h1 = selected[0].h;
-          const h2 = selected[1].h;
-          const s1 = selected[0].s;
-          const l1 = selected[0].l;
-          let h3 = (h1 + 120) % 360;
-          if (getHueDistance(h3, h2) < 45) {
-            h3 = (h1 + 240) % 360;
-          }
-          selected.push({ h: h3, s: s1, l: l1 });
+          const c1 = selected[0];
+          const c2 = selected[1];
+          // Blend the two or create a variant of the dominant color
+          selected.push({ h: Math.round((c1.h + c2.h) / 2), s: (c1.s + c2.s) / 2, l: Math.max(0.1, (c1.l + c2.l) / 2 - 0.05) });
         } else if (selected.length === 0) {
-          selected.push({ h: 220, s: 0.5, l: 0.3 });
-          selected.push({ h: 280, s: 0.4, l: 0.2 });
-          selected.push({ h: 160, s: 0.6, l: 0.3 });
+          // Complete fallback if empty (should never happen)
+          selected.push({ h: 220, s: 0.15, l: 0.15 });
+          selected.push({ h: 225, s: 0.10, l: 0.12 });
+          selected.push({ h: 215, s: 0.12, l: 0.14 });
         }
 
         finalHslColors = selected;
       }
 
-      // Enforce the Bioluminescent Floor for saturation and lightness
-      // Saturation floor: 35% (0.35)
-      // Lightness floor: 24% (0.24)
+      // Enforce a very gentle floor so they never turn completely black or gray,
+      // but preserve the authentic colors and lightness of the cover!
       const adjustedColors = finalHslColors.map(color => {
-        const s = Math.max(0.35, color.s);
-        const l = Math.max(0.24, color.l);
+        const s = Math.max(0.18, color.s); // gentle saturation floor
+        const l = Math.max(0.12, color.l); // gentle lightness floor so the shader glows but stays moody if the cover is dark
         const rgb = hslToRgb(color.h, s, l);
         return { r: rgb[0], g: rgb[1], b: rgb[2] };
       });
