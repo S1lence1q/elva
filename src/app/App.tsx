@@ -32,6 +32,127 @@ import {
 
 type AppState = 'landing' | 'processing' | 'ready';
 
+const filterOfficialArtistTracks = (rawTracks: SearchResult[], artistName: string): SearchResult[] => {
+  const nameLower = artistName.trim().toLowerCase();
+  
+  return rawTracks
+    .filter(track => {
+      const titleLower = track.title.toLowerCase();
+      const trackArtistLower = track.artist.toLowerCase(); // channel title
+
+      // 1. Teasers, trailers, vlogs, documentary, behind the scenes, live streams, interviews, reviews, reactions are always excluded
+      const absoluteBlocklist = [
+        'teaser', 'trailer', 'vlog', 'behind the scenes', 'bts', 'documentary', 
+        'live stream', 'interview', 'reaction', 'review', '10 hours', 'loop', 'hour loop'
+      ];
+      if (absoluteBlocklist.some(word => titleLower.includes(word))) {
+        return false;
+      }
+
+      // 2. Strict Topic Channel check: If uploader ends with - topic, prefix must match our artist name
+      if (trackArtistLower.endsWith('- topic')) {
+        const topicPrefix = trackArtistLower.replace(/\s*-\s*topic$/i, '').trim();
+        if (!topicPrefix.includes(nameLower) && !nameLower.includes(topicPrefix)) {
+          return false;
+        }
+      }
+
+      // 3. Strict VEVO check: If uploader ends with vevo, prefix must match our artist
+      if (trackArtistLower.endsWith('vevo')) {
+        const vevoPrefix = trackArtistLower.replace(/vevo$/i, '').trim();
+        if (!vevoPrefix.includes(nameLower) && !nameLower.includes(vevoPrefix)) {
+          return false;
+        }
+      }
+
+      // 4. Exclude generic lyrics/fan channels unless they are the official channel
+      const fanChannelBlocklist = [
+        'latinhype', 'lyrics', 'lyric', 'translation', 'subtitles', 'folk nepal', 
+        'nepali', 'herning gang', 'reaction', 'fan', 'cover', 'tribute', 'karaoke'
+      ];
+      if (fanChannelBlocklist.some(word => trackArtistLower.includes(word))) {
+        return false;
+      }
+
+      // 5. Exclude covers, AI folk, AI covers
+      if (titleLower.includes('cover') || titleLower.includes('nepali') || titleLower.includes('ai cover') || titleLower.includes('tribute') || titleLower.includes('karaoke')) {
+        return false;
+      }
+
+      // 6. Check if uploader is official or a verified collaborator
+      const danishCollaborators = [
+        'benny jamz', 'gilli', 'artigeardit', 'lamin', 'kundo', 'b.o.c', 'sivas', 
+        'branco', 'copenhagen records', 'warner music denmark', 'sony music denmark', 
+        'universal music denmark', 'kesi', 'ukendt kunstner'
+      ];
+      
+      const isOfficialUploader = 
+        trackArtistLower.includes(nameLower) ||
+        trackArtistLower.includes('records') ||
+        trackArtistLower.includes('music') ||
+        trackArtistLower.includes('official') ||
+        trackArtistLower.includes('vevo') ||
+        trackArtistLower.includes('entertainment') ||
+        trackArtistLower.includes('label') ||
+        trackArtistLower.includes('topic') ||
+        danishCollaborators.some(collab => trackArtistLower.includes(collab));
+
+      if (!isOfficialUploader) {
+        // If uploader is completely generic, require Kesi to be a separate word in the title
+        const wordRegex = new RegExp(`\\b${nameLower}\\b`, 'i');
+        if (!wordRegex.test(titleLower)) {
+          return false;
+        }
+
+        // Exclude foreign language song titles that don't match Danish musical features
+        const foreignBlockwords = ['baadae', 'storyteller', 'nepali', 'nepal', 'skiza', 'sms', 'ai folk', 'alphajiri', 'camilo', 'shawn mendes'];
+        if (foreignBlockwords.some(word => titleLower.includes(word))) {
+          return false;
+        }
+      }
+
+      // 7. General artist matching: either uploader matches or the title has our artist as a distinct word
+      let artistMatches = trackArtistLower.includes(nameLower) || nameLower.includes(trackArtistLower);
+      
+      if (!artistMatches && titleLower.includes(nameLower)) {
+        const wordRegex = new RegExp(`\\b${nameLower}\\b`, 'i');
+        if (wordRegex.test(titleLower)) {
+          artistMatches = true;
+        }
+      }
+
+      // Exclude foreign language tracks matching the common word 'kesi' but with foreign artist features
+      const isDanishArtistKesi = nameLower === 'kesi';
+      if (isDanishArtistKesi) {
+        const foreignKesiBlockwords = ['camilo', 'shawn mendes', 'nviiri', 'baadae', 'nepal', 'alphajiri', 'skiza', 'folks'];
+        if (foreignKesiBlockwords.some(word => titleLower.includes(word) || trackArtistLower.includes(word))) {
+          return false;
+        }
+      }
+
+      return artistMatches;
+    })
+    .map(track => {
+      // Strip "- Topic", "VEVO", "Official" from artist uploader names
+      const cleanArtist = track.artist
+        .replace(/\s*-\s*Topic$/i, '')
+        .replace(/\s*VEVO$/i, '')
+        .replace(/\s*Official\s*$/i, '')
+        .trim();
+        
+      const cleanTitle = track.title
+        .replace(/\s*\((Official Audio|Audio|Official Video|Video|Lyrics|Lyric Video)\)$/i, '')
+        .replace(/\s*\[(Official Audio|Audio|Official Video|Video|Lyrics|Lyric Video)\]$/i, '')
+        .trim();
+        
+      return {
+        ...track,
+        artist: cleanArtist,
+        title: cleanTitle
+      };
+    });
+};
+
 const SHORTCUT_ARTISTS: VerifiedArtist[] = [
   {
     name: 'KESI',
@@ -840,46 +961,7 @@ export default function App() {
       rawTracks = combinedTracks;
 
       // Clean and filter the tracks strictly to keep official, high-quality music releases
-      const cleaned = rawTracks
-        .filter(track => {
-          const titleLower = track.title.toLowerCase();
-          const trackArtistLower = track.artist.toLowerCase();
-          
-          // Strict artist matching to ensure tracks belong to the viewed artist
-          let artistMatches = trackArtistLower.includes(nameLower) || nameLower.includes(trackArtistLower);
-          
-          // Match if artist's name is in the title but uploader is another non-blocklisted entity (like a record label)
-          if (!artistMatches && titleLower.includes(nameLower)) {
-            const isCamilo = trackArtistLower.includes('camilo');
-            const isExactTitleMatchDiffArtist = titleLower.trim() === nameLower;
-            if (!isCamilo && !isExactTitleMatchDiffArtist) {
-              artistMatches = true;
-            }
-          }
-          
-          // Filter out teasers, trailers, vlogs, documentary, behind the scenes from official channels
-          const blocklist = ['teaser', 'trailer', 'vlog', 'behind the scenes', 'bts', 'documentary', 'live stream', 'interview'];
-          return artistMatches && !blocklist.some(word => titleLower.includes(word));
-        })
-        .map(track => {
-          // Strip "- Topic", "VEVO", "Official" from artist uploader names
-          const cleanArtist = track.artist
-            .replace(/\s*-\s*Topic$/i, '')
-            .replace(/\s*VEVO$/i, '')
-            .replace(/\s*Official\s*$/i, '')
-            .trim();
-            
-          const cleanTitle = track.title
-            .replace(/\s*\((Official Audio|Audio|Official Video|Video|Lyrics|Lyric Video)\)$/i, '')
-            .replace(/\s*\[(Official Audio|Audio|Official Video|Video|Lyrics|Lyric Video)\]$/i, '')
-            .trim();
-            
-          return {
-            ...track,
-            artist: cleanArtist,
-            title: cleanTitle
-          };
-        });
+      const cleaned = filterOfficialArtistTracks(rawTracks, artist.name);
       
       // If we got new/more tracks, merge them or replace the pre-populated tracks to guarantee completeness
       if (cleaned.length > 0) {
@@ -990,35 +1072,7 @@ export default function App() {
       }
       rawTracks = combinedTracks;
 
-      const nameLower = nameTrimmed.toLowerCase();
-      const cleaned = rawTracks
-        .filter(track => {
-          const titleLower = track.title.toLowerCase();
-          const trackArtistLower = track.artist.toLowerCase();
-          let artistMatches = trackArtistLower.includes(nameLower) || nameLower.includes(trackArtistLower);
-          
-          if (!artistMatches && titleLower.includes(nameLower)) {
-            const isCamilo = trackArtistLower.includes('camilo');
-            const isExactTitleMatchDiffArtist = titleLower.trim() === nameLower;
-            if (!isCamilo && !isExactTitleMatchDiffArtist) {
-              artistMatches = true;
-            }
-          }
-          const blocklist = ['teaser', 'trailer', 'vlog', 'behind the scenes', 'bts', 'documentary', 'live stream', 'interview'];
-          return artistMatches && !blocklist.some(word => titleLower.includes(word));
-        })
-        .map(track => {
-          const cleanArtist = track.artist
-            .replace(/\s*-\s*Topic$/i, '')
-            .replace(/\s*VEVO$/i, '')
-            .replace(/\s*Official\s*$/i, '')
-            .trim();
-          const cleanTitle = track.title
-            .replace(/\s*\((Official Audio|Audio|Official Video|Video|Lyrics|Lyric Video)\)$/i, '')
-            .replace(/\s*\[(Official Audio|Audio|Official Video|Video|Lyrics|Lyric Video)\]$/i, '')
-            .trim();
-          return { ...track, artist: cleanArtist, title: cleanTitle };
-        });
+      const cleaned = filterOfficialArtistTracks(rawTracks, nameTrimmed);
 
       if (cleaned.length > 0) {
         setArtistTracks(cleaned);
