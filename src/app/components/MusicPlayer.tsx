@@ -44,6 +44,7 @@ interface MusicPlayerProps {
     artworkUrl: string;
     audioUrl: string;
     videoId?: string;
+    channelId?: string;
   };
   queue?: QueueItem[];
   onRemoveFromQueue?: (id: string) => void;
@@ -75,6 +76,7 @@ interface MusicPlayerProps {
   onShowSettingsButtonChange?: (show: boolean) => void;
   favorites?: SearchResult[];
   onToggleFavorite?: (song: SearchResult) => void;
+  onViewArtist?: (name: string, channelId?: string) => void;
 }
 
 // Generate beautiful, dynamic, vibrant HSL theme palettes by hashing the song title/artist
@@ -238,7 +240,8 @@ export function MusicPlayer({
   showSettingsButton = false,
   onShowSettingsButtonChange,
   favorites = [],
-  onToggleFavorite
+  onToggleFavorite,
+  onViewArtist
 }: MusicPlayerProps) {
   const theme = ACCENT_THEMES[accentColor];
 
@@ -1683,6 +1686,7 @@ export function MusicPlayer({
               favorites={favorites}
               onToggleFavorite={onToggleFavorite}
               onAddToPlaylist={handleAddToPlaylist}
+              onViewArtist={onViewArtist}
             />
           </div>
           </div>

@@ -11,6 +11,7 @@ interface PlayerControlsProps {
     artworkUrl: string;
     audioUrl: string;
     videoId?: string;
+    channelId?: string;
   };
   currentTime: number;
   duration: number;
@@ -27,6 +28,7 @@ interface PlayerControlsProps {
   favorites?: SearchResult[];
   onToggleFavorite?: (song: SearchResult) => void;
   onAddToPlaylist?: (playlistId: string) => void;
+  onViewArtist?: (name: string, channelId?: string) => void;
 }
 
 export const PlayerControls: React.FC<PlayerControlsProps> = ({
@@ -45,7 +47,8 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
   formatTime,
   favorites = [],
   onToggleFavorite,
-  onAddToPlaylist
+  onAddToPlaylist,
+  onViewArtist
 }) => {
   const [showPlaylistMenu, setShowPlaylistMenu] = useState(false);
   const [playlists, setPlaylists] = useState<any[]>([]);
@@ -154,7 +157,16 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
             </div>
           )}
         </div>
-        <p className="text-sm text-white/60 tracking-wide mt-1.5" style={{ letterSpacing: '0.02em' }}>{songData.artist}</p>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            if (onViewArtist) onViewArtist(songData.artist, songData.channelId);
+          }}
+          className="text-sm text-white/55 hover:text-white/90 hover:underline hover:underline-offset-4 decoration-white/20 tracking-wide mt-1.5 transition-all cursor-pointer select-none active:scale-95 duration-200"
+          style={{ letterSpacing: '0.02em' }}
+        >
+          {songData.artist}
+        </button>
       </div>
 
       {/* Controls container */}

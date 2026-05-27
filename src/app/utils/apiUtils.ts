@@ -165,7 +165,7 @@ export const fetchFromFirstSuccessfulInstance = async <T extends unknown>(
   });
 };
 
-export const fetchVideoDetails = async (videoId: string): Promise<{ title: string; artist: string; artworkUrl: string }> => {
+export const fetchVideoDetails = async (videoId: string): Promise<{ title: string; artist: string; artworkUrl: string; channelId?: string }> => {
   const apiKey = (import.meta as any).env.VITE_YOUTUBE_API_KEY;
 
   if (apiKey) {
@@ -180,7 +180,8 @@ export const fetchVideoDetails = async (videoId: string): Promise<{ title: strin
           return {
             title: decodeHTMLEntities(item.snippet.title),
             artist: decodeHTMLEntities(item.snippet.channelTitle || 'Unknown Artist'),
-            artworkUrl: `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`
+            artworkUrl: `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`,
+            channelId: item.snippet.channelId
           };
         }
       }
@@ -216,7 +217,8 @@ export const fetchVideoDetails = async (videoId: string): Promise<{ title: strin
         return {
           title: decodeHTMLEntities(data.title || 'YouTube Stream'),
           artist: decodeHTMLEntities(data.uploader || 'Web Stream'),
-          artworkUrl: `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`
+          artworkUrl: `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`,
+          channelId: data.uploaderId
         };
       },
       1800
@@ -237,7 +239,8 @@ export const fetchVideoDetails = async (videoId: string): Promise<{ title: strin
         return {
           title: decodeHTMLEntities(data.title || 'YouTube Stream'),
           artist: decodeHTMLEntities(data.author || 'Web Stream'),
-          artworkUrl: `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`
+          artworkUrl: `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`,
+          channelId: data.authorId
         };
       },
       1800
@@ -255,7 +258,8 @@ export const fetchVideoDetails = async (videoId: string): Promise<{ title: strin
       return {
         title: decodeHTMLEntities(data.title || 'YouTube Stream'),
         artist: decodeHTMLEntities(data.uploader || 'Web Stream'),
-        artworkUrl: `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`
+        artworkUrl: `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`,
+        channelId: data.uploaderId
       };
     }
   } catch (proxyErr) {
@@ -269,7 +273,7 @@ export const fetchVideoDetails = async (videoId: string): Promise<{ title: strin
   };
 };
 
-export const executeSearchAPI = async (query: string, limit: number = 8): Promise<SearchResult[]> => {
+const executeRawSearchAPI = async (query: string, limit: number = 8): Promise<SearchResult[]> => {
   if (!query.trim()) return [];
 
   const apiKey = (import.meta as any).env.VITE_YOUTUBE_API_KEY;
@@ -468,6 +472,91 @@ export const executeSearchAPI = async (query: string, limit: number = 8): Promis
   }
 
   return [];
+};
+
+export const rankAndSortSearchResults = (results: SearchResult[], query: string): SearchResult[] => {
+  const queryLower = query.trim().toLowerCase();
+  const queryWords = queryLower.split(/\s+/).filter(w => w.length > 2);
+
+  return results.map(r => {
+    let score = 0;
+    const titleLower = r.title.toLowerCase();
+    const artistLower = r.artist.toLowerCase(); // channel title
+
+    // 1. Topic channel boost (highest quality official audio)
+    if (artistLower.includes('topic')) {
+      score += 150;
+    }
+    
+    // 2. VEVO / Official boost
+    if (artistLower.includes('vevo')) {
+      score += 100;
+    }
+    if (artistLower.includes('official')) {
+      score += 80;
+    }
+    if (artistLower.includes('records') || artistLower.includes('music') || artistLower.includes('band')) {
+      score += 40;
+    }
+
+    // 3. Exact channel title match with query words (e.g. searching artist name)
+    queryWords.forEach(word => {
+      if (artistLower.includes(word)) {
+        score += 35;
+      }
+      if (titleLower.includes(word)) {
+        score += 20;
+      }
+    });
+
+    // 4. Boost official audio / video titles
+    if (titleLower.includes('official audio') || titleLower.includes('original mix')) {
+      score += 45;
+    } else if (titleLower.includes('audio') && !titleLower.includes('lyric')) {
+      score += 25;
+    }
+    
+    if (titleLower.includes('official music video') || titleLower.includes('official video')) {
+      score += 30;
+    }
+
+    // 5. Penalize unofficial / cover / live versions if not explicitly searched for
+    const isExplicitLive = queryLower.includes('live');
+    const isExplicitCover = queryLower.includes('cover');
+    const isExplicitRemix = queryLower.includes('remix');
+    const isExplicitLyrics = queryLower.includes('lyric');
+
+    if (!isExplicitLive && (titleLower.includes('live') || titleLower.includes('concert') || titleLower.includes('performance'))) {
+      score -= 50;
+    }
+    if (!isExplicitCover && (titleLower.includes('cover') || titleLower.includes('tribute') || titleLower.includes('acoustic cover'))) {
+      score -= 60;
+    }
+    if (!isExplicitRemix && (titleLower.includes('remix') || titleLower.includes('bootleg') || titleLower.includes('edit'))) {
+      score -= 40;
+    }
+    if (!isExplicitLyrics && (titleLower.includes('lyrics') || titleLower.includes('lyric video'))) {
+      score -= 30;
+    }
+    
+    // Hard penalty for junk content
+    if (titleLower.includes('10 hours') || titleLower.includes('10h') || titleLower.includes('loop') || titleLower.includes('hour loop')) {
+      score -= 200;
+    }
+    if (titleLower.includes('reaction') || titleLower.includes('review') || titleLower.includes('vlog') || titleLower.includes('bts') || titleLower.includes('behind the scenes')) {
+      score -= 150;
+    }
+
+    return { result: r, score };
+  })
+  .sort((a, b) => b.score - a.score)
+  .map(x => x.result);
+};
+
+export const executeSearchAPI = async (query: string, limit: number = 8): Promise<SearchResult[]> => {
+  // Fetch up to double the limit to allow high-quality matches to float into visibility
+  const rawResults = await executeRawSearchAPI(query, limit * 2);
+  return rankAndSortSearchResults(rawResults, query).slice(0, limit);
 };
 
 export const executeChannelUploadsAPI = async (channelId: string, limit: number = 50): Promise<SearchResult[]> => {

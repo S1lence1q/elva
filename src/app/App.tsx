@@ -231,6 +231,7 @@ export default function App() {
     artworkUrl: string;
     audioUrl: string;
     videoId?: string;
+    channelId?: string;
   } | null>(null);
 
   // Ref for the root container to performantly track and apply mouse coordinates for spotlight grids without React re-renders
@@ -892,6 +893,192 @@ export default function App() {
     }
   };
 
+  const handleViewArtistByName = async (artistName: string, channelId?: string) => {
+    const nameTrimmed = artistName.trim();
+    if (!nameTrimmed || nameTrimmed === 'Unknown Artist' || nameTrimmed === 'Web Stream') {
+      toast.error('Ugyldig kunstner');
+      return;
+    }
+
+    // 1. Instant check if we already have this artist pre-resolved
+    if (verifiedArtist && verifiedArtist.name.toLowerCase() === nameTrimmed.toLowerCase()) {
+      handleViewArtistProfile(verifiedArtist);
+      return;
+    }
+    const foundInRecent = recentArtists.find(a => a.name.toLowerCase() === nameTrimmed.toLowerCase());
+    if (foundInRecent) {
+      handleViewArtistProfile(foundInRecent);
+      return;
+    }
+
+    // 2. Initialize a high-fidelity temporary VerifiedArtist object to keep the transition instant (0ms lag)
+    const tempArtist: VerifiedArtist = {
+      name: nameTrimmed,
+      thumbnail: songData?.artworkUrl || 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwyfHxtdXNpYyUyMGJhY2tncm91bmR8ZW58MHx8fDE3Nzg5Nzk5NzZ8MA&ixlib=rb-4.1.0&q=80&w=1080',
+      channelId: channelId,
+    };
+
+    setSelectedArtist(tempArtist);
+    setArtistTracks([]);
+    setIsLoadingArtist(true);
+
+    try {
+      let resolvedChannelId = channelId;
+      let resolvedAvatar = tempArtist.thumbnail;
+      let resolvedIsTopic = false;
+
+      // 3. Smart Fallback: If channelId is missing, resolve it dynamically in the background
+      if (!resolvedChannelId) {
+        // Query specifically for the artist's Topic or Official channel on YouTube
+        const searchCandidates = await executeSearchAPI(`${nameTrimmed} topic`, 5);
+        if (searchCandidates.length > 0) {
+          const candidate = getArtistName(nameTrimmed, searchCandidates);
+          if (candidate) {
+            resolvedChannelId = candidate.channelId;
+            resolvedAvatar = candidate.thumbnail;
+            resolvedIsTopic = candidate.isTopic || false;
+          } else {
+            // Fallback to first search result uploader details if strict match fails
+            const activeResult = searchCandidates.find(t => t.artist.toLowerCase().includes(nameTrimmed.toLowerCase()));
+            if (activeResult) {
+              resolvedChannelId = activeResult.channelId;
+              resolvedAvatar = activeResult.thumbnail;
+            } else {
+              resolvedChannelId = searchCandidates[0].channelId;
+              resolvedAvatar = searchCandidates[0].thumbnail;
+            }
+          }
+        }
+      }
+
+      const updatedArtist: VerifiedArtist = {
+        name: nameTrimmed,
+        thumbnail: resolvedAvatar,
+        channelId: resolvedChannelId,
+        isTopic: resolvedIsTopic
+      };
+
+      // Update selectedArtist immediately with the newly resolved details
+      setSelectedArtist(updatedArtist);
+
+      // 4. Concurrently query channel uploads and search queries to get a full official catalog
+      let rawTracks: SearchResult[] = [];
+      const apiKey = (import.meta as any).env.VITE_YOUTUBE_API_KEY;
+      const fetchPromises: Promise<SearchResult[]>[] = [];
+
+      if (apiKey && resolvedChannelId && !resolvedIsTopic) {
+        fetchPromises.push(executeChannelUploadsAPI(resolvedChannelId, 50));
+      }
+
+      fetchPromises.push(executeSearchAPI(nameTrimmed, 50));
+      fetchPromises.push(executeSearchAPI(`${nameTrimmed} topic`, 50));
+      fetchPromises.push(executeSearchAPI(`${nameTrimmed} songs`, 50));
+
+      const resultsLists = await Promise.all(fetchPromises);
+
+      const seenIds = new Set<string>();
+      const combinedTracks: SearchResult[] = [];
+      for (const list of resultsLists) {
+        if (list && Array.isArray(list)) {
+          for (const track of list) {
+            if (track && track.id && !seenIds.has(track.id)) {
+              seenIds.add(track.id);
+              combinedTracks.push(track);
+            }
+          }
+        }
+      }
+      rawTracks = combinedTracks;
+
+      const nameLower = nameTrimmed.toLowerCase();
+      const cleaned = rawTracks
+        .filter(track => {
+          const titleLower = track.title.toLowerCase();
+          const trackArtistLower = track.artist.toLowerCase();
+          let artistMatches = trackArtistLower.includes(nameLower) || nameLower.includes(trackArtistLower);
+          
+          if (!artistMatches && titleLower.includes(nameLower)) {
+            const isCamilo = trackArtistLower.includes('camilo');
+            const isExactTitleMatchDiffArtist = titleLower.trim() === nameLower;
+            if (!isCamilo && !isExactTitleMatchDiffArtist) {
+              artistMatches = true;
+            }
+          }
+          const blocklist = ['teaser', 'trailer', 'vlog', 'behind the scenes', 'bts', 'documentary', 'live stream', 'interview'];
+          return artistMatches && !blocklist.some(word => titleLower.includes(word));
+        })
+        .map(track => {
+          const cleanArtist = track.artist
+            .replace(/\s*-\s*Topic$/i, '')
+            .replace(/\s*VEVO$/i, '')
+            .replace(/\s*Official\s*$/i, '')
+            .trim();
+          const cleanTitle = track.title
+            .replace(/\s*\((Official Audio|Audio|Official Video|Video|Lyrics|Lyric Video)\)$/i, '')
+            .replace(/\s*\[(Official Audio|Audio|Official Video|Video|Lyrics|Lyric Video)\]$/i, '')
+            .trim();
+          return { ...track, artist: cleanArtist, title: cleanTitle };
+        });
+
+      if (cleaned.length > 0) {
+        setArtistTracks(cleaned);
+      } else {
+        // Fallback to query results if cleaned is completely empty
+        setArtistTracks(rawTracks.slice(0, 10));
+      }
+
+      // Add to recent artists since it resolved successfully
+      setRecentArtists(prev => {
+        const filtered = prev.filter(a => a.name.toLowerCase() !== nameTrimmed.toLowerCase());
+        const updated = [updatedArtist, ...filtered].slice(0, 4);
+        try {
+          localStorage.setItem('elva_recent_artists', JSON.stringify(updated));
+        } catch (e) {}
+        return updated;
+      });
+
+      // 5. Silently merge MusicBrainz metadata for enrichment
+      try {
+        const mbRes = await fetchWithTimeout(
+          `https://musicbrainz.org/ws/2/artist/?query=artist:${encodeURIComponent(nameTrimmed)}&fmt=json`,
+          {
+            headers: { 'User-Agent': 'ElvaMusicApp/1.0 ( contact@elva.fm )' },
+            timeout: 2500
+          }
+        );
+        if (mbRes.ok) {
+          const mbData = await mbRes.json();
+          const artists = mbData.artists || [];
+          const matchedArtist = artists.find((a: any) => {
+            const nLower = (a.name || '').toLowerCase();
+            return (a.score || 0) >= 85 && (nLower === nameLower || nLower.includes(nameLower) || nameLower.includes(nLower));
+          });
+          if (matchedArtist) {
+            const tagsList = (matchedArtist.tags || [])
+              .filter((t: any) => (t.count || 0) > 0)
+              .sort((a: any, b: any) => (b.count || 0) - (a.count || 0))
+              .map((t: any) => t.name)
+              .slice(0, 3);
+            setSelectedArtist(prev => prev ? {
+              ...prev,
+              disambiguation: matchedArtist.disambiguation || undefined,
+              country: matchedArtist.country || undefined,
+              tags: tagsList.length > 0 ? tagsList : undefined
+            } : null);
+          }
+        }
+      } catch (mbErr) {
+        console.warn("Background MB enrichment failed during profile navigation:", mbErr);
+      }
+
+    } catch (error) {
+      console.error('Failed to load artist profile:', error);
+      toast.error(`Kunne ikke hente kunstnerprofil for ${nameTrimmed}`);
+    } finally {
+      setIsLoadingArtist(false);
+    }
+  };
+
   const handleSearch = async (overrideQuery?: string) => {
     const query = overrideQuery !== undefined ? overrideQuery : searchQuery;
     if (!query.trim()) return;
@@ -942,7 +1129,8 @@ export default function App() {
       artist: targetSong.artist,
       artworkUrl: targetSong.thumbnail,
       audioUrl: targetSong.videoId ? `https://www.youtube.com/watch?v=${targetSong.id}` : url,
-      videoId: targetSong.videoId || undefined
+      videoId: targetSong.videoId || undefined,
+      channelId: targetSong.channelId
     });
 
     // Also add to queue if not present
@@ -1005,7 +1193,8 @@ export default function App() {
         artist: result.artist,
         artworkUrl: finalArtwork,
         audioUrl: `https://www.youtube.com/watch?v=${finalVideoId}`,
-        videoId: finalVideoId
+        videoId: finalVideoId,
+        channelId: result.channelId
       });
       if (tourType !== null && tourStep === 0) {
         setTourStep(1);
@@ -1029,7 +1218,8 @@ export default function App() {
           artist: result.artist,
           artworkUrl: finalArtwork,
           audioUrl: `https://www.youtube.com/watch?v=${finalVideoId}`,
-          videoId: finalVideoId
+          videoId: finalVideoId,
+          channelId: result.channelId
         });
         setAppState('ready');
         setLoadingSongId(null);
@@ -1455,6 +1645,7 @@ export default function App() {
               onToggleFavorite={handleToggleFavorite}
               onSearch={executeSearchAPI}
               onFetchChannelUploads={executeChannelUploadsAPI}
+              onViewArtist={handleViewArtistByName}
               tourType={tourType}
               currentStep={tourStep}
               textureStyle={textureStyle}

@@ -13,8 +13,8 @@ Sidst opdateret: 2026-05-26 23:45
 | **Fase 1: Visuel & UX Polering** | Løsning af de 5 umiddelbare irritationspunkter (branding, styling, centrering, kliks) | **100% Gennemført** |
 | **Fase 2: Apple Music Lyrics** | 1.4s slow cinematic 3D flip på mobil & flydende, boksfri desktop lyrics side-by-side | **100% Gennemført** |
 | **Fase 2: 120fps GPU Optimering** | Konvertering til rene GPU transform-animationer uden layout-reflows | **100% Gennemført** |
-| **Fase 3: Artist Matching** | Optimering af YouTube-søgning og artist profil-genveje | *Mangler* (Næste skridt) |
-| **Fase 3: Advanced Settings** | Opgradering af indstillinger til et "Advanced Control Center" | *Mangler* |
+| **Fase 3: Artist Matching** | Optimering af YouTube-søgning og artist profil-genveje | **100% Gennemført** |
+| **Fase 3: Advanced Settings** | Opgradering af indstillinger til et "Advanced Control Center" | **100% Gennemført** |
 | **Fase 3: Farve-Ekstraktion** | Justering af farvemætnings-grænser og luminance-bund | *Mangler* |
 
 ---
@@ -44,7 +44,7 @@ Sidst opdateret: 2026-05-26 23:45
 
 #### 🟢 5. Album Art Glow Lag & Sync
 *   **Problem:** Den atmosfæriske, farvede lysglød (shadow glow) omkring albumcoveret opdaterede med en mærkbar forsinkelse ved sangskift, så den forkerte farve hang ved i et par sekunder.
-*   **Løsning:** Skyggegløden er dæmpet en smule, farverne synkroniseres øjeblikkeligt via Canvas-farveekstraktoren, og overgangshastigheden er justeret til præcis 500ms for et glat farveskift i perfekt sync med sangskift.
+*   **Løsning:** Skyggegløden er dæmpet en smule, farverne synkroniseres øjeblikkeligt via Canvas-farveekstraktoren, og overgangshastigheden er justeret to præcis 500ms for et glat farveskift i perfekt sync med sangskift.
 *   **Filer:** `src/app/components/MusicPlayer.tsx`
 
 ---
@@ -63,21 +63,21 @@ Sidst opdateret: 2026-05-26 23:45
 ---
 
 ### Phase 3: Future refactoring & features
-#### 🟡 6. Artist Search & Matching Heuristics
+#### 🟢 6. Artist Search & Matching Heuristics
 *   **Hvad mangler:**
     *   Søgninger på YouTube kan til tider trække numre ind fra forkerte eller uofficielle kunstnere.
-    *   Det kan være svært at navigere fejlfrit fra en igangværende sang til den korrekte kunstnerprofil (f.eks. at klikke på artistnavnet i afspilleren og springe direkte til deres hub-profil).
-*   **Planlagt Løsning:**
+    *   Det kan være svært at navigere fejlfrit fra en igangværende sang to den korrekte kunstnerprofil (f.eks. at klikke på artistnavnet i afspilleren og springe direkte til deres hub-profil).
+*   **Løsning:**
     *   Refaktorering af søgestrengssaneringen (`search query sanitization`).
-    *   Implementering af en sekundær søgnings-fallback, der sikrer, at officielle artist-kanaler (verified channel IDs) prioriteres og gemmes i sangens metadata, så navigeringslinks altid peger på den korrekte profil.
+    *   Implementering af en intelligent scoring-algoritme (`rankAndSortSearchResults`), der prioriterer Verified Topic- og VEVO-kanaler og tildeler strafpoint til uofficielle lyric-videoer, covers og loops.
+    *   Propagering af `channelId` gennem sangmetadata og en smuk interaktiv button-genvej i playeren med lynhurtig baggrundsopløsning som fallback.
+*   **Filer:** `src/app/utils/apiUtils.ts`, `src/app/App.tsx`, `src/app/components/MusicPlayer.tsx`, `src/app/components/PlayerControls.tsx`
 
-#### 🟡 7. Premium Settings Modal & Advanced Mode
-*   **Hvad mangler:**
-    *   Indstillingsmenuen (Settings) trænger til et visuelt løft, så det føles som et rigtigt "Advanced Control Center" frem for standard-kasser.
-    *   Muligheden for at vælge accentfarver (emerald, wine, navy, sand) fylder meget visuelt, selvom appen er designet til at køre med en stramt kurateret skandinavisk standardfarve.
-*   **Planlagt Løsning:**
-    *   Redesigne indstillingerne med en smuk, foldbar struktur.
-    *   Skjule farvepaletten under en "Advanced/Ekspert"-fane, så standardbrugeren møder et rent, fuldstændig perfekt kurateret design-preset, mens avancerede brugere stadig kan udfolde og tilpasse farverne under motorhjelmen.
+#### 🟢 7. Premium Settings Modal & Advanced Mode
+*   **Løsning:**
+    *   Redesignet indstillingerne til et smukt, obsidian "Advanced Control Center" med en Framer Motion-animeret fjedrende foldout-struktur.
+    *   Skjult manuelle accentfarver og nørdede toggles i Advanced-menuen for at holde standard-oplevelsen minimalistisk og stringent.
+*   **Filer:** `src/app/components/SettingsModal.tsx`dstændig perfekt kurateret design-preset, mens avancerede brugere stadig kan udfolde og tilpasse farverne under motorhjelmen.
 
 #### 🟡 8. Dynamic Color Extraction Tweaks
 *   **Hvad mangler:**
