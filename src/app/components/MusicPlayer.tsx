@@ -128,6 +128,31 @@ function hslToRgb(h: number, s: number, l: number) {
   return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
 }
 
+// Helper to convert RGB to HSL
+function rgbToHsl(r: number, g: number, b: number) {
+  r /= 255;
+  g /= 255;
+  b /= 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  let h = 0;
+  let s = 0;
+  const l = (max + min) / 2;
+
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+      case g: h = (b - r) / d + 2; break;
+      case b: h = (r - g) / d + 4; break;
+    }
+    h /= 6;
+  }
+
+  return { h: Math.round(h * 360), s, l };
+}
+
 function parseLrc(lrcText: string): LyricLine[] {
   const lines = lrcText.split('\n');
   const result: LyricLine[] = [];
@@ -710,35 +735,133 @@ export function MusicPlayer({
         return;
       }
 
-      canvas.width = img.width;
-      canvas.height = img.height;
-      ctx.drawImage(img, 0, 0);
+      canvas.width = 32;
+      canvas.height = 32;
+      ctx.drawImage(img, 0, 0, 32, 32);
 
-      // Sample colors from different regions with better saturation
-      const samples = [
-        ctx.getImageData(img.width * 0.3, img.height * 0.3, 1, 1).data,
-        ctx.getImageData(img.width * 0.7, img.height * 0.5, 1, 1).data,
-        ctx.getImageData(img.width * 0.5, img.height * 0.7, 1, 1).data,
-      ];
+      const imgData = ctx.getImageData(0, 0, 32, 32).data;
+      const pixels: { h: number; s: number; l: number; r: number; g: number; b: number }[] = [];
+      let totalSat = 0;
+      let totalCount = 0;
 
-      // Boost saturation for more vibrant colors
-      const boostSaturation = (r: number, g: number, b: number, boost: number = 1.3) => {
-        const max = Math.max(r, g, b);
-        const min = Math.min(r, g, b);
-        const delta = max - min;
+      for (let i = 0; i < imgData.length; i += 4) {
+        const r = imgData[i];
+        const g = imgData[i + 1];
+        const b = imgData[i + 2];
+        const a = imgData[i + 3];
 
-        if (delta === 0) return { r, g, b };
+        if (a < 50) continue;
 
-        const newR = Math.min(255, Math.round(r + (r - min) * (boost - 1)));
-        const newG = Math.min(255, Math.round(g + (g - min) * (boost - 1)));
-        const newB = Math.min(255, Math.round(b + (b - min) * (boost - 1)));
+        const hsl = rgbToHsl(r, g, b);
+        pixels.push({ ...hsl, r, g, b });
 
-        return { r: newR, g: newG, b: newB };
-      };
+        totalSat += hsl.s;
+        totalCount++;
+      }
 
-      const color1 = boostSaturation(samples[0][0], samples[0][1], samples[0][2]);
-      const color2 = boostSaturation(samples[1][0], samples[1][1], samples[1][2]);
-      const color3 = boostSaturation(samples[2][0], samples[2][1], samples[2][2]);
+      const avgSat = totalCount > 0 ? totalSat / totalCount : 0;
+      let useMonochromeFallback = avgSat < 0.12;
+
+      let finalHslColors: { h: number; s: number; l: number }[] = [];
+
+      if (useMonochromeFallback) {
+        // Deterministic arktisk-glød generator using song details as hash seed
+        let hash = 0;
+        const str = `${songData.title || ''} ${songData.artist || ''}`;
+        for (let i = 0; i < str.length; i++) {
+          hash = str.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        const seed = Math.abs(hash);
+        const h1 = (270 + (seed % 30) - 15 + 360) % 360; // deep midnight purple (255-285)
+        const h2 = (185 + (Math.floor(seed / 3) % 30) - 15 + 360) % 360; // arktisk teal (170-200)
+        const h3 = (225 + (Math.floor(seed / 7) % 30) - 15 + 360) % 360; // skiferblå/space-indigo (210-240)
+
+        finalHslColors = [
+          { h: h1, s: 0.60, l: 0.28 },
+          { h: h2, s: 0.65, l: 0.32 },
+          { h: h3, s: 0.50, l: 0.25 }
+        ];
+      } else {
+        // Filter out pixels that are too dark/light/gray for candidates
+        let candidates = pixels.filter(p => p.s >= 0.15 && p.l >= 0.10 && p.l <= 0.90);
+        
+        // If too few candidates, relax constraints
+        if (candidates.length < 10) {
+          candidates = pixels.filter(p => p.l >= 0.05 && p.l <= 0.95);
+        }
+
+        // Sort candidates by scoring function: high saturation and optimal brightness (around 0.4 - 0.6)
+        candidates.sort((a, b) => {
+          const scoreA = a.s * 2.0 + (1.0 - Math.abs(0.5 - a.l));
+          const scoreB = b.s * 2.0 + (1.0 - Math.abs(0.5 - b.l));
+          return scoreB - scoreA;
+        });
+
+        const getHueDistance = (hueA: number, hueB: number) => {
+          const diff = Math.abs(hueA - hueB);
+          return Math.min(diff, 360 - diff);
+        };
+
+        const selected: { h: number; s: number; l: number }[] = [];
+
+        if (candidates.length > 0) {
+          // Select 1st color
+          selected.push({ h: candidates[0].h, s: candidates[0].s, l: candidates[0].l });
+
+          // Find 2nd color (hue distance >= 45 degrees)
+          const color2 = candidates.find(p => getHueDistance(p.h, selected[0].h) >= 45);
+          if (color2) {
+            selected.push({ h: color2.h, s: color2.s, l: color2.l });
+            // Find 3rd color (hue distance >= 45 degrees from both)
+            const color3 = candidates.find(p => 
+              getHueDistance(p.h, selected[0].h) >= 45 && 
+              getHueDistance(p.h, selected[1].h) >= 45
+            );
+            if (color3) {
+              selected.push({ h: color3.h, s: color3.s, l: color3.l });
+            }
+          }
+        }
+
+        // If we couldn't find 3 hue-distinct colors, fill using triadic offsets
+        if (selected.length === 1) {
+          const h1 = selected[0].h;
+          const s1 = selected[0].s;
+          const l1 = selected[0].l;
+          selected.push({ h: (h1 + 120) % 360, s: s1, l: l1 });
+          selected.push({ h: (h1 + 240) % 360, s: s1, l: l1 });
+        } else if (selected.length === 2) {
+          const h1 = selected[0].h;
+          const h2 = selected[1].h;
+          const s1 = selected[0].s;
+          const l1 = selected[0].l;
+          let h3 = (h1 + 120) % 360;
+          if (getHueDistance(h3, h2) < 45) {
+            h3 = (h1 + 240) % 360;
+          }
+          selected.push({ h: h3, s: s1, l: l1 });
+        } else if (selected.length === 0) {
+          selected.push({ h: 220, s: 0.5, l: 0.3 });
+          selected.push({ h: 280, s: 0.4, l: 0.2 });
+          selected.push({ h: 160, s: 0.6, l: 0.3 });
+        }
+
+        finalHslColors = selected;
+      }
+
+      // Enforce the Bioluminescent Floor for saturation and lightness
+      // Saturation floor: 35% (0.35)
+      // Lightness floor: 24% (0.24)
+      const adjustedColors = finalHslColors.map(color => {
+        const s = Math.max(0.35, color.s);
+        const l = Math.max(0.24, color.l);
+        const rgb = hslToRgb(color.h, s, l);
+        return { r: rgb[0], g: rgb[1], b: rgb[2] };
+      });
+
+      const color1 = adjustedColors[0];
+      const color2 = adjustedColors[1];
+      const color3 = adjustedColors[2];
 
       // Update to exact extracted colors once loaded (triggering a gorgeous 1.5s crossfade transition!)
       setExtractedColors({
