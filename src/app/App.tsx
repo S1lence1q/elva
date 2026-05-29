@@ -596,6 +596,31 @@ export default function App() {
   const [tourStep, setTourStep] = useState(0);
   const [hasSeenTour, setHasSeenTour] = useState(() => localStorage.getItem('elva_tour_completed') === 'true');
   const [showShortcutMap, setShowShortcutMap] = useState(false);
+  const [recentlyPlayed, setRecentlyPlayed] = useState<SearchResult[]>(() => {
+    try {
+      const stored = localStorage.getItem('elva_recently_played');
+      return stored ? JSON.parse(stored) : [];
+    } catch (e) {
+      console.warn('Failed to load recently played tracks:', e);
+      return [];
+    }
+  });
+
+  const saveRecentlyPlayed = (song: SearchResult) => {
+    try {
+      const stored = localStorage.getItem('elva_recently_played');
+      let list: SearchResult[] = stored ? JSON.parse(stored) : [];
+      list = list.filter(item => item.id !== song.id);
+      list.unshift(song);
+      if (list.length > 10) {
+        list = list.slice(0, 10);
+      }
+      localStorage.setItem('elva_recently_played', JSON.stringify(list));
+      setRecentlyPlayed(list);
+    } catch (e) {
+      console.warn('Failed to save recently played track:', e);
+    }
+  };
 
   // Reset selected artist if search query changes
   useEffect(() => {
@@ -1218,6 +1243,13 @@ export default function App() {
       }
     }
 
+    // Save to nyligt afspillede history
+    saveRecentlyPlayed({
+      ...result,
+      videoId: finalVideoId,
+      thumbnail: finalArtwork
+    });
+
     if (appState === 'ready') {
       setSongData({
         title: result.title,
@@ -1549,6 +1581,7 @@ export default function App() {
                     isSearching={isSearching}
                     searchResults={searchResults}
                     recentArtists={recentArtists}
+                    recentlyPlayed={recentlyPlayed}
                     verifiedArtist={verifiedArtist}
                     focusedResultIndex={focusedResultIndex}
                     loadingSongId={loadingSongId}

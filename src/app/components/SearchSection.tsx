@@ -4,6 +4,7 @@ import { Search, ChevronRight, Plus, Music } from 'lucide-react';
 import { SearchResult, VerifiedArtist } from '../types';
 import { ThemeColors } from './themeUtils';
 import { shouldShowArtistCard } from '../utils/apiUtils';
+import { RecentlyPlayedCarousel } from './RecentlyPlayedCarousel';
 
 interface SearchSectionProps {
   searchQuery: string;
@@ -11,6 +12,7 @@ interface SearchSectionProps {
   isSearching: boolean;
   searchResults: SearchResult[];
   recentArtists: VerifiedArtist[];
+  recentlyPlayed: SearchResult[];
   verifiedArtist: VerifiedArtist | null;
   focusedResultIndex: number;
   loadingSongId: string | null;
@@ -31,6 +33,7 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
   isSearching,
   searchResults,
   recentArtists,
+  recentlyPlayed,
   verifiedArtist,
   focusedResultIndex,
   loadingSongId,
@@ -194,6 +197,17 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
               ))}
             </div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Recently Played Carousel */}
+      <AnimatePresence>
+        {!searchQuery.trim() && !isSearching && searchResults.length === 0 && recentlyPlayed.length > 0 && (
+          <RecentlyPlayedCarousel
+            recentlyPlayed={recentlyPlayed}
+            onPlaySong={handleSelectSong}
+            loadingSongId={loadingSongId}
+          />
         )}
       </AnimatePresence>
 
