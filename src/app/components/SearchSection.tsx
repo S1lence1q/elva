@@ -4,7 +4,7 @@ import { Search, ChevronRight, Plus, Music } from 'lucide-react';
 import { SearchResult, VerifiedArtist } from '../types';
 import { ThemeColors } from './themeUtils';
 import { shouldShowArtistCard } from '../utils/apiUtils';
-import { RecentlyPlayedCarousel } from './RecentlyPlayedCarousel';
+import { LandingRecents } from './LandingRecents';
 
 interface SearchSectionProps {
   searchQuery: string;
@@ -137,79 +137,16 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
         </div>
       </motion.div>
 
-      {/* Bento-Style Minimalist Artist Shortcuts / Recent Searches with smooth height collapsing */}
-      <AnimatePresence>
-        {!searchQuery.trim() && !isSearching && searchResults.length === 0 && recentArtists.length > 0 && (
-          <motion.div
-            key="recent-artists-section"
-            layout
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ 
-              opacity: 1, 
-              height: 'auto',
-              transition: { duration: 0.95, ease: [0.16, 1, 0.3, 1] } 
-            }}
-            exit={{ 
-              opacity: 0, 
-              height: 0,
-              transition: { duration: 0.8, ease: [0.16, 1, 0.3, 1] } 
-            }}
-            className="w-full flex flex-col gap-3 pt-3 overflow-hidden shrink-0"
-          >
-            <div className="flex items-center justify-between px-1">
-              <span className="text-[10px] text-white/30 font-bold uppercase tracking-[0.2em]">Recent Artists</span>
-            </div>
-            
-            <div className={`grid gap-3 w-full ${
-              recentArtists.length === 1 ? 'grid-cols-1 max-w-xs mx-auto' :
-              recentArtists.length === 2 ? 'grid-cols-1 sm:grid-cols-2 max-w-xl mx-auto' :
-              recentArtists.length === 3 ? 'grid-cols-1 sm:grid-cols-3 max-w-3xl mx-auto' :
-              'grid-cols-2 md:grid-cols-4 w-full'
-            }`}>
-              {recentArtists.map((artist) => (
-                <motion.div
-                  key={artist.name}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => {
-                    handleViewArtistProfile(artist);
-                  }}
-                  className="group flex items-center gap-3.5 p-4 rounded-2xl bg-white/[0.015] hover:bg-white/[0.035] border border-white/[0.03] hover:border-white/[0.09] transition-all duration-300 cursor-pointer shadow-sm relative overflow-hidden"
-                >
-                  {/* Subtle inner highlight on hover */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-                  
-                  {/* Profile avatar - w-11 h-11 circular profile */}
-                  <div className="relative w-11 h-11 rounded-full overflow-hidden flex-shrink-0 bg-neutral-900 border border-white/5 shadow-inner">
-                    <img src={artist.thumbnail} alt={artist.name} className="w-full h-full object-cover scale-105" />
-                  </div>
-                  
-                  {/* Artist Name & Country details */}
-                  <div className="flex flex-col text-left min-w-0">
-                    <span className="text-sm font-semibold text-white/85 group-hover:text-white transition-colors truncate tracking-tight">
-                      {artist.name}
-                    </span>
-                    <span className="text-xs text-white/40 font-light truncate mt-0.5 tracking-wide">
-                      {artist.disambiguation?.split(' • ')[0] || artist.country || 'Artist'}
-                    </span>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Recently Played Carousel */}
-      <AnimatePresence>
-        {!searchQuery.trim() && !isSearching && searchResults.length === 0 && recentlyPlayed.length > 0 && (
-          <RecentlyPlayedCarousel
-            recentlyPlayed={recentlyPlayed}
-            onPlaySong={handleSelectSong}
-            loadingSongId={loadingSongId}
-          />
-        )}
-      </AnimatePresence>
+      {/* Unified Landing Recents Section (Recently Played Songs & Recent Artists) */}
+      {!searchQuery.trim() && !isSearching && searchResults.length === 0 && (
+        <LandingRecents
+          recentlyPlayed={recentlyPlayed}
+          recentArtists={recentArtists}
+          onPlaySong={handleSelectSong}
+          onViewArtist={handleViewArtistProfile}
+          loadingSongId={loadingSongId}
+        />
+      )}
 
       {/* Search results */}
       <AnimatePresence>
