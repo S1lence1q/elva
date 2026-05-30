@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { User, Heart, ListMusic, BarChart2, Plus, Play, Trash2, Edit2, Check, Award, Clock } from 'lucide-react';
-import { SearchResult } from '../types';
+import { User, Heart, ListMusic, Plus, Play, Trash2, Edit2, Check, Award, Clock, X, Music, History, Sparkles } from 'lucide-react';
+import { SearchResult, VerifiedArtist } from '../types';
 import { AccentColor, ACCENT_THEMES } from './themeUtils';
-import { BarChart, Bar, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie } from 'recharts';
+import { getPrimaryArtist } from '../utils/stringUtils';
 import { toast } from 'sonner';
 
 interface Playlist {
@@ -28,6 +28,7 @@ interface ProfileHubViewProps {
   onSelectSong: (song: SearchResult) => void;
   onAddToQueue: (song: SearchResult) => void;
   accentColor: AccentColor;
+  onSelectArtist?: (artist: VerifiedArtist | null) => void;
 }
 
 const PLAYLIST_COLORS = [
@@ -38,33 +39,33 @@ const PLAYLIST_COLORS = [
   'from-blue-500 to-cyan-600',
 ];
 
-const AVATARS = [
-  'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&h=120&fit=crop&crop=face',
-  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=120&h=120&fit=crop&crop=face',
-  'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=120&h=120&fit=crop&crop=face',
-  'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=120&h=120&fit=crop&crop=face',
-  'https://images.unsplash.com/photo-1628157582853-a796fa650a6a?w=120&h=120&fit=crop&crop=face',
+const PRESET_GRADIENTS = [
+  'from-amber-400 via-rose-500 to-indigo-600',
+  'from-emerald-400 via-cyan-500 to-blue-600',
+  'from-slate-800 via-neutral-900 to-zinc-700',
+  'from-pink-400 via-purple-500 to-indigo-500',
+  'from-teal-400 via-slate-500 to-amber-200'
 ];
 
 const ACTIVE_TAB_STYLES: Record<AccentColor, { border: string; glow: string; text: string }> = {
   emerald: {
-    border: 'border-emerald-500/25',
-    glow: 'shadow-[0_0_15px_rgba(16,185,129,0.12)]',
+    border: 'border-emerald-500/20',
+    glow: 'shadow-[0_0_20px_rgba(16,185,129,0.08)]',
     text: 'text-emerald-300',
   },
   sand: {
-    border: 'border-amber-500/25',
-    glow: 'shadow-[0_0_15px_rgba(245,158,11,0.12)]',
+    border: 'border-amber-500/20',
+    glow: 'shadow-[0_0_20px_rgba(245,158,11,0.08)]',
     text: 'text-amber-200',
   },
   wine: {
-    border: 'border-rose-500/25',
-    glow: 'shadow-[0_0_15px_rgba(244,63,94,0.12)]',
+    border: 'border-rose-500/20',
+    glow: 'shadow-[0_0_20px_rgba(244,63,94,0.08)]',
     text: 'text-rose-300',
   },
   navy: {
-    border: 'border-indigo-500/25',
-    glow: 'shadow-[0_0_15px_rgba(99,102,241,0.12)]',
+    border: 'border-indigo-500/20',
+    glow: 'shadow-[0_0_20px_rgba(99,102,241,0.08)]',
     text: 'text-slate-300',
   },
 };
@@ -75,18 +76,36 @@ export const ProfileHubView: React.FC<ProfileHubViewProps> = ({
   onSelectSong,
   onAddToQueue,
   accentColor,
+  onSelectArtist,
 }) => {
   const theme = ACCENT_THEMES[accentColor];
-  const [activeTab, setActiveTab] = useState<'profile' | 'favorites' | 'playlists' | 'stats'>('profile');
+  const [activeTab, setActiveTab] = useState<'overview' | 'favorites' | 'playlists'>('overview');
 
   // Profile States
   const [username, setUsername] = useState(() => {
     const stored = localStorage.getItem('elva_profile_name') || 'Music Lover';
     return stored.slice(0, 20);
   });
-  const [avatar, setAvatar] = useState(() => localStorage.getItem('elva_profile_avatar') || AVATARS[0]);
-  const [isEditingName, setIsEditingName] = useState(false);
+  const [avatar, setAvatar] = useState(() => {
+    const stored = localStorage.getItem('elva_profile_avatar');
+    if (stored && (stored.startsWith('from-') || stored === 'initials')) {
+      return stored;
+    }
+    return 'initials';
+  });
+  const [isCustomizing, setIsCustomizing] = useState(false);
   const [tempName, setTempName] = useState(username);
+  const [tempAvatar, setTempAvatar] = useState(avatar);
+
+  // Recently Played State
+  const [recentlyPlayed, setRecentlyPlayed] = useState<SearchResult[]>(() => {
+    try {
+      const stored = localStorage.getItem('elva_recently_played');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
 
   // Playlists State
   const [playlists, setPlaylists] = useState<Playlist[]>(() => {
@@ -111,36 +130,16 @@ export const ProfileHubView: React.FC<ProfileHubViewProps> = ({
     }
   });
 
-  const [weeklyStats, setWeeklyStats] = useState<{ day: string; min: number }[]>(() => {
-    try {
-      const stored = localStorage.getItem('elva_weekly_time');
-      if (stored) return JSON.parse(stored);
-    } catch {}
-    
-    // Fallback/Initial values if empty
-    return [
-      { day: 'Mon', min: 12 },
-      { day: 'Tue', min: 45 },
-      { day: 'Wed', min: 25 },
-      { day: 'Thu', min: 60 },
-      { day: 'Fri', min: 85 },
-      { day: 'Sat', min: 110 },
-      { day: 'Sun', min: 50 },
-    ];
-  });
-
   useEffect(() => {
-    // Keep weekly stats in sync with local storage if updated
     const handleStorageChange = () => {
       try {
         const storedCounts = localStorage.getItem('elva_play_counts');
         if (storedCounts) setPlayCounts(JSON.parse(storedCounts));
-        const storedWeekly = localStorage.getItem('elva_weekly_time');
-        if (storedWeekly) setWeeklyStats(JSON.parse(storedWeekly));
+        const storedRecents = localStorage.getItem('elva_recently_played');
+        if (storedRecents) setRecentlyPlayed(JSON.parse(storedRecents));
       } catch (e) {}
     };
     window.addEventListener('storage', handleStorageChange);
-    // Custom trigger for immediate updates in single window context
     window.addEventListener('elva-stats-updated', handleStorageChange);
     return () => {
       window.removeEventListener('storage', handleStorageChange);
@@ -148,23 +147,18 @@ export const ProfileHubView: React.FC<ProfileHubViewProps> = ({
     };
   }, []);
 
-  // Save profile name
-  const handleSaveName = () => {
+  // Save profile modifications
+  const handleSaveProfile = () => {
     const trimmed = tempName.trim();
     if (trimmed) {
       const limited = trimmed.slice(0, 20);
       setUsername(limited);
+      setAvatar(tempAvatar);
       localStorage.setItem('elva_profile_name', limited);
-      setIsEditingName(false);
-      toast.success('Profile name updated');
+      localStorage.setItem('elva_profile_avatar', tempAvatar);
+      setIsCustomizing(false);
+      toast.success('Your Profile Space is updated');
     }
-  };
-
-  // Save profile avatar
-  const handleSelectAvatar = (url: string) => {
-    setAvatar(url);
-    localStorage.setItem('elva_profile_avatar', url);
-    toast.success('Avatar updated');
   };
 
   // Create Playlist
@@ -205,68 +199,40 @@ export const ProfileHubView: React.FC<ProfileHubViewProps> = ({
     toast.success(`Playing playlist: ${playlist.name}`);
   };
 
-  // Derived listening vibe
-  const musicPersonality = React.useMemo(() => {
-    const counts = Object.values(playCounts);
-    if (counts.length === 0) return 'Quiet Music Explorer';
+  // Redesigned Music Hub calculations
+  const totalPlayCount = React.useMemo(() => {
+    return Object.values(playCounts).reduce((acc, item) => acc + item.count, 0);
+  }, [playCounts]);
+
+  const uniqueSongsCount = React.useMemo(() => {
+    return Object.keys(playCounts).length;
+  }, [playCounts]);
+
+  const totalListeningMinutes = React.useMemo(() => {
+    return totalPlayCount * 3;
+  }, [totalPlayCount]);
+
+  const artistBubbles = React.useMemo(() => {
+    if (recentlyPlayed.length === 0) return [];
+    const seen = new Set<string>();
+    const bubbles: { name: string; channelId?: string; thumbnail: string }[] = [];
     
-    // Simple heuristic to detect favorite vibe
-    let isRapEnthusiast = 0;
-    let isAmbientDreamer = 0;
-    let isPopLover = 0;
-
-    counts.forEach((c) => {
-      const art = c.artist.toLowerCase();
-      if (['lamin', 'kesi', 'kundo', 'artig', 'rap', 'hip-hop'].some(w => art.includes(w))) {
-        isRapEnthusiast += c.count;
-      } else if (['lofi', 'satie', 'ambient', 'sleep', 'relax'].some(w => art.includes(w))) {
-        isAmbientDreamer += c.count;
-      } else {
-        isPopLover += c.count;
+    recentlyPlayed.forEach((song) => {
+      const primaryArtist = getPrimaryArtist(song.artist);
+      const artistName = primaryArtist.trim();
+      if (!artistName) return;
+      const key = artistName.toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        bubbles.push({
+          name: artistName,
+          channelId: song.channelId,
+          thumbnail: song.thumbnail
+        });
       }
     });
-
-    if (isRapEnthusiast >= isAmbientDreamer && isRapEnthusiast >= isPopLover) {
-      return 'Danish Hiphop Enthusiast 🎤';
-    }
-    if (isAmbientDreamer >= isRapEnthusiast && isAmbientDreamer >= isPopLover) {
-      return 'Atmospheric Sound Dreamer 🌌';
-    }
-    return 'Modern Pop & Vibe Explorer 🧭';
-  }, [playCounts]);
-
-  // Derived top tracks for Recharts/Stats
-  const statsTopSongs = React.useMemo(() => {
-    const counts = Object.entries(playCounts).map(([id, data]) => ({
-      name: data.title.length > 20 ? `${data.title.substring(0, 18)}...` : data.title,
-      Plays: data.count,
-    }));
-    return counts.sort((a, b) => b.Plays - a.Plays).slice(0, 4);
-  }, [playCounts]);
-
-  // Derived top genres
-  const genrePieData = React.useMemo(() => {
-    let rap = 10;
-    let ambient = 5;
-    let pop = 15;
-
-    Object.values(playCounts).forEach((c) => {
-      const art = c.artist.toLowerCase();
-      if (['lamin', 'kesi', 'kundo', 'artig'].some(w => art.includes(w))) {
-        rap += c.count * 3;
-      } else if (['lofi', 'satie', 'ambient'].some(w => art.includes(w))) {
-        ambient += c.count * 3;
-      } else {
-        pop += c.count * 2;
-      }
-    });
-
-    return [
-      { name: 'Hip-Hop/Rap', value: rap, color: '#f59e0b' },
-      { name: 'Lo-Fi / Ambient', value: ambient, color: '#10b981' },
-      { name: 'Pop & Electronica', value: pop, color: '#6366f1' },
-    ];
-  }, [playCounts]);
+    return bubbles.slice(0, 8);
+  }, [recentlyPlayed]);
 
   return (
     <motion.div
@@ -274,140 +240,294 @@ export const ProfileHubView: React.FC<ProfileHubViewProps> = ({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 10 }}
       transition={{ duration: 0.45 }}
-      className="w-full max-w-[898px] relative z-10 flex flex-col gap-6 px-6 pt-4 pb-24 cursor-default"
+      className="w-full max-w-[898px] relative z-10 flex flex-col gap-8 px-6 pt-4 pb-24 cursor-default"
     >
-
-      {/* Internal Subtabs */}
-      <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-white/[0.02] border border-white/[0.06] backdrop-blur-md w-full shrink-0">
+      {/* 1. HIGH-FOCUS GLASSMORPHIC TABS SWITCHER (Always on top) */}
+      <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-white/[0.02] border border-white/[0.06] backdrop-blur-md w-full shrink-0 select-none">
         {[
-          { id: 'profile', label: 'Profile', icon: User },
+          { id: 'overview', label: 'Overview', icon: Sparkles },
           { id: 'favorites', label: 'Favorites', icon: Heart },
           { id: 'playlists', label: 'Playlists', icon: ListMusic },
-          { id: 'stats', label: 'Statistics', icon: BarChart2 },
         ].map((sub) => {
           const isSubActive = activeTab === sub.id;
           const SubIcon = sub.icon;
-          const activeStyle = ACTIVE_TAB_STYLES[accentColor];
+          const activeStyle = ACTIVE_TAB_STYLES[accentColor] || ACTIVE_TAB_STYLES.emerald;
           return (
             <button
               key={sub.id}
               onClick={() => setActiveTab(sub.id as any)}
-              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-semibold tracking-wide uppercase transition-all duration-300 cursor-pointer ${
+              className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-[10px] font-bold tracking-widest uppercase transition-all duration-300 cursor-pointer ${
                 isSubActive
                   ? `bg-[#09090c]/85 border ${activeStyle.border} ${activeStyle.text} ${activeStyle.glow} shadow-black/40`
-                  : 'text-white/40 hover:text-white/70 hover:bg-white/[0.01] border border-transparent'
+                  : 'text-white/35 hover:text-white/70 hover:bg-white/[0.01] border border-transparent'
               }`}
             >
               <SubIcon className={`w-3.5 h-3.5 ${isSubActive ? theme.text : 'text-current'}`} />
-              <span className="hidden sm:inline">{sub.label}</span>
+              <span>{sub.label}</span>
             </button>
           );
         })}
       </div>
 
+      {/* 2. ACTIVE TAB CONTAINER */}
       <div className="flex-1 min-h-[350px]">
         <AnimatePresence mode="wait">
-          {/* PROFILE SUBTAB */}
-          {activeTab === 'profile' && (
+          
+          {/* TAB 1: OVERVIEW (CURATED DASHBOARD) */}
+          {activeTab === 'overview' && (
             <motion.div
-              key="profile"
+              key="overview"
               initial={{ opacity: 0, scale: 0.98 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.98 }}
               transition={{ duration: 0.3 }}
-              className="flex flex-col gap-6"
+              className="flex flex-col gap-8"
             >
-              <div className="rounded-3xl border border-white/10 bg-[#0f0f12]/80 backdrop-blur-xl p-8 flex flex-col md:flex-row items-center gap-8 relative overflow-hidden shadow-2xl">
-                <div className={`absolute -top-24 -left-24 w-48 h-48 rounded-full ${theme.bgFade} blur-3xl opacity-35`} />
+              {/* A. ULTRA-SLIM TYPOGRAPHICAL PROFILE HEADER (Overview-Only) */}
+              <div className="rounded-3xl border border-white/5 bg-[#0f0f12]/35 backdrop-blur-xl p-5 flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden shadow-2xl">
+                <div className={`absolute -top-12 -left-12 w-28 h-28 rounded-full ${theme.bgFade} blur-2xl opacity-20`} />
 
-                {/* Avatar area */}
-                <div className="flex flex-col items-center gap-4 relative z-10 shrink-0">
-                  <div className={`w-28 h-28 rounded-full overflow-hidden p-1 border border-white/15 bg-gradient-to-tr ${theme.borderT} shadow-xl`}>
-                    <img src={avatar} alt="User avatar" className="w-full h-full object-cover rounded-full" />
+                {/* Left Side: Avatar & Username */}
+                <div className="flex items-center gap-5 relative z-10 shrink-0 select-none">
+                  <div className="relative group">
+                    <div className="w-16 h-16 rounded-full overflow-hidden p-0.5 border border-white/15 bg-gradient-to-tr shadow-lg bg-[#0f0f12] group-hover:border-white/30 transition-all duration-300">
+                      {avatar === 'initials' ? (
+                        <div className="w-full h-full rounded-full flex items-center justify-center bg-gradient-to-tr from-white/[0.04] to-white/[0.12] backdrop-blur-md relative overflow-hidden">
+                          <span className="text-xl font-extrabold text-white tracking-tighter">
+                            {username.trim() ? username.trim().charAt(0).toUpperCase() : 'M'}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className={`w-full h-full rounded-full bg-gradient-to-tr ${avatar}`} />
+                      )}
+                    </div>
+                    {/* Soft pulsing halo */}
+                    <div className="absolute inset-0 rounded-full bg-white/5 -z-10 blur-md group-hover:bg-white/10 transition-all duration-300" />
                   </div>
-                  <div className="flex gap-1.5 justify-center">
-                    {AVATARS.map((av, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => handleSelectAvatar(av)}
-                        className={`w-6 h-6 rounded-full overflow-hidden border border-white/10 hover:border-white/40 transition-all ${
-                          avatar === av ? 'scale-110 border-white' : 'opacity-70 hover:opacity-100'
-                        } cursor-pointer`}
+
+                  <div className="flex flex-col gap-0.5 text-left">
+                    <span className="text-[9px] uppercase font-bold tracking-[0.25em] text-white/30">Music Curator</span>
+                    <div className="flex items-center gap-2.5">
+                      <h2 
+                        className="text-2xl font-normal text-white/95 tracking-wide leading-tight truncate max-w-[180px] md:max-w-[240px]" 
+                        style={{ fontFamily: '"Kaobe", serif' }}
+                        title={username}
                       >
-                        <img src={av} alt="option" className="w-full h-full object-cover" />
+                        {username}
+                      </h2>
+                      <button
+                        onClick={() => {
+                          setTempName(username);
+                          setTempAvatar(avatar);
+                          setIsCustomizing(true);
+                        }}
+                        className="p-1.5 rounded-xl text-white/40 hover:text-white/80 hover:bg-white/5 transition-all duration-300 cursor-pointer"
+                        title="Customize Profile Space"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
                       </button>
-                    ))}
+                    </div>
                   </div>
                 </div>
 
-                {/* Profile info details */}
-                <div className="flex-1 flex flex-col justify-center items-center md:items-start text-center md:text-left gap-4 relative z-10">
-                  <div className="space-y-1">
-                    <span className="text-[10px] uppercase font-bold tracking-[0.25em] text-white/30">Personal Hub</span>
-                    <div className="flex items-center justify-center md:justify-start gap-3">
-                      {isEditingName ? (
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="text"
-                            value={tempName}
-                            onChange={(e) => setTempName(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleSaveName()}
-                            maxLength={20}
-                            className="bg-white/5 border border-white/10 text-white rounded-lg px-3 py-1 text-base focus:outline-none focus:border-white/30 font-medium"
-                            autoFocus
-                          />
-                          <button
-                            onClick={handleSaveName}
-                            className="p-1.5 rounded-lg bg-white/10 hover:bg-white text-white hover:text-black transition-all cursor-pointer"
-                          >
-                            <Check className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ) : (
-                        <>
-                          <h2 className="text-2xl font-semibold text-white/95 tracking-tight truncate max-w-[220px] sm:max-w-[320px]" title={username}>
-                            {username}
-                          </h2>
-                          <button
-                            onClick={() => {
-                              setTempName(username);
-                              setIsEditingName(true);
-                            }}
-                            className="p-1 rounded-lg text-white/40 hover:text-white/70 hover:bg-white/5 transition-all cursor-pointer"
-                            title="Edit name"
-                          >
-                            <Edit2 className="w-3.5 h-3.5" />
-                          </button>
-                        </>
-                      )}
-                    </div>
+                {/* Right Side: Sleek typographic Metric Pillars */}
+                <div className="flex items-center gap-6 relative z-10 shrink-0 md:border-l md:border-white/5 md:pl-8 py-1">
+                  <div className="text-center group min-w-[70px]">
+                    <p className="text-xl font-medium text-white tracking-tight leading-none">{totalListeningMinutes}m</p>
+                    <p className="text-[9px] uppercase tracking-wider text-white/35 font-bold mt-1.5">Minutes</p>
                   </div>
 
-                  <div className="flex flex-wrap justify-center md:justify-start gap-4">
-                    <div className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-white/[0.03] border border-white/[0.05]">
-                      <Award className={`w-4 h-4 ${theme.text}`} />
-                      <div className="text-left">
-                        <p className="text-[9px] uppercase tracking-wider text-white/30 leading-none">Listening Vibe</p>
-                        <p className="text-xs font-semibold text-white/80 mt-1">{musicPersonality}</p>
-                      </div>
-                    </div>
+                  <div className="h-6 w-px bg-white/5" />
 
-                    <div className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-white/[0.03] border border-white/[0.05]">
-                      <Clock className={`w-4 h-4 ${theme.text}`} />
-                      <div className="text-left">
-                        <p className="text-[9px] uppercase tracking-wider text-white/30 leading-none">Listening Time</p>
-                        <p className="text-xs font-semibold text-white/80 mt-1">
-                          {Object.values(playCounts).reduce((acc, c) => acc + c.count * 3, 0)} min
-                        </p>
-                      </div>
-                    </div>
+                  <div className="text-center group min-w-[70px]">
+                    <p className="text-xl font-medium text-white tracking-tight leading-none">{uniqueSongsCount}</p>
+                    <p className="text-[9px] uppercase tracking-wider text-white/35 font-bold mt-1.5">Songs</p>
+                  </div>
+
+                  <div className="h-6 w-px bg-white/5" />
+
+                  <div className="text-center group min-w-[70px]">
+                    <p className="text-xl font-medium text-white tracking-tight leading-none">{totalPlayCount}</p>
+                    <p className="text-[9px] uppercase tracking-wider text-white/35 font-bold mt-1.5">Plays</p>
                   </div>
                 </div>
               </div>
+
+              {/* B. HORIZONTAL "VINYL FLIP" CAROUSEL (Recently Played) */}
+              <div className="rounded-3xl border border-white/[0.05] bg-white/[0.01] p-6 flex flex-col gap-5 shadow-xl w-full">
+                <div className="flex items-center gap-2 select-none">
+                  <History className="w-4 h-4 text-white/30" />
+                  <h3 className="text-[10px] uppercase tracking-[0.25em] font-bold text-white/40">Recently Played</h3>
+                </div>
+
+                {recentlyPlayed.length > 0 ? (
+                  <div className="flex overflow-x-auto gap-6 pb-4 scrollbar-none snap-x snap-mandatory">
+                    {recentlyPlayed.map((song) => (
+                      <div 
+                        key={song.id} 
+                        onClick={() => onSelectSong(song)}
+                        className="group flex flex-col gap-3 w-36 shrink-0 snap-start select-none cursor-pointer"
+                        title={`Play ${song.title}`}
+                      >
+                        {/* Artwork square with hover-scale & play glass overlay */}
+                        <div className="relative w-36 h-36 rounded-2xl overflow-hidden shadow-lg border border-white/5 bg-white/5">
+                          <img 
+                            src={song.thumbnail} 
+                            alt={song.title} 
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                            onError={(e) => {
+                              e.currentTarget.onerror = null;
+                              e.currentTarget.src = `https://img.youtube.com/vi/${song.videoId}/mqdefault.jpg`;
+                            }}
+                          />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center backdrop-blur-[1px]">
+                            <div className="p-3.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 hover:scale-110 transition-transform shadow-lg">
+                              <Play className="w-5 h-5 text-white fill-white ml-0.5" />
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Typography underneath cover art */}
+                        <div className="text-left w-full">
+                          <h4 className="text-sm font-semibold text-white/90 truncate leading-tight tracking-wide" title={song.title}>
+                            {song.title}
+                          </h4>
+                          <p className="text-[11px] text-white/45 truncate mt-1 font-medium leading-none">
+                            {song.artist}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-white/[0.04] bg-white/[0.005] p-8 text-center flex flex-col items-center justify-center select-none">
+                    <Music className="w-6 h-6 text-white/15 mb-2" />
+                    <p className="text-white/40 text-[10px] font-semibold">No recent songs</p>
+                    <p className="text-white/20 text-[9px] mt-1 font-light max-w-[160px]">
+                      Start playing some tracks to fill your recents history.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* C. Recently Played Artists Carousel */}
+              <div className="rounded-3xl border border-white/[0.05] bg-white/[0.01] p-5 flex flex-col gap-4 shadow-xl w-full">
+                <div className="flex items-center justify-between select-none">
+                  <h3 className="text-[10px] uppercase tracking-[0.25em] font-bold text-white/40">Recently Played Artists</h3>
+                </div>
+
+                {artistBubbles.length > 0 ? (
+                  <div className="flex flex-wrap items-center gap-5 justify-start">
+                    {artistBubbles.map((artist, idx) => {
+                      let hash = 0;
+                      for (let i = 0; i < artist.name.length; i++) {
+                        hash = artist.name.charCodeAt(i) + ((hash << 5) - hash);
+                      }
+                      const gradIndex = Math.abs(hash) % PRESET_GRADIENTS.length;
+                      const fallbackGrad = PRESET_GRADIENTS[gradIndex];
+
+                      return (
+                        <button
+                          key={idx}
+                          onClick={() => {
+                            if (onSelectArtist) {
+                              onSelectArtist({
+                                name: artist.name,
+                                thumbnail: artist.thumbnail || '',
+                                channelId: artist.channelId,
+                                isTopic: true
+                              });
+                            }
+                          }}
+                          className="flex flex-col items-center gap-2 group cursor-pointer focus:outline-none"
+                          title={`Explore ${artist.name}`}
+                        >
+                          <div className="relative w-16 h-16 rounded-full overflow-hidden p-0.5 border border-white/10 hover:border-white/30 group-hover:scale-105 transition-all duration-300 shadow-md">
+                            {artist.thumbnail ? (
+                              <div className="w-full h-full rounded-full overflow-hidden relative">
+                                <img
+                                  src={artist.thumbnail}
+                                  alt={artist.name}
+                                  className="w-full h-full object-cover rounded-full scale-105 group-hover:scale-110 transition-transform duration-500"
+                                />
+                                <div className="absolute inset-0 bg-black/10 backdrop-blur-[1px] hover:backdrop-blur-0 transition-all duration-300" />
+                              </div>
+                            ) : (
+                              <div className={`w-full h-full rounded-full bg-gradient-to-tr ${fallbackGrad}`} />
+                            )}
+                          </div>
+
+                          <span className="text-[10px] text-white/50 group-hover:text-white transition-colors font-semibold text-center truncate max-w-[80px] w-full">
+                            {artist.name}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-white/[0.04] bg-white/[0.005] p-6 text-center flex flex-col items-center justify-center select-none">
+                    <p className="text-white/40 text-xs font-semibold">No artists resolved yet</p>
+                    <p className="text-white/20 text-[10px] mt-1 font-light max-w-[220px]">
+                      Your recently played artists will pop up here.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* D. Bottom Showcase: Playlists Horizontal Strip */}
+              <div className="rounded-3xl border border-white/[0.05] bg-white/[0.01] p-5 flex flex-col gap-4 shadow-xl w-full">
+                <div className="flex items-center justify-between select-none">
+                  <h3 className="text-[10px] uppercase tracking-[0.25em] font-bold text-white/40">Custom Playlists</h3>
+                  <button
+                    onClick={() => setActiveTab('playlists')}
+                    className="text-[10px] uppercase tracking-wider text-white/40 hover:text-white font-bold transition-all"
+                  >
+                    View All
+                  </button>
+                </div>
+
+                {playlists.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                    {playlists.slice(0, 3).map((playlist) => (
+                      <div
+                        key={playlist.id}
+                        className="group relative rounded-2xl border border-white/[0.05] bg-[#0f0f12]/30 hover:bg-[#0f0f12]/60 p-4.5 flex flex-col justify-between h-[120px] shadow-lg overflow-hidden transition-all duration-300"
+                      >
+                        <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r ${playlist.color}`} />
+
+                        <div className="space-y-0.5 relative z-10 text-left">
+                          <h4 className="text-sm font-semibold text-white/95 truncate leading-tight">{playlist.name}</h4>
+                          <p className="text-[9px] font-light text-white/40 tracking-wider uppercase">
+                            {playlist.tracks.length} songs
+                          </p>
+                        </div>
+
+                        <div className="flex justify-end items-center relative z-10">
+                          <button
+                            onClick={() => handlePlayPlaylist(playlist)}
+                            className="p-2 rounded-full bg-white/10 hover:bg-white text-white hover:text-black border border-white/5 hover:scale-105 transition-all cursor-pointer"
+                            title="Play playlist"
+                          >
+                            <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-white/[0.04] bg-white/[0.005] p-6 text-center flex flex-col items-center justify-center select-none">
+                    <p className="text-white/40 text-xs font-semibold">No playlists created yet</p>
+                    <p className="text-white/20 text-[10px] mt-1 font-light max-w-[220px]">
+                      Go to the Playlists tab to create and manage collections.
+                    </p>
+                  </div>
+                )}
+              </div>
+
             </motion.div>
           )}
 
-          {/* FAVORITES SUBTAB */}
+          {/* TAB 2: FAVORITES (LARGE WIDE GLASS BANNERS) */}
           {activeTab === 'favorites' && (
             <motion.div
               key="favorites"
@@ -415,24 +535,34 @@ export const ProfileHubView: React.FC<ProfileHubViewProps> = ({
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.98 }}
               transition={{ duration: 0.3 }}
-              className="space-y-4"
+              className="space-y-6"
             >
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs uppercase tracking-[0.25em] font-semibold text-white/40">Your Favorite Songs ({favorites.length})</h3>
+              {/* Header inside Favorites Tab (Slides up to top) */}
+              <div className="flex items-center justify-between select-none">
+                <h2 
+                  className="text-2xl font-normal text-white/95 tracking-wide leading-none" 
+                  style={{ fontFamily: '"Kaobe", serif' }}
+                >
+                  Your Favorite Library
+                </h2>
+                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30">
+                  {favorites.length} {favorites.length === 1 ? 'Song' : 'Songs'}
+                </span>
               </div>
 
               {favorites.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="flex flex-col gap-4.5">
                   {favorites.map((song, idx) => (
                     <motion.div
                       key={song.id}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: idx * 0.05 }}
-                      className="group flex items-center justify-between p-3 rounded-2xl bg-[#0f0f12]/50 hover:bg-[#0f0f12]/80 border border-white/[0.04] hover:border-white/10 backdrop-blur-md transition-all duration-300 shadow-lg"
+                      transition={{ delay: idx * 0.02 }}
+                      className="group flex items-center justify-between p-4 rounded-2xl bg-white/[0.015] hover:bg-white/[0.04] border border-white/[0.04] hover:border-white/10 backdrop-blur-md transition-all duration-300 shadow-md w-full"
                     >
-                      <div className="flex items-center gap-3.5">
-                        <div className="relative w-12 h-12 rounded-xl overflow-hidden shadow-md shrink-0">
+                      {/* Left: 64px Artwork + Stepped-up large visual typography */}
+                      <div className="flex items-center gap-4.5 truncate flex-1 mr-4">
+                        <div className="relative w-16 h-16 rounded-2xl overflow-hidden shadow-lg shrink-0 border border-white/5 bg-white/5">
                           <img 
                             src={song.thumbnail} 
                             alt={song.title} 
@@ -446,19 +576,32 @@ export const ProfileHubView: React.FC<ProfileHubViewProps> = ({
                             onClick={() => onSelectSong(song)}
                             className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 cursor-pointer"
                           >
-                            <Play className="w-4.5 h-4.5 text-white fill-white ml-0.5" />
+                            <Play className="w-5 h-5 text-white fill-white ml-0.5" />
                           </button>
                         </div>
-                        <div className="max-w-[180px] sm:max-w-[200px]">
-                          <h4 className="text-sm font-medium text-white/90 leading-snug truncate">{song.title}</h4>
-                          <p className="text-[11px] text-white/40 mt-0.5 truncate">{song.artist}</p>
+                        
+                        <div className="text-left truncate">
+                          <h4 className="text-base font-semibold text-white/95 truncate tracking-wide leading-snug">
+                            {song.title}
+                          </h4>
+                          <p className="text-sm text-white/50 truncate mt-1.5 font-medium leading-none">
+                            {song.artist}
+                          </p>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
+                      {/* Right: Tactile larger action triggers */}
+                      <div className="flex items-center gap-2.5 opacity-60 group-hover:opacity-100 transition-opacity select-none">
+                        <button
+                          onClick={() => onAddToQueue(song)}
+                          className="p-2.5 rounded-xl bg-white/5 hover:bg-white/15 text-white cursor-pointer transition-all hover:scale-105"
+                          title="Add to queue"
+                        >
+                          <Plus className="w-4 h-4" />
+                        </button>
                         <button
                           onClick={() => onToggleFavorite(song)}
-                          className="p-2 rounded-xl hover:bg-white/5 text-red-500 hover:text-white cursor-pointer transition-all"
+                          className="p-2.5 rounded-xl bg-white/5 hover:bg-white/15 text-red-400 hover:text-white cursor-pointer transition-all hover:scale-105"
                           title="Remove from favorites"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -468,16 +611,18 @@ export const ProfileHubView: React.FC<ProfileHubViewProps> = ({
                   ))}
                 </div>
               ) : (
-                <div className="rounded-3xl border border-white/5 bg-[#0f0f12]/30 p-12 text-center flex flex-col items-center justify-center">
+                <div className="rounded-3xl border border-white/5 bg-[#0f0f12]/15 p-16 text-center flex flex-col items-center justify-center select-none">
                   <Heart className="w-8 h-8 text-white/20 mb-3" />
                   <p className="text-white/50 text-sm font-medium">No favorite songs yet</p>
-                  <p className="text-white/30 text-xs mt-1.5 font-light max-w-[280px]">Use the heart icon during playback or in search results to save your favorites.</p>
+                  <p className="text-white/30 text-xs mt-1.5 font-light max-w-[280px]">
+                    Use the heart icon during playback or in search results to save your favorites.
+                  </p>
                 </div>
               )}
             </motion.div>
           )}
 
-          {/* PLAYLISTS SUBTAB */}
+          {/* TAB 3: PLAYLISTS (SPACIOUS COLLECTIONS GRID) */}
           {activeTab === 'playlists' && (
             <motion.div
               key="playlists"
@@ -487,18 +632,24 @@ export const ProfileHubView: React.FC<ProfileHubViewProps> = ({
               transition={{ duration: 0.3 }}
               className="space-y-6"
             >
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs uppercase tracking-[0.25em] font-semibold text-white/40">Your Playlists ({playlists.length})</h3>
+              {/* Header inside Playlists Tab (Slides up to top) */}
+              <div className="flex items-center justify-between select-none">
+                <h2 
+                  className="text-2xl font-normal text-white/95 tracking-wide leading-none" 
+                  style={{ fontFamily: '"Kaobe", serif' }}
+                >
+                  Your Playlist Collections
+                </h2>
                 <button
                   onClick={() => setIsCreatingPlaylist((prev) => !prev)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 hover:border-white/25 text-xs font-semibold uppercase tracking-wider text-white bg-white/5 hover:bg-white/10 transition-all cursor-pointer`}
+                  className="flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 hover:border-white/25 text-xs font-semibold uppercase tracking-wider text-white bg-white/5 hover:bg-white/10 transition-all cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>Create New</span>
                 </button>
               </div>
 
-              {/* Create Playlist Modal Form */}
+              {/* Create Playlist Form (Inline Glass Card) */}
               <AnimatePresence>
                 {isCreatingPlaylist && (
                   <motion.div
@@ -516,7 +667,8 @@ export const ProfileHubView: React.FC<ProfileHubViewProps> = ({
                           placeholder="Playlist name..."
                           value={newPlaylistName}
                           onChange={(e) => setNewPlaylistName(e.target.value)}
-                          className="flex-1 bg-white/5 border border-white/10 text-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-white/20 font-light"
+                          className="flex-1 bg-white/5 border border-white/10 text-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-white/25 font-light"
+                          autoFocus
                         />
                         <div className="flex items-center gap-2">
                           {PLAYLIST_COLORS.map((col, idx) => (
@@ -531,7 +683,7 @@ export const ProfileHubView: React.FC<ProfileHubViewProps> = ({
                         </div>
                       </div>
 
-                      <div className="flex gap-2 justify-end mt-2">
+                      <div className="flex gap-2 justify-end mt-2 select-none">
                         <button
                           onClick={() => setIsCreatingPlaylist(false)}
                           className="px-4 py-2 rounded-xl text-xs text-white/50 hover:text-white hover:bg-white/5 transition-all cursor-pointer font-semibold uppercase"
@@ -540,7 +692,7 @@ export const ProfileHubView: React.FC<ProfileHubViewProps> = ({
                         </button>
                         <button
                           onClick={handleCreatePlaylist}
-                          className={`px-4 py-2 rounded-xl text-xs text-black bg-white hover:bg-white/95 transition-all cursor-pointer font-bold uppercase`}
+                          className="px-4 py-2 rounded-xl text-xs text-black bg-white hover:bg-white/95 transition-all cursor-pointer font-bold uppercase"
                         >
                           Save Playlist
                         </button>
@@ -551,167 +703,156 @@ export const ProfileHubView: React.FC<ProfileHubViewProps> = ({
               </AnimatePresence>
 
               {playlists.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                   {playlists.map((playlist) => (
                     <div
                       key={playlist.id}
-                      className="group relative rounded-3xl border border-white/[0.05] bg-[#0f0f12]/50 p-6 flex flex-col justify-between h-[150px] shadow-lg overflow-hidden"
+                      className="group relative rounded-3xl border border-white/[0.05] bg-[#0f0f12]/35 hover:bg-[#0f0f12]/60 p-6.5 flex flex-col justify-between h-[160px] shadow-lg overflow-hidden transition-all duration-300 hover:border-white/10 hover:shadow-black/60"
                     >
-                      {/* Gradient card top edge */}
                       <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${playlist.color}`} />
 
-                      <div className="space-y-1 relative z-10">
-                        <h4 className="text-base font-semibold text-white/95 leading-none">{playlist.name}</h4>
-                        <p className="text-[10px] font-light text-white/40 tracking-wider uppercase mt-1">
-                          {playlist.tracks.length} songs
+                      <div className="space-y-1.5 relative z-10 text-left select-none">
+                        <h4 className="text-lg font-bold text-white/95 leading-tight truncate tracking-wide">{playlist.name}</h4>
+                        <p className="text-[11px] font-semibold text-white/40 tracking-wider uppercase">
+                          {playlist.tracks.length} {playlist.tracks.length === 1 ? 'song' : 'songs'}
                         </p>
                       </div>
 
-                      <div className="flex justify-between items-center relative z-10">
+                      <div className="flex justify-between items-center relative z-10 select-none">
                         <button
                           onClick={() => handleDeletePlaylist(playlist.id, playlist.name)}
-                          className="p-2 rounded-xl hover:bg-white/5 text-white/30 hover:text-red-400 transition-all cursor-pointer"
+                          className="p-2 rounded-xl hover:bg-white/5 text-white/30 hover:text-red-400 transition-all cursor-pointer opacity-0 group-hover:opacity-100 duration-300"
                           title="Delete playlist"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-4.5 h-4.5" />
                         </button>
 
                         <button
                           onClick={() => handlePlayPlaylist(playlist)}
-                          className={`p-3 rounded-full bg-white/10 hover:bg-white text-white hover:text-black border border-white/10 hover:scale-105 transition-all cursor-pointer`}
+                          className="p-3.5 rounded-full bg-white/10 hover:bg-white text-white hover:text-black border border-white/10 hover:scale-105 transition-all cursor-pointer shadow-md"
                           title="Play playlist"
                         >
-                          <Play className="w-4.5 h-4.5 fill-current ml-0.5" />
+                          <Play className="w-5 h-5 fill-current ml-0.5" />
                         </button>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="rounded-3xl border border-white/5 bg-[#0f0f12]/30 p-12 text-center flex flex-col items-center justify-center">
+                <div className="rounded-3xl border border-white/5 bg-[#0f0f12]/15 p-16 text-center flex flex-col items-center justify-center select-none">
                   <ListMusic className="w-8 h-8 text-white/20 mb-3" />
                   <p className="text-white/50 text-sm font-medium">No playlists yet</p>
-                  <p className="text-white/30 text-xs mt-1.5 font-light max-w-[280px]">Click on "Create New" to start your first collection, and add songs along the way.</p>
+                  <p className="text-white/30 text-xs mt-1.5 font-light max-w-[280px]">
+                    Click on "Create New" to start your first collection, and add songs along the way.
+                  </p>
                 </div>
               )}
             </motion.div>
           )}
 
-          {/* STATISTICS SUBTAB */}
-          {activeTab === 'stats' && (
-            <motion.div
-              key="stats"
-              initial={{ opacity: 0, scale: 0.98 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.98 }}
-              transition={{ duration: 0.3 }}
-              className="space-y-6"
-            >
-              {/* Daily / Weekly listening curve */}
-              <div className="rounded-3xl border border-white/10 bg-[#0f0f12]/50 p-6 shadow-2xl">
-                <h4 className="text-xs font-semibold uppercase tracking-[0.2em] text-white/40 mb-6">Weekly Listening Activity (Minutes)</h4>
-                
-                <div className="w-full h-[180px] text-xs">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={weeklyStats} margin={{ top: 0, right: 10, left: -25, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="blueprintGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#dc2626" stopOpacity={0.85} />
-                          <stop offset="100%" stopColor="#581c87" stopOpacity={0.15} />
-                        </linearGradient>
-                      </defs>
-                      <XAxis dataKey="day" stroke="rgba(255,255,255,0.25)" tickLine={false} axisLine={false} />
-                      <YAxis stroke="rgba(255,255,255,0.25)" tickLine={false} axisLine={false} />
-                      <Tooltip 
-                        contentStyle={{ 
-                          background: 'rgba(15,15,18,0.9)', 
-                          border: '1px solid rgba(255,255,255,0.1)', 
-                          borderRadius: '12px', 
-                          color: '#fff',
-                          backdropFilter: 'blur(16px)'
-                        }} 
-                      />
-                      <Bar dataKey="min" fill="url(#blueprintGradient)" radius={[3, 3, 0, 0]} barSize={6} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              {/* Grid: Top tracks & Genre breakdown */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                
-                {/* Top tracks list */}
-                <div className="rounded-3xl border border-white/10 bg-[#0f0f12]/50 p-6 shadow-2xl">
-                  <h4 className="text-xs font-semibold uppercase tracking-[0.2em] text-white/40 mb-6">Most Played Songs</h4>
-                  
-                  {statsTopSongs.length > 0 ? (
-                    <div className="w-full h-[160px] text-xs">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={statsTopSongs} layout="vertical" margin={{ top: 0, right: 10, left: 10, bottom: 0 }}>
-                          <XAxis type="number" hide />
-                          <YAxis dataKey="name" type="category" stroke="rgba(255,255,255,0.45)" tickLine={false} axisLine={false} width={100} />
-                          <Tooltip
-                            contentStyle={{ 
-                              background: 'rgba(15,15,18,0.85)', 
-                              border: '1px solid rgba(255,255,255,0.1)', 
-                              borderRadius: '12px', 
-                              color: '#fff',
-                              backdropFilter: 'blur(16px)'
-                            }} 
-                          />
-                          <Bar dataKey="Plays" fill="var(--theme-secondary, #6366f1)" radius={[0, 4, 4, 0]} barSize={10} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  ) : (
-                    <div className="h-[160px] flex items-center justify-center text-white/20 text-xs">
-                      Play music to gather statistics
-                    </div>
-                  )}
-                </div>
-
-                {/* Genre breakdown Donut */}
-                <div className="rounded-3xl border border-white/10 bg-[#0f0f12]/50 p-6 shadow-2xl flex flex-col justify-between">
-                  <h4 className="text-xs font-semibold uppercase tracking-[0.2em] text-white/40 mb-4">Top Listening Genres</h4>
-                  
-                  <div className="flex items-center justify-around h-[140px] relative">
-                    <div className="w-[120px] h-[120px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={genrePieData}
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={36}
-                            outerRadius={50}
-                            paddingAngle={3}
-                            dataKey="value"
-                          >
-                            {genrePieData.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={entry.color} />
-                            ))}
-                          </Pie>
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </div>
-
-                    {/* Legends info */}
-                    <div className="flex flex-col gap-2.5 text-[10px]">
-                      {genrePieData.map((item, idx) => (
-                        <div key={idx} className="flex items-center gap-2">
-                          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />
-                          <span className="font-medium text-white/60">{item.name}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-              </div>
-            </motion.div>
-          )}
         </AnimatePresence>
       </div>
+
+      {/* 3. PREMIUM GLASSMORPHIC PROFILE CUSTOMIZER MODAL */}
+      <AnimatePresence>
+        {isCustomizing && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Dark Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsCustomizing(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-md"
+            />
+
+            {/* Modal Body */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+              className="relative bg-[#09090c]/90 border border-white/10 backdrop-blur-2xl rounded-3xl p-7 max-w-md w-full shadow-[0_20px_50px_rgba(0,0,0,0.8)] z-10 flex flex-col gap-6 text-left"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-white/5 pb-3">
+                <h3 className="text-sm uppercase tracking-[0.2em] font-bold text-white/90">Customize Space</h3>
+                <button
+                  onClick={() => setIsCustomizing(false)}
+                  className="p-1.5 rounded-lg text-white/40 hover:text-white/80 hover:bg-white/5 transition-all cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Edit Avatar */}
+              <div className="flex flex-col gap-3">
+                <span className="text-[10px] uppercase font-bold tracking-[0.2em] text-white/40">Avatar Aurora Glow</span>
+                <div className="flex flex-wrap items-center gap-2.5 p-3 rounded-2xl bg-white/[0.02] border border-white/[0.04]">
+                  {/* Monogram Selector */}
+                  <button
+                    onClick={() => setTempAvatar('initials')}
+                    className={`w-9 h-9 rounded-full overflow-hidden border transition-all ${
+                      tempAvatar === 'initials'
+                        ? 'border-white scale-110 shadow-lg bg-white/20'
+                        : 'border-white/10 bg-white/5 opacity-50 hover:opacity-100'
+                    } cursor-pointer flex items-center justify-center`}
+                    title="Monogram Initials"
+                  >
+                    <span className="text-[11px] font-extrabold text-white">
+                      {tempName.trim() ? tempName.trim().charAt(0).toUpperCase() : 'M'}
+                    </span>
+                  </button>
+
+                  {/* Gradient Presets */}
+                  {PRESET_GRADIENTS.map((grad, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setTempAvatar(grad)}
+                      className={`w-9 h-9 rounded-full overflow-hidden border transition-all ${
+                        tempAvatar === grad
+                          ? 'border-white scale-110 shadow-[0_0_15px_rgba(255,255,255,0.2)]'
+                          : 'border-white/10 opacity-50 hover:opacity-100'
+                      } cursor-pointer bg-gradient-to-tr ${grad}`}
+                      title={`Aurora preset ${idx + 1}`}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Edit Username */}
+              <div className="flex flex-col gap-3">
+                <span className="text-[10px] uppercase font-bold tracking-[0.2em] text-white/40">Curator Name</span>
+                <input
+                  type="text"
+                  placeholder="Enter name..."
+                  value={tempName}
+                  onChange={(e) => setTempName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSaveProfile()}
+                  maxLength={20}
+                  className="bg-white/5 border border-white/10 text-white rounded-2xl px-4 py-3 text-sm focus:outline-none focus:border-white/25 transition-all font-medium"
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-end gap-3 border-t border-white/5 pt-4 mt-1 select-none">
+                <button
+                  onClick={() => setIsCustomizing(false)}
+                  className="px-5 py-2.5 rounded-2xl text-xs text-white/50 hover:text-white hover:bg-white/5 transition-all cursor-pointer font-bold uppercase tracking-wider"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveProfile}
+                  className="px-5 py-2.5 rounded-2xl text-xs text-black bg-white hover:bg-white/90 transition-all cursor-pointer font-extrabold uppercase tracking-wider shadow-lg"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };

@@ -115,7 +115,7 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
                   setShowPlaylistMenu(!showPlaylistMenu);
                 }}
                 className={`p-2 rounded-xl hover:bg-white/10 text-white/40 hover:text-white cursor-pointer transition-all active:scale-90 ${showPlaylistMenu ? 'bg-white/15 text-white' : ''}`}
-                title="Tilføj til playliste"
+                title="Add to playlist"
               >
                 <ListPlus className="w-4 h-4" />
               </button>
@@ -130,7 +130,7 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
                     transition={{ duration: 0.2 }}
                     className="absolute top-10 right-0 w-48 rounded-2xl border border-white/10 bg-black/80 backdrop-blur-2xl p-2.5 shadow-2xl text-left flex flex-col gap-1 z-[100]"
                   >
-                    <span className="text-[9px] font-bold text-white/30 tracking-wider uppercase px-2 py-1 select-none">Vælg Playliste</span>
+                    <span className="text-[9px] font-bold text-white/30 tracking-wider uppercase px-2 py-1 select-none">Select Playlist</span>
                     <div className="max-h-[140px] overflow-y-auto scrollbar-none flex flex-col gap-0.5">
                       {playlists.length > 0 ? (
                         playlists.map((pl) => (
@@ -241,10 +241,6 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
 
           {/* Play/Pause button */}
           <button
-            onPointerDown={(e) => {
-              e.stopPropagation();
-              togglePlayPause();
-            }}
             onClick={(e) => {
               e.stopPropagation();
               togglePlayPause();

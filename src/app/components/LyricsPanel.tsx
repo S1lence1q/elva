@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { LyricLine } from '../types';
 import { ThemeColors } from './themeUtils';
+import { Upload, Edit3 } from 'lucide-react';
 
 interface LyricsPanelProps {
   showLyrics: boolean;
@@ -12,6 +13,9 @@ interface LyricsPanelProps {
   setShowLyrics: (show: boolean) => void;
   theme: ThemeColors;
   isSideBySide?: boolean;
+  onOpenUploadModal?: () => void;
+  hasCustomLyrics?: boolean;
+  enableCustomLyrics?: boolean;
 }
 
 export const LyricsPanel: React.FC<LyricsPanelProps> = ({
@@ -23,7 +27,10 @@ export const LyricsPanel: React.FC<LyricsPanelProps> = ({
   seekToAbsoluteTime,
   setShowLyrics,
   theme,
-  isSideBySide = false
+  isSideBySide = false,
+  onOpenUploadModal,
+  hasCustomLyrics = false,
+  enableCustomLyrics = false
 }) => {
   const lyricContainerRef = useRef<HTMLDivElement>(null);
   const activeLyricRef = useRef<HTMLDivElement>(null);
@@ -84,10 +91,26 @@ export const LyricsPanel: React.FC<LyricsPanelProps> = ({
 
       {/* Header with optional Unsynced badge */}
       <div className={`flex flex-col ${isSideBySide ? 'items-start mb-6' : 'items-center mb-5'} gap-1.5 relative z-10 w-full`}>
-        <h3 className={`text-xs font-bold tracking-[0.25em] uppercase ${isSideBySide ? 'text-white/20' : 'text-white/40'}`}>Lyrics</h3>
+        <div className="flex items-center gap-2">
+          <h3 className={`text-xs font-bold tracking-[0.25em] uppercase ${isSideBySide ? 'text-white/20' : 'text-white/40'}`}>Lyrics</h3>
+          {onOpenUploadModal && enableCustomLyrics && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onOpenUploadModal(); }}
+              className="p-1 rounded-md bg-white/[0.03] border border-white/5 hover:bg-white/10 text-white/40 hover:text-white transition-all cursor-pointer"
+              title={hasCustomLyrics ? "Edit custom lyrics" : "Upload custom lyrics"}
+            >
+              {hasCustomLyrics ? <Edit3 className="w-3 h-3" /> : <Upload className="w-3 h-3" />}
+            </button>
+          )}
+        </div>
         {!isLyricsSynced && lyrics.length > 0 && (
           <span className="text-[9px] text-white/40 bg-white/5 border border-white/10 px-2 py-0.5 rounded uppercase tracking-wider font-medium">
-            Plain Lyrics
+            {hasCustomLyrics ? 'Custom Plain Lyrics' : 'Plain Lyrics'}
+          </span>
+        )}
+        {isLyricsSynced && hasCustomLyrics && (
+          <span className="text-[9px] text-white/40 bg-white/5 border border-white/10 px-2 py-0.5 rounded uppercase tracking-wider font-medium">
+            Custom Synced Lyrics
           </span>
         )}
       </div>
@@ -157,7 +180,7 @@ export const LyricsPanel: React.FC<LyricsPanelProps> = ({
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-center px-4 w-full">
             <p className="text-white/50 text-lg font-medium tracking-wide">Lyrics not found</p>
-            <p className="text-white/30 text-sm mt-2 font-light">Enjoy the rhythm and melody instead ♪</p>
+            <p className="text-white/30 text-sm mt-2 font-light">Enjoy the rhythm and melody instead</p>
           </div>
         )}
         

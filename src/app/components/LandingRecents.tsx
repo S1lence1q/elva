@@ -65,7 +65,7 @@ export const LandingRecents: React.FC<LandingRecentsProps> = ({
                 activeTab === 'songs' ? 'text-white' : 'text-white/40 hover:text-white/70'
               }`}
             >
-              Historik
+              History
             </button>
             <button
               onClick={() => setActiveTab('artists')}
@@ -73,7 +73,7 @@ export const LandingRecents: React.FC<LandingRecentsProps> = ({
                 activeTab === 'artists' ? 'text-white' : 'text-white/40 hover:text-white/70'
               }`}
             >
-              Artister
+              Artists
             </button>
           </div>
         </div>
@@ -99,6 +99,10 @@ export const LandingRecents: React.FC<LandingRecentsProps> = ({
               exit={{ opacity: 0, x: 10 }}
               transition={{ duration: 0.35, ease: 'easeInOut' }}
               className="flex gap-4 overflow-x-auto pb-4 pt-1 px-1 scrollbar-none snap-x snap-mandatory w-full"
+              style={{
+                maskImage: 'linear-gradient(to right, black 85%, transparent 100%)',
+                WebkitMaskImage: 'linear-gradient(to right, black 85%, transparent 100%)'
+              }}
             >
               {recentlyPlayed.map((song) => {
                 const isLoading = loadingSongId === song.id;
@@ -144,6 +148,8 @@ export const LandingRecents: React.FC<LandingRecentsProps> = ({
                   </motion.div>
                 );
               })}
+              {/* Spacer to prevent text/content clipping by the fade mask */}
+              <div className="w-[15px] shrink-0 h-1" />
             </motion.div>
           ) : (
             <motion.div
@@ -153,6 +159,10 @@ export const LandingRecents: React.FC<LandingRecentsProps> = ({
               exit={{ opacity: 0, x: -10 }}
               transition={{ duration: 0.35, ease: 'easeInOut' }}
               className="flex gap-4 overflow-x-auto pb-4 pt-1 px-1 scrollbar-none snap-x snap-mandatory w-full justify-center sm:justify-start"
+              style={{
+                maskImage: 'linear-gradient(to right, black 85%, transparent 100%)',
+                WebkitMaskImage: 'linear-gradient(to right, black 85%, transparent 100%)'
+              }}
             >
               {recentArtists.map((artist) => (
                 <motion.div
@@ -176,11 +186,13 @@ export const LandingRecents: React.FC<LandingRecentsProps> = ({
                       {artist.name}
                     </span>
                     <span className="text-[10px] text-white/35 font-light truncate tracking-wide w-full px-1">
-                      {artist.disambiguation?.split(' • ')[0] || artist.country || 'Kunstner'}
+                      {artist.disambiguation?.split(' • ')[0] || artist.country || 'Artist'}
                     </span>
                   </div>
                 </motion.div>
               ))}
+              {/* Spacer to prevent text/content clipping by the fade mask */}
+              <div className="w-[15px] shrink-0 h-1" />
             </motion.div>
           )}
         </AnimatePresence>

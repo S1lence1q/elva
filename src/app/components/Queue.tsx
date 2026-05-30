@@ -1,30 +1,16 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Music, X, Search, Plus, Play, Upload, Loader2, Link as LinkIcon, AlertCircle, ArrowLeft, ChevronRight } from 'lucide-react';
+import { Music, X, Search, Plus, Play, Upload, Loader2, Heart, ListMusic, Trash2, ArrowLeft, ChevronRight, Sparkles, User, History } from 'lucide-react';
 import { toast } from 'sonner';
 import { AccentColor, ACCENT_THEMES } from './themeUtils';
-
-const fetchWithTimeout = async (url: string, options: RequestInit = {}, timeoutMs: number = 4000): Promise<Response> => {
-  const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const response = await fetch(url, {
-      ...options,
-      signal: controller.signal
-    });
-    clearTimeout(id);
-    return response;
-  } catch (err) {
-    clearTimeout(id);
-    throw err;
-  }
-};
+import { getPrimaryArtist } from '../utils/stringUtils';
 
 interface QueueItem {
   id: string;
   title: string;
   artist: string;
   thumbnail: string;
+  videoId: string;
 }
 
 interface SearchResult {
@@ -36,11 +22,30 @@ interface SearchResult {
   channelId?: string;
 }
 
+interface Playlist {
+  id: string;
+  name: string;
+  color: string;
+  tracks: SearchResult[];
+}
+
+interface VerifiedArtist {
+  name: string;
+  thumbnail: string;
+  channelId?: string;
+  disambiguation?: string;
+  country?: string;
+  tags?: string[];
+  isTopic?: boolean;
+}
+
 interface QueueProps {
   items: QueueItem[];
   currentSongId?: string;
+  songData?: { title: string; artist: string; videoId?: string; };
   accentColor?: AccentColor;
   onRemove: (id: string) => void;
+  onClearQueue?: () => void;
   onSelect: (id: string) => void;
   onClose: () => void;
   focusSearchOnMount?: boolean;
@@ -55,8 +60,10 @@ interface QueueProps {
 export function Queue({
   items,
   currentSongId,
+  songData,
   accentColor = 'emerald',
   onRemove,
+  onClearQueue,
   onSelect,
   onClose,
   focusSearchOnMount = false,
@@ -75,454 +82,90 @@ export function Queue({
 
   const theme = ACCENT_THEMES[accentColor];
 
-  const fromAccent03: Record<AccentColor, string> = {
-    emerald: 'from-emerald-500/[0.03]',
-    sand: 'from-amber-500/[0.03]',
-    wine: 'from-rose-500/[0.03]',
-    navy: 'from-slate-500/[0.04]'
-  };
+  // Drawer View Modes: 'session' (Queue + search + quick adds) | 'library' (My Space browser)
+  const [viewMode, setViewMode] = useState<'session' | 'library'>('session');
 
-  const fromAccent02: Record<AccentColor, string> = {
-    emerald: 'from-emerald-500/[0.02]',
-    sand: 'from-amber-500/[0.02]',
-    wine: 'from-rose-500/[0.02]',
-    navy: 'from-slate-500/[0.03]'
-  };
-
-  const fromAccent05: Record<AccentColor, string> = {
-    emerald: 'from-emerald-500/[0.05]',
-    sand: 'from-amber-500/[0.05]',
-    wine: 'from-rose-500/[0.05]',
-    navy: 'from-slate-500/[0.06]'
-  };
-
-  const hoverFromAccent05: Record<AccentColor, string> = {
-    emerald: 'hover:from-emerald-500/[0.05]',
-    sand: 'hover:from-amber-500/[0.05]',
-    wine: 'hover:from-rose-500/[0.05]',
-    navy: 'hover:from-slate-500/[0.06]'
-  };
-
-  const borderAccent10: Record<AccentColor, string> = {
-    emerald: 'border-emerald-500/10',
-    sand: 'border-amber-500/10',
-    wine: 'border-rose-500/10',
-    navy: 'border-slate-500/15'
-  };
-
-  const borderAccent20: Record<AccentColor, string> = {
-    emerald: 'border-emerald-500/20',
-    sand: 'border-amber-500/20',
-    wine: 'border-rose-500/20',
-    navy: 'border-slate-500/25'
-  };
-
-  const borderAccent25: Record<AccentColor, string> = {
-    emerald: 'border-emerald-500/25',
-    sand: 'border-amber-500/25',
-    wine: 'border-rose-500/25',
-    navy: 'border-slate-500/30'
-  };
-
-  const textAccent300: Record<AccentColor, string> = {
-    emerald: 'text-emerald-300/90',
-    sand: 'text-amber-200/90',
-    wine: 'text-rose-300/90',
-    navy: 'text-slate-300/90'
-  };
-
-  const textAccent400: Record<AccentColor, string> = {
-    emerald: 'text-emerald-300',
-    sand: 'text-amber-200',
-    wine: 'text-rose-300',
-    navy: 'text-slate-350'
-  };
-
-  const bgAccent10: Record<AccentColor, string> = {
-    emerald: 'bg-emerald-950/20',
-    sand: 'bg-amber-950/20',
-    wine: 'bg-rose-950/20',
-    navy: 'bg-slate-900/25'
-  };
-
-  const bgAccent20: Record<AccentColor, string> = {
-    emerald: 'bg-emerald-950/30',
-    sand: 'bg-amber-950/30',
-    wine: 'bg-rose-950/30',
-    navy: 'bg-slate-900/35'
-  };
-
-  const bgAccent05: Record<AccentColor, string> = {
-    emerald: 'bg-emerald-950/10',
-    sand: 'bg-amber-950/10',
-    wine: 'bg-rose-950/10',
-    navy: 'bg-slate-950/10'
-  };
-
-  const bgAccent15: Record<AccentColor, string> = {
-    emerald: 'bg-emerald-950/25',
-    sand: 'bg-amber-950/25',
-    wine: 'bg-rose-950/25',
-    navy: 'bg-slate-900/30'
-  };
-
-  const bgAccent400: Record<AccentColor, string> = {
-    emerald: 'bg-emerald-300',
-    sand: 'bg-amber-200',
-    wine: 'bg-rose-300',
-    navy: 'bg-slate-300'
-  };
-
-  const hoverBgAccent15: Record<AccentColor, string> = {
-    emerald: 'hover:bg-emerald-500/15',
-    sand: 'hover:bg-amber-500/15',
-    wine: 'hover:bg-rose-500/15',
-    navy: 'hover:bg-slate-500/20'
-  };
-
-  const hoverBorderAccent20: Record<AccentColor, string> = {
-    emerald: 'hover:border-emerald-500/20',
-    sand: 'hover:border-amber-500/20',
-    wine: 'hover:border-rose-500/20',
-    navy: 'hover:border-slate-500/25'
-  };
-
-  const groupHoverBorderAccent10: Record<AccentColor, string> = {
-    emerald: 'group-hover:border-emerald-500/10',
-    sand: 'group-hover:border-amber-500/10',
-    wine: 'group-hover:border-rose-500/10',
-    navy: 'group-hover:border-slate-500/15'
-  };
-
-  const groupHoverTextAccent300: Record<AccentColor, string> = {
-    emerald: 'group-hover:text-emerald-300',
-    sand: 'group-hover:text-amber-300',
-    wine: 'group-hover:text-rose-300',
-    navy: 'group-hover:text-slate-300'
-  };
-
-  const groupHoverTextAccent400: Record<AccentColor, string> = {
-    emerald: 'group-hover:text-emerald-400',
-    sand: 'group-hover:text-amber-500',
-    wine: 'group-hover:text-rose-500',
-    navy: 'group-hover:text-slate-400'
-  };
-
-  const groupHoverTextAccent300_60: Record<AccentColor, string> = {
-    emerald: 'group-hover:text-emerald-300/60',
-    sand: 'group-hover:text-amber-300/60',
-    wine: 'group-hover:text-rose-300/60',
-    navy: 'group-hover:text-slate-300/60'
-  };
-
-  interface VerifiedArtist {
-    name: string;
-    thumbnail: string;
-    channelId?: string;
-    disambiguation?: string;
-    country?: string;
-    tags?: string[];
-    isTopic?: boolean;
-  }
-
+  // Verified Artist Subview States
   const [selectedArtist, setSelectedArtist] = useState<VerifiedArtist | null>(null);
-  const [verifiedArtist, setVerifiedArtist] = useState<VerifiedArtist | null>(null);
-  const [isVerifyingArtist, setIsVerifyingArtist] = useState(false);
   const [artistTracks, setArtistTracks] = useState<SearchResult[]>([]);
   const [isLoadingArtist, setIsLoadingArtist] = useState(false);
 
-  // Reset selected artist if search query changes
+  // Playlists details view inside My Space
+  const [selectedQueuePlaylist, setSelectedQueuePlaylist] = useState<Playlist | null>(null);
+
+  // Active Session LocalStorage states for Quick-Add bottom carousels
+  const [localFavorites, setLocalFavorites] = useState<SearchResult[]>([]);
+  const [localPlaylists, setLocalPlaylists] = useState<Playlist[]>([]);
+  const [localHistory, setLocalHistory] = useState<SearchResult[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const [showFavorites, setShowFavorites] = useState(true);
+
+  const loadLocalStorageItems = () => {
+    try {
+      const favs = localStorage.getItem('elva_favorites');
+      setLocalFavorites(favs ? JSON.parse(favs) : []);
+      const lists = localStorage.getItem('elva_playlists');
+      setLocalPlaylists(lists ? JSON.parse(lists) : []);
+      const hist = localStorage.getItem('elva_recently_played');
+      setLocalHistory(hist ? JSON.parse(hist) : []);
+    } catch (e) {
+      console.warn('Failed to load storage items in Queue drawer:', e);
+    }
+  };
+
+  useEffect(() => {
+    loadLocalStorageItems();
+  }, [searchQuery, viewMode]);
+
+  useEffect(() => {
+    loadLocalStorageItems();
+  }, []);
+
+  // Reset sub-views if search query changes
   useEffect(() => {
     setSelectedArtist(null);
     setArtistTracks([]);
-    setVerifiedArtist(null);
-    setIsVerifyingArtist(false);
+    setSelectedQueuePlaylist(null);
   }, [searchQuery]);
 
-  // Helper to determine if query matches an artist profile search
   const shouldShowArtistCard = (query: string) => {
     const trimmed = query.trim().toLowerCase();
     if (!trimmed) return false;
-    
-    // Skip if it looks like a URL
     if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return false;
-    
-    // Skip if it has more than 3 words (highly unlikely to be a simple artist name search)
     const words = trimmed.split(/\s+/);
     if (words.length > 3) return false;
-
-    // Common non-artist keywords
-    const blocklist = [
-      'lyrics', 'remix', 'karaoke', 'live', 'cover', 'instrumental', 'acoustic', 
-      'version', 'song', 'sang', 'video', '24 timer', 'vlog', 'hvad', 'hvornår', 
-      'hvorfor', 'hvem', 'hvordan', 'mp3', 'wav', 'flac', 'prod', 'feat', 'ft.'
-    ];
-    
+    const blocklist = ['lyrics', 'remix', 'karaoke', 'live', 'cover', 'instrumental', 'acoustic', 'version'];
     return !blocklist.some(word => trimmed.includes(word));
   };
 
-  // Helper to extract artist name and high-quality cover art
   const getArtistName = (query: string, results: SearchResult[]): { name: string; thumbnail: string; channelId?: string } | null => {
     if (!shouldShowArtistCard(query) || results.length === 0) return null;
-    
     const queryLower = query.trim().toLowerCase();
     if (queryLower.length < 2) return null;
     
-    // Completely dynamic heuristic. An uploader is identified as a real artist profile if:
-    // 1. Their channel/uploader name exactly matches the query (ignoring case/whitespace)
-    // 2. Or their channel name matches official music channel patterns (e.g. "Kesi - Topic", "KesiVEVO", "Kesi Official")
-    // 3. Or their channel name contains the query AND contains official indicator words (e.g. topic, vevo, official, music, band)
     const match = results.find(r => {
       const artistLower = r.artist.trim().toLowerCase();
-      
-      const isExactOrOfficialMatch = 
+      return (
         artistLower === queryLower ||
         artistLower === `${queryLower} - topic` ||
         artistLower === `${queryLower}vevo` ||
-        artistLower === `${queryLower} official` ||
-        artistLower === `${queryLower} music` ||
-        artistLower === `${queryLower} band`;
-      
-      if (isExactOrOfficialMatch) return true;
-      
-      const containsQuery = artistLower.includes(queryLower);
-      const isOfficialEntity = 
-        artistLower.includes('topic') || 
-        artistLower.includes('vevo') || 
-        artistLower.includes('official') || 
-        artistLower.includes('music') ||
-        artistLower.includes('band') ||
-        artistLower.includes('records');
-        
-      if (containsQuery && isOfficialEntity) return true;
-      
-      return false;
+        artistLower.includes(queryLower)
+      );
     });
 
     if (match) {
-      // Clean up the artist name (remove " - Topic", "VEVO", "Official", etc.)
       const cleanedName = match.artist
         .replace(/\s*-\s*Topic$/i, '')
         .replace(/\s*VEVO$/i, '')
         .replace(/\s*Official\s*$/i, '')
         .trim();
-      const isTopic = match.artist.toLowerCase().includes('topic');
       return {
         name: cleanedName,
         thumbnail: match.thumbnail,
-        channelId: match.channelId,
-        isTopic: isTopic
+        channelId: match.channelId
       };
     }
-    
-    // If no channel matches these high-confidence music profiles, suppress the card.
     return null;
-  };
-
-  // Verify artist via MusicBrainz API in background to enrich metadata
-  useEffect(() => {
-    let active = true;
-    
-    const verifyArtist = async () => {
-      if (!shouldShowArtistCard(searchQuery) || searchResults.length === 0) {
-        setVerifiedArtist(null);
-        return;
-      }
-      
-      // Get candidate artist from search results using local heuristics
-      const candidate = getArtistName(searchQuery, searchResults);
-      if (!candidate) {
-        setVerifiedArtist(null);
-        return;
-      }
-
-      // 1. Instantly display the Verified Artist Card (0ms delay) to prevent lag!
-      setVerifiedArtist({
-        name: candidate.name,
-        thumbnail: candidate.thumbnail,
-        channelId: candidate.channelId,
-        isTopic: candidate.isTopic
-      });
-
-      setIsVerifyingArtist(true);
-      try {
-        const queryVal = candidate.name.trim();
-        // 2. Query MusicBrainz silently in the background with a tight 2.5s timeout
-        const response = await fetchWithTimeout(
-          `https://musicbrainz.org/ws/2/artist/?query=artist:${encodeURIComponent(queryVal)}&fmt=json`,
-          {
-            headers: {
-              'User-Agent': 'ElvaMusicApp/1.0 ( contact@elva.fm )'
-            },
-            timeout: 2500 // Tight timeout to prevent hanging on slow MB servers
-          }
-        );
-        
-        if (!response.ok) {
-          throw new Error(`MusicBrainz HTTP error: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        if (!active) return;
-        
-        const artists = data.artists || [];
-        const queryLower = queryVal.toLowerCase();
-        
-        const matchedArtist = artists.find((artist: any) => {
-          const nameLower = (artist.name || '').toLowerCase();
-          const score = artist.score || 0;
-          return score >= 85 && (nameLower === queryLower || nameLower.includes(queryLower) || queryLower.includes(nameLower));
-        });
-        
-        if (matchedArtist && active) {
-          // Extract top tags
-          const tagsList = (matchedArtist.tags || [])
-            .filter((t: any) => (t.count || 0) > 0)
-            .sort((a: any, b: any) => (b.count || 0) - (a.count || 0))
-            .map((t: any) => t.name)
-            .slice(0, 3);
-
-          // 3. Silently merge MusicBrainz metadata (disambiguation, tags, country)
-          setVerifiedArtist(prev => prev ? {
-            ...prev,
-            disambiguation: matchedArtist.disambiguation || undefined,
-            country: matchedArtist.country || undefined,
-            tags: tagsList.length > 0 ? tagsList : undefined
-          } : null);
-        }
-      } catch (error) {
-        console.warn('Background MusicBrainz metadata enrichment failed:', error);
-      } finally {
-        if (active) {
-          setIsVerifyingArtist(false);
-        }
-      }
-    };
-    
-    verifyArtist();
-    
-    return () => {
-      active = false;
-    };
-  }, [searchResults, searchQuery]);
-
-  // Fetch artist profile official releases in background
-  const handleViewArtistProfile = async (artist: VerifiedArtist) => {
-    setSelectedArtist(artist);
-    
-    // 1. Instant pre-population from currently active search results to eliminate any loading delay
-    const nameLower = artist.name.toLowerCase();
-    const matchingResults = searchResults.filter(track => {
-      const trackArtistLower = (track.artist || '').toLowerCase();
-      const trackTitleLower = (track.title || '').toLowerCase();
-      
-      // Strict matching for pre-population
-      let artistMatches = trackArtistLower.includes(nameLower) || nameLower.includes(trackArtistLower);
-      if (!artistMatches && trackTitleLower.includes(nameLower)) {
-        const isCamilo = trackArtistLower.includes('camilo');
-        const isExactTitleMatchDiffArtist = trackTitleLower.trim() === nameLower;
-        if (!isCamilo && !isExactTitleMatchDiffArtist) {
-          artistMatches = true;
-        }
-      }
-      return artistMatches;
-    });
-
-    if (matchingResults.length > 0) {
-      setArtistTracks(matchingResults);
-    } else {
-      setArtistTracks([]);
-    }
-    
-    setIsLoadingArtist(true);
-    
-    try {
-      let rawTracks: SearchResult[] = [];
-      const apiKey = (import.meta as any).env.VITE_YOUTUBE_API_KEY;
-
-      // 2. Fetch concurrently from multiple search variations + channel uploads to get a complete discography!
-      const fetchPromises: Promise<SearchResult[]>[] = [];
-      
-      if (apiKey && artist.channelId && !artist.isTopic && onFetchChannelUploads) {
-        fetchPromises.push(onFetchChannelUploads(artist.channelId, 50));
-      }
-      
-      if (onSearch) {
-        // Concurrently query direct artist search, topic search, and general songs search to find all tracks
-        fetchPromises.push(onSearch(artist.name, 50));
-        fetchPromises.push(onSearch(`${artist.name} topic`, 50));
-        fetchPromises.push(onSearch(`${artist.name} songs`, 50));
-      }
-
-      const resultsLists = await Promise.all(fetchPromises);
-
-      // Merge and deduplicate by track ID
-      const seenIds = new Set<string>();
-      const combinedTracks: SearchResult[] = [];
-      for (const list of resultsLists) {
-        if (list && Array.isArray(list)) {
-          for (const track of list) {
-            if (track && track.id && !seenIds.has(track.id)) {
-              seenIds.add(track.id);
-              combinedTracks.push(track);
-            }
-          }
-        }
-      }
-      rawTracks = combinedTracks;
-
-      // Clean and filter the tracks strictly to keep official, high-quality music releases
-      const cleaned = rawTracks
-        .filter(track => {
-          const titleLower = track.title.toLowerCase();
-          const trackArtistLower = track.artist.toLowerCase();
-          
-          // Strict artist matching to ensure tracks belong to the viewed artist
-          let artistMatches = trackArtistLower.includes(nameLower) || nameLower.includes(trackArtistLower);
-          
-          // Match if artist's name is in the title but uploader is another non-blocklisted entity (like a record label)
-          if (!artistMatches && titleLower.includes(nameLower)) {
-            const isCamilo = trackArtistLower.includes('camilo');
-            const isExactTitleMatchDiffArtist = titleLower.trim() === nameLower;
-            if (!isCamilo && !isExactTitleMatchDiffArtist) {
-              artistMatches = true;
-            }
-          }
-          
-          // Filter out teasers, trailers, vlogs, documentary, behind the scenes from official channels
-          const blocklist = ['teaser', 'trailer', 'vlog', 'behind the scenes', 'bts', 'documentary', 'live stream', 'interview'];
-          return artistMatches && !blocklist.some(word => titleLower.includes(word));
-        })
-        .map(track => {
-          // Strip "- Topic", "VEVO", "Official" from artist uploader names
-          const cleanArtist = track.artist
-            .replace(/\s*-\s*Topic$/i, '')
-            .replace(/\s*VEVO$/i, '')
-            .replace(/\s*Official\s*$/i, '')
-            .trim();
-            
-          const cleanTitle = track.title
-            .replace(/\s*\((Official Audio|Audio|Official Video|Video|Lyrics|Lyric Video)\)$/i, '')
-            .replace(/\s*\[(Official Audio|Audio|Official Video|Video|Lyrics|Lyric Video)\]$/i, '')
-            .trim();
-            
-          return {
-            ...track,
-            artist: cleanArtist,
-            title: cleanTitle
-          };
-        });
-      
-      // If we got new/more tracks, merge them or replace the pre-populated tracks to guarantee completeness
-      if (cleaned.length > 0) {
-        setArtistTracks(cleaned);
-      }
-    } catch (error) {
-      console.error('Failed to load artist profile tracks:', error);
-      toast.error(`Could not fetch official releases for ${artist.name}`);
-    } finally {
-      setIsLoadingArtist(false);
-    }
   };
 
   // Auto-focus search input if requested on mount
@@ -534,7 +177,7 @@ export function Queue({
     }
   }, [focusSearchOnMount]);
 
-  // If search query is cleared, clear search results to return to the Queue view
+  // Clear search results if query is empty
   useEffect(() => {
     if (!searchQuery.trim()) {
       setSearchResults([]);
@@ -544,35 +187,48 @@ export function Queue({
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
 
-    // Check if it's a URL
-    if (searchQuery.match(/^https?:\/\//)) {
+    if (searchQuery.trim().startsWith('http://') || searchQuery.trim().startsWith('https://')) {
       if (onUrlSubmit) {
-        onUrlSubmit(searchQuery);
+        onUrlSubmit(searchQuery.trim());
         setSearchQuery('');
-        onClose();
-        toast.success("Streaming from URL started!");
       }
       return;
     }
 
-    if (!onSearch) return;
-
     setIsSearching(true);
     try {
-      const results = await onSearch(searchQuery);
-      setSearchResults(results);
-      if (results.length === 0) {
-        toast.info("No songs found", {
-          description: "Try searching for a different title or artist."
-        });
+      if (onSearch) {
+        const results = await onSearch(searchQuery.trim(), 20);
+        setSearchResults(results);
+
+        const matched = getArtistName(searchQuery.trim(), results);
+        if (matched && onFetchChannelUploads) {
+          setIsLoadingArtist(true);
+          setSelectedArtist({
+            name: matched.name,
+            thumbnail: matched.thumbnail,
+            channelId: matched.channelId,
+            isTopic: true
+          });
+          const uploads = await onFetchChannelUploads(matched.channelId || '');
+          setArtistTracks(uploads);
+          setIsLoadingArtist(false);
+        }
       }
     } catch (error) {
-      console.error('Sidebar search failed:', error);
-      toast.error("Search failed", {
-        description: "Please check your network connection and try again."
-      });
+      console.error('Queue Search Error:', error);
+      toast.error('Search failed. Please try again.');
     } finally {
       setIsSearching(false);
+      setIsLoadingArtist(false);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && onFileSelect) {
+      onFileSelect(file);
+      toast.success(`Loading local file: ${file.name}`);
     }
   };
 
@@ -580,32 +236,69 @@ export function Queue({
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file && onFileSelect) {
-      onFileSelect(file);
-      onClose();
-      toast.success(`Playing local file: ${file.name}`);
-    }
-  };
-
   const handleAddSongToQueue = (e: React.MouseEvent, song: SearchResult) => {
     e.stopPropagation();
     if (onAddToQueue) {
       onAddToQueue(song);
+      // Let App.tsx handle the toast to prevent double toast alerts!
     }
   };
 
+  const handlePlaySongDirectly = (song: SearchResult) => {
+    if (onSelectSong) {
+      onSelectSong(song);
+      onClose();
+    }
+  };
+
+  const handlePlayPlaylistDirectly = (playlist: Playlist) => {
+    if (playlist.tracks.length === 0) {
+      toast.error("Playlist is empty", {
+        description: "Add some songs to this playlist from the landing page first!"
+      });
+      return;
+    }
+    if (onSelectSong) {
+      onSelectSong(playlist.tracks[0]);
+    }
+    if (onAddToQueue) {
+      playlist.tracks.slice(1).forEach(track => onAddToQueue(track));
+    }
+    toast.success(`Playing playlist: ${playlist.name}`);
+  };
+
+  const artistBubbles = useMemo(() => {
+    if (localHistory.length === 0) return [];
+    const seen = new Set<string>();
+    const bubbles: { name: string; channelId?: string; thumbnail: string }[] = [];
+    
+    localHistory.forEach((song) => {
+      const primaryArtist = getPrimaryArtist(song.artist);
+      const artistName = primaryArtist.trim();
+      if (!artistName) return;
+      const key = artistName.toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        bubbles.push({
+          name: artistName,
+          channelId: song.channelId,
+          thumbnail: song.thumbnail
+        });
+      }
+    });
+    return bubbles.slice(0, 8);
+  }, [localHistory]);
+
   return (
     <>
-      {/* Backdrop: translucent dark overlay with smooth fade */}
+      {/* Drawer Overlay Backdrop */}
       <motion.div
         initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
+        animate={{ opacity: 0.4 }}
         exit={{ opacity: 0 }}
-        transition={{ duration: 0.35, ease: "easeOut" }}
+        transition={{ duration: 0.35 }}
         onClick={onClose}
-        className="fixed inset-0 bg-black/35 backdrop-blur-[2px] z-40 cursor-pointer pointer-events-auto"
+        className="fixed inset-0 bg-black/40 backdrop-blur-[1.5px] z-40 cursor-pointer pointer-events-auto"
       />
 
       {/* Side Panel Drawer */}
@@ -614,144 +307,165 @@ export function Queue({
         animate={{ x: 0 }}
         exit={{ x: '100%' }}
         transition={{ type: 'spring', damping: 26, stiffness: 220 }}
-        className="fixed right-0 top-0 bottom-0 w-full max-w-[460px] bg-neutral-950/40 backdrop-blur-3xl border-l border-white/10 z-50 flex flex-col shadow-[-20px_0_60px_rgba(0,0,0,0.65)] pointer-events-auto overflow-hidden"
+        className="fixed right-0 top-0 bottom-0 w-full max-w-[460px] bg-[#09090b]/85 border-l border-white/10 z-50 flex flex-col shadow-[-20px_0_60px_rgba(0,0,0,0.65)] pointer-events-auto overflow-hidden backdrop-blur-3xl h-full"
       >
-        {/* Ambient background glow reflecting theme colors */}
+        {/* Ambient glow */}
         <div
-          className="absolute inset-0 opacity-15 pointer-events-none"
+          className="absolute inset-0 opacity-10 pointer-events-none"
           style={{
             background: 'radial-gradient(circle at 100% 10%, var(--theme-primary) 0%, transparent 60%), radial-gradient(circle at 100% 90%, var(--theme-secondary) 0%, transparent 60%)'
           }}
         />
 
-        {/* Header */}
-        <div className="relative px-6 py-5 border-b border-white/5 flex items-center justify-between shrink-0 z-10 bg-black/10">
-          <div className="flex items-center gap-2">
-            {selectedArtist ? (
+        {/* 1. Header with View Mode Switchers */}
+        <div className="relative px-6 py-5 border-b border-white/5 flex items-center justify-between shrink-0 z-10 bg-black/10 select-none">
+          {selectedArtist || selectedQueuePlaylist ? (
+            <div className="flex items-center gap-3">
               <button
                 onClick={() => {
                   setSelectedArtist(null);
                   setArtistTracks([]);
+                  setSelectedQueuePlaylist(null);
                 }}
-                className="p-1 hover:bg-white/10 rounded-lg text-white/50 hover:text-white mr-1 transition-colors cursor-pointer"
-                title="Back to search results"
+                className="p-1.5 hover:bg-white/10 rounded-lg text-white/50 hover:text-white transition-colors cursor-pointer"
+                title="Back"
               >
-                <ArrowLeft className="w-4 h-4 animate-pulse" />
+                <ArrowLeft className="w-4 h-4" />
               </button>
-            ) : (
-              <Music className="w-4 h-4 text-white/60" />
-            )}
-            <span className="text-sm font-semibold tracking-wide text-white/90">
-              {selectedArtist
-                ? "Artist Profile"
-                : searchQuery.trim() && searchResults.length > 0
-                ? "Search Results"
-                : "Up Next"}
-            </span>
-            {!selectedArtist && !searchQuery.trim() && (
-              <span className="text-xs text-white/40 font-light">({items.length} songs)</span>
-            )}
-          </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-white/10 rounded-full transition-colors cursor-pointer"
-          >
-            <X className="w-4 h-4 text-white/40 hover:text-white/60" />
-          </button>
+              <span 
+                className="text-lg font-normal tracking-wide text-white/95"
+                style={{ fontFamily: '"Kaobe", serif' }}
+              >
+                {selectedArtist ? "Artist Profile" : "Playlist Tracks"}
+              </span>
+            </div>
+          ) : viewMode === 'library' ? (
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setViewMode('session')}
+                className="p-1.5 hover:bg-white/10 rounded-lg text-white/50 hover:text-white transition-colors cursor-pointer"
+                title="Back to queue"
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </button>
+              <span 
+                className="text-lg font-normal tracking-wide text-white/95"
+                style={{ fontFamily: '"Kaobe", serif' }}
+              >
+                My Space
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              <Music className="w-4 h-4 text-white/40" />
+              <span 
+                className="text-lg font-normal tracking-wide text-white/95"
+                style={{ fontFamily: '"Kaobe", serif' }}
+              >
+                {searchQuery.trim() && searchResults.length > 0 ? "Search Results" : "Active Session"}
+              </span>
+              {!searchQuery.trim() && (
+                <span className="text-[10px] text-white/30 font-normal tracking-wider ml-1.5 lowercase">
+                  ({items.length} {items.length === 1 ? 'song' : 'songs'})
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Header Action Button: My Space / Close */}
+          {!selectedArtist && !selectedQueuePlaylist && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={onClose}
+                className="p-2 hover:bg-white/10 rounded-full transition-colors cursor-pointer ml-1"
+                title="Close Panel"
+              >
+                <X className="w-4 h-4 text-white/40 hover:text-white/60" />
+              </button>
+            </div>
+          )}
         </div>
 
-        {/* Unified Search & Upload Bar (collapses smoothly when viewing Artist Profile) */}
-        <AnimatePresence>
-          {!selectedArtist && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.22, ease: "easeInOut" }}
-              className="relative px-5 py-4 border-b border-white/5 shrink-0 z-10 flex gap-2 bg-black/5 overflow-hidden items-center"
-            >
-              <div className="relative flex-1">
-                <button
-                  onClick={handleSearch}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 p-1.5 hover:bg-white/5 rounded-lg text-white/30 hover:text-white/60 transition-all cursor-pointer z-10"
-                  title="Search"
-                >
-                  <Search className="w-4 h-4" />
-                </button>
-                <input
-                  ref={searchInputRef}
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                  placeholder="Search or paste link..."
-                  className="w-full pl-12 pr-10 py-3 rounded-2xl bg-white/5 border border-white/8 hover:border-white/15 focus:border-white/20 text-white placeholder-white/35 text-sm focus:outline-none transition-all duration-200"
-                />
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery('')}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1 hover:bg-white/10 rounded-full text-white/40 hover:text-white/60 transition-colors z-10"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                )}
-              </div>
-
-              {/* Quick upload button */}
+        {/* 2. Prominent Glass Search Bar (only in active session, not on subviews) */}
+        {!selectedArtist && !selectedQueuePlaylist && viewMode === 'session' && (
+          <div className="relative px-5 py-4 border-b border-white/5 shrink-0 z-10 flex gap-2.5 bg-white/[0.01] items-center">
+            <div className="relative flex-1">
               <button
-                onClick={handleUploadClick}
-                className="w-[46px] h-[46px] p-0 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/8 hover:border-white/15 active:scale-95 transition-all text-white/50 hover:text-white shrink-0 cursor-pointer flex items-center justify-center"
-                title="Upload audio file"
+                onClick={handleSearch}
+                className="absolute left-3 top-1/2 -translate-y-1/2 p-1.5 hover:bg-white/5 rounded-lg text-white/30 hover:text-white/60 transition-all cursor-pointer z-10"
+                title="Execute search"
               >
-                <Upload className="w-4 h-4" />
+                <Search className="w-4 h-4" />
               </button>
               <input
-                ref={fileInputRef}
-                type="file"
-                accept="audio/*"
-                onChange={handleFileChange}
-                className="hidden"
+                ref={searchInputRef}
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                placeholder="Search songs or paste links..."
+                className="w-full pl-12 pr-10 py-3 rounded-2xl bg-white/5 border border-white/8 hover:border-white/15 focus:border-white/20 text-white placeholder-white/30 text-sm focus:outline-none transition-all duration-200"
               />
-            </motion.div>
-          )}
-        </AnimatePresence>
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1 hover:bg-white/10 rounded-full text-white/40 hover:text-white/60 transition-colors z-10 cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
 
-        {/* Drawer Content */}
-        <div className={`flex-1 overflow-y-auto scrollbar-none relative z-10 pb-[120px] ${selectedArtist ? 'p-0' : 'p-4'}`}>
+            <button
+              onClick={handleUploadClick}
+              className="w-[46px] h-[46px] p-0 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/8 hover:border-white/15 active:scale-95 transition-all text-white/50 hover:text-white shrink-0 cursor-pointer flex items-center justify-center"
+              title="Upload custom audio file"
+            >
+              <Upload className="w-4 h-4" />
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="audio/*"
+              onChange={handleFileChange}
+              className="hidden"
+            />
+          </div>
+        )}
+
+        {/* 3. Naturally Scrollable Content (Single Scroll Feed) */}
+        <div className={`flex-1 overflow-y-auto scrollbar-none relative z-10 pb-[120px] ${selectedArtist ? 'p-0' : 'p-5'}`}>
           <AnimatePresence mode="wait">
+            
+            {/* Loading Spinner */}
             {isLoadingArtist ? (
-              /* Artist Loading Spinner */
               <motion.div
                 key="artist-loading"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="flex flex-col items-center justify-center py-20 text-center"
+                className="flex flex-col items-center justify-center py-24 text-center select-none"
               >
-                <Loader2 className="w-8 h-8 text-white/60 animate-spin mb-3 animate-bounce" />
-                <p className="text-xs text-white/40 font-medium tracking-wide">Loading discography...</p>
-                <p className="text-[10px] text-white/20 mt-1">Filtering high-quality studio songs</p>
+                <Loader2 className="w-8 h-8 text-white/40 animate-spin mb-3" />
+                <p className="text-xs text-white/40 font-medium tracking-wide">Loading releases...</p>
               </motion.div>
             ) : selectedArtist ? (
+              
               /* Artist Profile Subview */
               <motion.div
                 key="artist-profile"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
-                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                className="space-y-6"
+                className="space-y-6 text-left"
               >
-                {/* Cinematic Widescreen Artist Profile Banner (100% width, fades to black bottom) */}
                 <div className="relative w-full h-56 overflow-hidden select-none shrink-0">
                   <img src={selectedArtist.thumbnail} alt={selectedArtist.name} className="w-full h-full object-cover" />
-                  {/* Elegant fade mask into the dark panel background */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-neutral-950 via-neutral-950/45 to-transparent" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#09090b] via-[#09090b]/40 to-transparent" />
                   
-                  {/* absolute overlay labels */}
-                  <div className="absolute bottom-4 left-6 right-6 text-left">
-                    <span className={`inline-flex items-center gap-1 text-[10px] font-bold ${textAccent300[accentColor]} tracking-wider ${bgAccent10[accentColor]} ${borderAccent20[accentColor]} px-2.5 py-1 rounded uppercase shrink-0`}>
-                      ✦ Verified Artist
+                  <div className="absolute bottom-4 left-6 right-6">
+                    <span className={`inline-flex items-center gap-1 text-[9px] font-bold ${theme.text} tracking-wider bg-white/5 border border-white/5 px-2 py-0.5 rounded uppercase shrink-0`}>
+                      Verified Artist
                     </span>
                     <h2 
                       className="text-2xl font-normal text-white mt-1.5 tracking-wide leading-tight"
@@ -759,333 +473,618 @@ export function Queue({
                     >
                       {selectedArtist.name}
                     </h2>
-                    {selectedArtist.disambiguation && (
-                      <p className="text-xs text-white/60 mt-1 max-w-xs font-light leading-relaxed italic truncate">
-                        {selectedArtist.disambiguation}
-                      </p>
-                    )}
                   </div>
                 </div>
 
-                {/* Styled Official Discography Divider Header for Sidebar Drawer */}
-                <div className="flex items-center justify-between px-6 py-2 border-b border-white/5">
-                  <div className="flex items-center gap-1.5">
-                    <span className={`text-xs ${textAccent400[accentColor]} font-bold uppercase tracking-wider`}>Official Discography</span>
-                  </div>
-                  <span className="text-xs text-white/45 font-medium uppercase tracking-widest bg-white/5 border border-white/5 px-2 py-0.5 rounded-md">
-                    {artistTracks.length} tracks
-                  </span>
-                </div>
-
-                {/* Tracks list - Direct flat list */}
-                <div className="space-y-0 flex flex-col bg-transparent">
-                  {artistTracks.length === 0 ? (
-                    <div className="py-12 text-center text-white/40">
-                      <Music className="w-8 h-8 text-white/10 mx-auto mb-2" />
-                      <p className="text-xs">No official songs found.</p>
-                    </div>
-                  ) : (
-                    artistTracks.map((track, index) => (
-                      <motion.div
-                        key={`artist-track-${track.id}`}
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: index * 0.03, ease: "easeOut" }}
-                        onClick={() => {
-                          if (onSelectSong) {
-                            onSelectSong(track);
-                            onClose();
-                          }
-                        }}
-                        className="group w-full flex items-center gap-3 py-3.5 px-6 border-b border-white/5 last:border-b-0 hover:bg-white/[0.02] transition-colors duration-300 cursor-pointer"
-                      >
-                        {/* Thumbnail with hover play icon */}
-                        <div className="relative w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 bg-neutral-900 border border-white/5 shadow-md">
-                          <img 
-                            src={track.thumbnail} 
-                            alt={track.title} 
-                            onError={(e) => {
-                              e.currentTarget.onerror = null;
-                              e.currentTarget.src = `https://img.youtube.com/vi/${track.videoId}/mqdefault.jpg`;
-                            }}
-                            className="w-full h-full object-cover" 
-                          />
+                <div className="space-y-1.5 px-5">
+                  {artistTracks.map((track) => (
+                    <div
+                      key={`artist-track-${track.id}`}
+                      onClick={() => handlePlaySongDirectly(track)}
+                      className="group w-full flex items-center justify-between py-2.5 px-4 hover:bg-white/[0.02] transition-colors duration-300 cursor-pointer rounded-2xl border border-transparent hover:border-white/5"
+                    >
+                      <div className="flex items-center gap-3.5 truncate mr-3 flex-1">
+                        <div className="relative w-11 h-11 rounded-xl overflow-hidden flex-shrink-0 bg-neutral-900 border border-white/5 shadow-md">
+                          <img src={track.thumbnail} alt={track.title} className="w-full h-full object-cover" />
                           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                            <Play className="w-4 h-4 text-white fill-white scale-90 group-hover:scale-100 transition-all" />
+                            <Play className="w-3.5 h-3.5 text-white fill-white" />
                           </div>
                         </div>
-
-                        {/* Info */}
-                        <div className="flex-1 text-left min-w-0">
-                          <h3 className="text-sm font-semibold text-white/90 truncate group-hover:text-white transition-colors tracking-tight">
-                            {track.title}
-                          </h3>
-                          <p className="text-xs text-white/45 truncate mt-0.5 font-light">
-                            {track.artist}
-                          </p>
+                        <div className="text-left truncate">
+                          <h3 className="text-xs font-semibold text-white/95 truncate leading-tight tracking-wide">{track.title}</h3>
+                          <p className="text-[10px] text-white/40 truncate mt-0.5 leading-none">{track.artist}</p>
                         </div>
+                      </div>
+                      
+                      {onAddToQueue && (
+                        <button
+                          onClick={(e) => handleAddSongToQueue(e, track)}
+                          className="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 text-white/70 hover:text-white cursor-pointer hover:scale-105 active:scale-95 transition-all shadow-sm"
+                          title="Add to queue"
+                        >
+                          <Plus className="w-3.5 h-3.5 text-current" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            ) : selectedQueuePlaylist ? (
 
-                        {/* Quick Add To Queue */}
-                        {onAddToQueue && (
-                          <button
-                            onClick={(e) => handleAddSongToQueue(e, track)}
-                            className={`flex items-center gap-1 px-2.5 py-1 text-[10px] font-bold ${textAccent300[accentColor]} ${bgAccent05[accentColor]} hover:${bgAccent10[accentColor]} border ${borderAccent10[accentColor]} rounded-full transition-all shrink-0 cursor-pointer`}
-                            title="Add to queue"
-                          >
-                            <Plus className={`w-3 h-3 ${textAccent400[accentColor]}`} />
-                            <span>Queue</span>
-                          </button>
-                        )}
-                      </motion.div>
-                    ))
+              /* Playlist Details Browser View */
+              <motion.div
+                key="playlist-detail"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="space-y-6 text-left"
+              >
+                <div className="relative w-full h-44 overflow-hidden select-none shrink-0 bg-[#0c0c0f] border-b border-white/5 flex flex-col justify-end p-6">
+                  <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${selectedQueuePlaylist.color}`} />
+                  <span className="text-[9px] uppercase font-bold tracking-[0.2em] text-white/30">Playlist</span>
+                  <h2 className="text-2xl font-normal text-white mt-1 leading-tight truncate" style={{ fontFamily: '"Kaobe", serif' }}>
+                    {selectedQueuePlaylist.name}
+                  </h2>
+                  <div className="flex items-center gap-3 mt-3">
+                    <button
+                      onClick={() => handlePlayPlaylistDirectly(selectedQueuePlaylist)}
+                      className="flex items-center gap-1.5 px-4 py-2 bg-white text-black hover:bg-white/95 rounded-full text-[10px] font-bold uppercase transition-all shadow-md active:scale-95 cursor-pointer"
+                    >
+                      <Play className="w-3 h-3 fill-black ml-0.5" />
+                      <span>Play All</span>
+                    </button>
+                    <span className="text-xs text-white/40">{(selectedQueuePlaylist.tracks || []).length} songs</span>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5 px-5">
+                  {(selectedQueuePlaylist.tracks || []).map((track, idx) => (
+                    <div
+                      key={`plist-track-${track.id}-${idx}`}
+                      onClick={() => handlePlaySongDirectly(track)}
+                      className="group w-full flex items-center justify-between py-2.5 px-4 hover:bg-white/[0.02] transition-all duration-300 cursor-pointer rounded-2xl border border-transparent hover:border-white/5"
+                    >
+                      <div className="flex items-center gap-3.5 truncate mr-3 flex-1">
+                        <div className="relative w-11 h-11 rounded-xl overflow-hidden shadow-md shrink-0 border border-white/5 bg-white/5">
+                          <img src={track.thumbnail} alt={track.title} className="w-full h-full object-cover" />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <Play className="w-3.5 h-3.5 text-white fill-white" />
+                          </div>
+                        </div>
+                        <div className="text-left truncate">
+                          <h4 className="text-xs font-semibold text-white/90 truncate max-w-[200px] leading-tight">{track.title}</h4>
+                          <p className="text-[10px] text-white/40 truncate max-w-[200px] mt-0.5 leading-none">{track.artist}</p>
+                        </div>
+                      </div>
+                      
+                      {onAddToQueue && (
+                        <button
+                          onClick={(e) => handleAddSongToQueue(e, track)}
+                          className="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 text-white/70 hover:text-white cursor-pointer hover:scale-105 active:scale-95 transition-all shadow-sm"
+                          title="Add to queue"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  {(!selectedQueuePlaylist.tracks || selectedQueuePlaylist.tracks.length === 0) && (
+                    <div className="py-12 text-center text-white/30 select-none">
+                      <p className="text-xs font-medium">This playlist is empty</p>
+                    </div>
                   )}
                 </div>
               </motion.div>
-            ) : isSearching ? (
-              /* Loading Spinner */
+            ) : viewMode === 'library' ? (
+              
+              /* "My Space" Deeper Library View (Slow Add Subview) */
               <motion.div
-                key="searching"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="flex flex-col items-center justify-center py-20 text-center"
+                key="library-hub"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="space-y-8 text-left select-none p-2"
               >
-                <Loader2 className="w-8 h-8 text-white/60 animate-spin mb-3" />
-                <p className="text-xs text-white/40 font-medium">Searching YouTube...</p>
-              </motion.div>
-            ) : searchQuery.trim() && searchResults.length > 0 ? (
-              /* Search Results List */
-              <motion.div
-                key="search-results"
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -15 }}
-                transition={{ duration: 0.25 }}
-                className="space-y-2"
-              >
-                {/* Search Results Header */}
-                <div className="flex items-center justify-between px-1.5 py-1 mb-3 border-b border-white/5 pb-2">
-                  <span className="text-xs text-white/45 font-bold uppercase tracking-wider">Search Results</span>
+                {/* Playlists Vertical list */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 border-b border-white/5 pb-2">
+                    <ListMusic className="w-4 h-4 text-white/30" />
+                    <h3 className="text-[10px] uppercase tracking-[0.25em] font-bold text-white/40">Playlists</h3>
+                  </div>
+                  {localPlaylists.length === 0 ? (
+                    <div className="py-8 text-center text-white/30 border border-dashed border-white/10 rounded-2xl">
+                      <p className="text-[11px] font-medium leading-relaxed">No playlists found. Create them in My Hub!</p>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-3">
+                      {localPlaylists.map((playlist) => (
+                        <div
+                          key={`lib-plist-${playlist.id}`}
+                          onClick={() => setSelectedQueuePlaylist(playlist)}
+                          className="group w-full flex items-center justify-between p-3.5 rounded-2xl bg-white/[0.015] hover:bg-white/[0.04] border border-white/[0.04] hover:border-white/10 transition-all duration-300 cursor-pointer"
+                        >
+                          <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                            <div className="relative w-12 h-12 rounded-xl overflow-hidden bg-neutral-900 border border-white/5 flex items-center justify-center shrink-0">
+                              <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r ${playlist.color}`} />
+                              {playlist.tracks && playlist.tracks.length > 0 ? (
+                                <img src={playlist.tracks[0].thumbnail} alt={playlist.name} className="w-full h-full object-cover" />
+                              ) : (
+                                <Music className="w-5 h-5 text-white/20" />
+                              )}
+                            </div>
+                            <div className="min-w-0 text-left">
+                              <h4 className="text-sm font-semibold text-white/90 truncate leading-snug group-hover:text-white transition-colors">{playlist.name}</h4>
+                              <p className="text-[11px] text-white/40 mt-0.5 font-medium">{(playlist.tracks || []).length} songs</p>
+                            </div>
+                          </div>
+                          <ChevronRight className="w-4 h-4 text-white/30 group-hover:text-white/60 group-hover:translate-x-0.5 transition-all shrink-0" />
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
-                {/* Glowing Premium Clickable Artist Profile Card */}
-                {shouldShowArtistCard(searchQuery) && verifiedArtist && (
-                  (() => {
-                    const artist = verifiedArtist;
-                    return (
-                      <motion.div
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        onClick={() => handleViewArtistProfile(artist)}
-                        className={`relative overflow-hidden p-5 rounded-3xl bg-gradient-to-br ${fromAccent03[accentColor]} to-white/[0.01] ${borderAccent10[accentColor]} ${hoverBorderAccent20[accentColor]} ${hoverFromAccent05[accentColor]} hover:to-white/[0.02] transition-all duration-300 mb-5 flex items-center justify-between gap-4 group shadow-md cursor-pointer active:scale-[0.99]`}
-                      >
-                        
-                        <div className="flex items-center gap-4 relative z-10">
-                          {/* Circular avatar with emerald border - scaled up to w-16 h-16 */}
-                          <div className={`relative w-16 h-16 rounded-full overflow-hidden border-2 ${borderAccent20[accentColor]} flex-shrink-0 shadow-md group-hover:scale-105 transition-transform duration-300`}>
-                            <img src={artist.thumbnail} alt={artist.name} className="w-full h-full object-cover scale-105" />
+                {/* Favorite Artists Horizontal scroll */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 border-b border-white/5 pb-2">
+                    <User className="w-4 h-4 text-white/30" />
+                    <h3 className="text-[10px] uppercase tracking-[0.25em] font-bold text-white/40">Favorite Artists</h3>
+                  </div>
+                  {artistBubbles.length === 0 ? (
+                    <div className="py-6 text-center text-white/30 border border-dashed border-white/10 rounded-2xl">
+                      <p className="text-[11px] font-medium leading-relaxed">No artists resolved yet.</p>
+                    </div>
+                  ) : (
+                    <div 
+                      className="flex overflow-x-auto gap-4.5 pb-2 scrollbar-none snap-x snap-mandatory"
+                      style={{
+                        maskImage: 'linear-gradient(to right, black 85%, transparent 100%)',
+                        WebkitMaskImage: 'linear-gradient(to right, black 85%, transparent 100%)'
+                      }}
+                    >
+                      {artistBubbles.map((artist, idx) => (
+                        <div
+                          key={`lib-art-${idx}`}
+                          onClick={async () => {
+                            if (onFetchChannelUploads) {
+                              setIsLoadingArtist(true);
+                              setSelectedArtist({
+                                name: artist.name,
+                                thumbnail: artist.thumbnail,
+                                channelId: artist.channelId,
+                                isTopic: true
+                              });
+                              const uploads = await onFetchChannelUploads(artist.channelId || '');
+                              setArtistTracks(uploads);
+                              setIsLoadingArtist(false);
+                            }
+                          }}
+                          className="group flex flex-col items-center gap-2 w-16 shrink-0 snap-start cursor-pointer"
+                          title={`Browse ${artist.name}`}
+                        >
+                          <div className="relative w-16 h-16 rounded-full overflow-hidden p-0.5 border border-white/10 hover:border-white/30 group-hover:scale-105 transition-all duration-300 shadow-md">
+                            <img src={artist.thumbnail} alt={artist.name} className="w-full h-full object-cover rounded-full" />
                           </div>
-                          <div className="flex flex-col text-left">
-                            <div className="flex items-center gap-1.5">
-                              <span className={`text-[10px] font-bold ${textAccent300[accentColor]} tracking-wider ${bgAccent10[accentColor]} ${borderAccent25[accentColor]} px-2 py-0.5 rounded-md uppercase`}>
-                                ✦ Verified Artist
-                              </span>
-                            </div>
-                            <h4 className={`text-sm font-extrabold text-white mt-1 ${groupHoverTextAccent300[accentColor]} transition-colors tracking-tight leading-tight`}>{artist.name}</h4>
-                            {artist.disambiguation && (
-                              <p className="text-[10px] text-white/60 font-semibold mt-0.5 leading-snug">
-                                {artist.disambiguation} {artist.country && `(${artist.country})`}
-                              </p>
-                            )}
-                            {!artist.disambiguation && artist.country && (
-                              <p className="text-[10px] text-white/60 font-semibold mt-0.5">
-                                Artist from {artist.country}
-                              </p>
-                            )}
-                            {artist.tags && artist.tags.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mt-2">
-                                {artist.tags.slice(0, 2).map((tag) => (
-                                  <span
-                                    key={tag}
-                                    className={`text-[10px] font-bold text-white/40 bg-white/5 border border-white/10 px-1.5 py-0.5 rounded-md uppercase tracking-wider ${groupHoverBorderAccent10[accentColor]} ${groupHoverTextAccent300_60[accentColor]} transition-colors`}
-                                  >
-                                    {tag}
-                                  </span>
-                                ))}
+                          <span className="text-[10px] text-white/40 group-hover:text-white transition-colors text-center truncate w-full font-semibold">
+                            {artist.name}
+                          </span>
+                        </div>
+                      ))}
+                      {/* Spacer to prevent text/content clipping by the fade mask */}
+                      <div className="w-[15px] shrink-0 h-1" />
+                    </div>
+                  )}
+                </div>
+
+                {/* All Likes / Favorites list */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 border-b border-white/5 pb-2">
+                    <Heart className="w-4 h-4 text-white/30" />
+                    <h3 className="text-[10px] uppercase tracking-[0.25em] font-bold text-white/40">All Likes</h3>
+                  </div>
+                  {localFavorites.length === 0 ? (
+                    <div className="py-8 text-center text-white/30 border border-dashed border-white/10 rounded-2xl">
+                      <p className="text-[11px] font-medium leading-relaxed">No favorites saved yet.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {localFavorites.map((song) => (
+                        <div
+                          key={`lib-fav-${song.id}`}
+                          onClick={() => handlePlaySongDirectly(song)}
+                          className="group w-full flex items-center justify-between p-3 rounded-2xl bg-white/[0.015] hover:bg-white/[0.04] border border-white/[0.04] hover:border-white/10 transition-all duration-300 shadow-md cursor-pointer"
+                        >
+                          <div className="flex items-center gap-3.5 truncate mr-3 flex-1 text-left">
+                            <div className="relative w-12 h-12 rounded-xl overflow-hidden shadow-lg shrink-0 border border-white/5 bg-white/5">
+                              <img src={song.thumbnail} alt={song.title} className="w-full h-full object-cover" />
+                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <Play className="w-4 h-4 text-white fill-white" />
                               </div>
-                            )}
+                            </div>
+                            <div className="truncate">
+                              <h4 className="text-xs font-semibold text-white/90 truncate tracking-wide leading-tight">{song.title}</h4>
+                              <p className="text-[11px] text-white/50 truncate mt-0.5 leading-none font-medium">{song.artist}</p>
+                            </div>
+                          </div>
+                          {onAddToQueue && (
+                            <button
+                              onClick={(e) => handleAddSongToQueue(e, song)}
+                              className="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 text-white/70 hover:text-white cursor-pointer hover:scale-105 active:scale-95 transition-all shadow-sm"
+                              title="Add to queue"
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            ) : searchQuery.trim() ? (
+              
+              /* Search results list */
+              isSearching ? (
+                <motion.div
+                  key="searching"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="flex flex-col items-center justify-center py-24 text-center select-none"
+                >
+                  <Loader2 className="w-8 h-8 text-white/40 animate-spin mb-3" />
+                  <p className="text-xs text-white/40 font-medium">Searching YouTube...</p>
+                </motion.div>
+              ) : searchResults.length > 0 ? (
+                <motion.div
+                  key="search-results"
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -15 }}
+                  className="space-y-3 p-2 text-left"
+                >
+                  {searchResults.map((song) => (
+                    <div
+                      key={song.id}
+                      onClick={() => handlePlaySongDirectly(song)}
+                      className="group w-full flex items-center justify-between p-3 rounded-2xl bg-white/[0.015] hover:bg-white/[0.04] border border-white/[0.04] hover:border-white/10 transition-all duration-300 shadow-md cursor-pointer"
+                    >
+                      <div className="flex items-center gap-3.5 truncate mr-3 flex-1">
+                        <div className="relative w-14 h-14 rounded-2xl overflow-hidden shadow-lg shrink-0 border border-white/5 bg-white/5">
+                          <img src={song.thumbnail} alt={song.title} className="w-full h-full object-cover" />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <Play className="w-4 h-4 text-white fill-white" />
                           </div>
                         </div>
-                        <ChevronRight className={`w-5 h-5 text-white/20 ${groupHoverTextAccent400[accentColor]} group-hover:translate-x-0.5 transition-all duration-300 shrink-0 self-center relative z-10`} />
-                      </motion.div>
-                    );
-                  })()
-                )}
-
-                {searchResults.map((result, index) => (
-                  <motion.div
-                    key={`search-item-${result.id}`}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.03, ease: "easeOut" }}
-                    onClick={() => {
-                      if (onSelectSong) {
-                        onSelectSong(result);
-                        onClose();
-                      }
-                    }}
-                    className="group w-full flex items-center gap-3 p-2.5 rounded-2xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/5 hover:border-white/10 transition-all duration-300 cursor-pointer"
-                  >
-                    {/* Thumbnail */}
-                    <div className="relative w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 bg-neutral-900 border border-white/5">
-                      <img
-                        src={result.thumbnail}
-                        alt={result.title}
-                        onError={(e) => {
-                          e.currentTarget.onerror = null;
-                          e.currentTarget.src = `https://img.youtube.com/vi/${result.videoId}/mqdefault.jpg`;
-                        }}
-                        className="w-full h-full object-cover"
-                      />
-                      <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <Play className="w-4 h-4 text-white fill-white" />
+                        <div className="text-left truncate">
+                          <h4 className="text-sm font-semibold text-white/95 truncate tracking-wide leading-snug">{song.title}</h4>
+                          <p className="text-xs text-white/50 truncate mt-1 leading-none">{song.artist}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 select-none">
+                        {onAddToQueue && (
+                          <button
+                            onClick={(e) => handleAddSongToQueue(e, song)}
+                            className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 text-white/70 hover:text-white cursor-pointer hover:scale-105 active:scale-95 transition-all shadow-sm"
+                            title="Add to queue"
+                          >
+                            <Plus className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </div>
-
-                    {/* Info */}
-                    <div className="flex-1 text-left min-w-0">
-                      <h3 className="text-sm font-semibold text-white/90 truncate group-hover:text-white transition-colors tracking-tight">
-                        {result.title}
-                      </h3>
-                      <p className="text-xs text-white/45 truncate mt-0.5 font-light">
-                        {result.artist}
-                      </p>
-                    </div>
-
-                    {/* Quick Add To Queue */}
-                    {onAddToQueue && (
+                  ))}
+                </motion.div>
+              ) : (
+                <div className="py-24 text-center select-none">
+                  <p className="text-white/40 text-xs font-semibold">No results found</p>
+                </div>
+              )
+            ) : (
+              
+              /* ACTIVE SESSION SCROLL FEED: Up Next Queue + carousels scroll naturally */
+              <motion.div
+                key="default-active-session"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="flex flex-col gap-8 text-left"
+              >
+                {/* A. Up Next Queue Section */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between select-none">
+                    <h3 className="text-[10px] uppercase tracking-[0.25em] font-bold text-white/40">Up Next</h3>
+                    {items.length > 0 && (
                       <button
-                        onClick={(e) => handleAddSongToQueue(e, result)}
-                        className={`flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-bold ${textAccent300[accentColor]} ${bgAccent05[accentColor]} ${hoverBgAccent15[accentColor]} ${borderAccent10[accentColor]} ${hoverBorderAccent20[accentColor]} rounded-full transition-all shrink-0 cursor-pointer hover:scale-105 active:scale-95 shadow-sm`}
-                        title="Add to queue"
+                        onClick={() => {
+                          if (onClearQueue) {
+                            onClearQueue();
+                          } else {
+                            items.forEach(it => onRemove(it.id));
+                            toast.info("Queue cleared");
+                          }
+                        }}
+                        className="text-[9px] uppercase tracking-widest text-red-400 hover:text-red-300 font-bold transition-colors cursor-pointer"
                       >
-                        <Plus className={`w-3 h-3 ${textAccent400[accentColor]}`} />
-                        <span>Queue</span>
+                        Clear Queue
                       </button>
                     )}
-                  </motion.div>
-                ))}
-              </motion.div>
-            ) : searchQuery.trim() && searchResults.length === 0 ? (
-              /* Search Input Hint when no results are fetched yet */
-              <motion.div
-                key="search-hint"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="flex flex-col items-center justify-center py-20 text-center text-white/40"
-              >
-                <Search className="w-10 h-10 text-white/10 mb-3" />
-                <p className="text-xs font-medium">Press Enter to Search</p>
-                <p className="text-[10px] text-white/20 mt-1 max-w-[200px]">
-                  Search for a song title, artist, or paste a YouTube / stream URL to play.
-                </p>
-              </motion.div>
-            ) : (
-              /* Queue List (Default) */
-              <motion.div
-                key="queue-list"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="space-y-2"
-              >
-                {items.length === 0 ? (
-                  <div className="py-24 text-center">
-                    <Music className="w-10 h-10 text-white/15 mx-auto mb-3" />
-                    <p className="text-xs text-white/50 font-semibold">Your queue is empty</p>
-                    <p className="text-[10px] text-white/30 mt-1.5 max-w-[220px] mx-auto leading-relaxed">
-                      Use the search bar above to look up songs or drop a file to start a session.
-                    </p>
                   </div>
-                ) : (
-                  <AnimatePresence mode="popLayout">
-                    {items.map((item, index) => {
-                      const isCurrent = item.id === currentSongId;
 
-                      return (
-                        <motion.div
-                          key={`queue-item-${item.id}`}
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, scale: 0.95, height: 0, marginBottom: 0, padding: 0 }}
-                          transition={{
-                            duration: 0.22,
-                            delay: index * 0.015,
-                            ease: "easeOut"
-                          }}
-                          onClick={() => onSelect(item.id)}
-                          className={`group w-full flex items-center gap-3 p-2.5 rounded-2xl border transition-all cursor-pointer ${
-                            isCurrent
-                              ? `${bgAccent10[accentColor]} ${borderAccent25[accentColor]} ${hoverBgAccent15[accentColor]}`
-                              : 'bg-white/[0.02] border-white/5 hover:border-white/10 hover:bg-white/[0.05]'
-                          }`}
-                        >
-                          {/* Thumbnail */}
-                          <div className="relative w-11 h-11 rounded-xl overflow-hidden flex-shrink-0 bg-neutral-900 border border-white/5">
-                             <img
-                               src={item.thumbnail}
-                               alt={item.title}
-                               onError={(e) => {
-                                 e.currentTarget.onerror = null;
-                                 e.currentTarget.src = `https://img.youtube.com/vi/${item.videoId}/mqdefault.jpg`;
-                               }}
-                               className="w-full h-full object-cover"
-                             />
-                            {isCurrent ? (
-                              <div className={`absolute inset-0 ${bgAccent20[accentColor]} flex items-end justify-center gap-[2px] pb-1.5`}>
-                                <div className={`eq-bar-1 w-[3px] rounded-full ${bgAccent400[accentColor]}`} style={{height: '3px'}} />
-                                <div className={`eq-bar-2 w-[3px] rounded-full ${bgAccent400[accentColor]}`} style={{height: '8px'}} />
-                                <div className={`eq-bar-3 w-[3px] rounded-full ${bgAccent400[accentColor]}`} style={{height: '5px'}} />
+                  {items.length === 0 ? (
+                    <div className="flex items-center gap-3.5 p-3 rounded-2xl border border-white/[0.04] bg-white/[0.005] select-none text-left min-h-[88px] transition-all duration-300">
+                      <div className="w-16 h-16 rounded-2xl border border-white/5 bg-white/[0.02] flex items-center justify-center shrink-0">
+                        <Music className="w-5 h-5 text-white/20 animate-pulse" />
+                      </div>
+                      <div className="truncate">
+                        <h4 className="text-sm font-semibold text-white/50 tracking-wide leading-tight">Your queue is empty</h4>
+                        <p className="text-[10px] text-white/25 mt-1.5 leading-snug font-medium truncate max-w-[240px]">
+                          Add tracks from likes or playlists below
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-2.5">
+                      <AnimatePresence mode="popLayout">
+                        {items.map((item, index) => {
+                          // 100% Robust matches utilizing videoId AND title + artist checks!
+                          const isCurrent = 
+                            (item.videoId && item.videoId === currentSongId) || 
+                            (songData && item.title.toLowerCase() === songData.title.toLowerCase() && 
+                             item.artist.toLowerCase() === songData.artist.toLowerCase());
+
+                          return (
+                            <motion.div
+                              key={`queue-item-${item.id}`}
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, scale: 0.95, height: 0, marginBottom: 0, padding: 0 }}
+                              transition={{ duration: 0.22, delay: index * 0.01, ease: "easeOut" }}
+                              onClick={() => onSelect(item.id)}
+                              className={`group w-full flex items-center justify-between p-3 rounded-2xl border transition-all duration-300 cursor-pointer ${
+                                isCurrent
+                                  ? `bg-white/[0.05] border-white/15 shadow-md shadow-black/35 ${theme.border}`
+                                  : 'bg-white/[0.015] border-white/[0.03] hover:border-white/10 hover:bg-white/[0.04]'
+                              }`}
+                            >
+                              <div className="flex items-center gap-3.5 truncate mr-3 flex-1">
+                                {/* Option C: Large 64px cover sleeves */}
+                                <div className="relative w-16 h-16 rounded-2xl overflow-hidden shadow-lg shrink-0 border border-white/5 bg-white/5 z-10">
+                                  <img
+                                    src={item.thumbnail}
+                                    alt={item.title}
+                                    onError={(e) => {
+                                      e.currentTarget.onerror = null;
+                                      e.currentTarget.src = `https://img.youtube.com/vi/${item.videoId}/mqdefault.jpg`;
+                                    }}
+                                    className="w-full h-full object-cover"
+                                  />
+                                  {isCurrent ? (
+                                    /* Custom Equalizer overlays matching system theme keyframes */
+                                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center gap-[2.5px] pb-1.5 z-10">
+                                      <div className="eq-bar-1 w-[3px] rounded-full bg-white" style={{ height: '3px' }} />
+                                      <div className="eq-bar-2 w-[3px] rounded-full bg-white" style={{ height: '8px' }} />
+                                      <div className="eq-bar-3 w-[3px] rounded-full bg-white" style={{ height: '5px' }} />
+                                    </div>
+                                  ) : (
+                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                      <Play className="w-4 h-4 text-white fill-white ml-0.5" />
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div className="text-left truncate">
+                                  <h4 className={`text-sm font-semibold truncate tracking-wide leading-tight transition-colors ${
+                                    isCurrent ? theme.text : 'text-white/85 group-hover:text-white'
+                                  }`}>
+                                    {item.title}
+                                  </h4>
+                                  <p className="text-xs text-white/40 truncate mt-1 leading-none font-medium">
+                                    {item.artist}
+                                  </p>
+                                </div>
                               </div>
-                            ) : (
-                              <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                <Play className="w-3.5 h-3.5 text-white fill-white" />
+
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onRemove(item.id);
+                                  toast.info("Removed from queue");
+                                }}
+                                className="opacity-0 group-hover:opacity-100 p-2 hover:bg-white/5 rounded-xl transition-all shrink-0 cursor-pointer text-white/45 hover:text-white/70"
+                                title="Remove from queue"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </motion.div>
+                          );
+                        })}
+                      </AnimatePresence>
+                    </div>
+                  )}
+                </div>
+
+                {/* B. Quick-Add Favorites Section (scroll-stacked below queue) */}
+                {localFavorites.length > 0 && (
+                  <div className="space-y-3.5 select-none">
+                    <div className="flex items-center justify-between select-none pr-1">
+                      <div className="flex items-center gap-1.5">
+                        <Heart className="w-3.5 h-3.5 text-white/30" />
+                        <h3 className="text-[10px] uppercase tracking-[0.25em] font-bold text-white/40">Quick-Add Likes</h3>
+                      </div>
+                      <button 
+                        onClick={() => setShowFavorites(!showFavorites)}
+                        className="p-1 hover:bg-white/5 rounded-lg text-white/30 hover:text-white/60 transition-all cursor-pointer"
+                        title={showFavorites ? "Collapse Likes" : "Expand Likes"}
+                      >
+                        <ChevronRight className={`w-3.5 h-3.5 transition-transform duration-300 ${showFavorites ? 'rotate-90' : 'rotate-0'}`} />
+                      </button>
+                    </div>
+
+                    <AnimatePresence initial={false}>
+                      {showFavorites && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.25, ease: 'easeInOut' }}
+                          className="overflow-hidden pb-1"
+                        >
+                          <div 
+                            className="flex overflow-x-auto gap-4 pb-2.5 scrollbar-none snap-x snap-mandatory"
+                            style={{
+                              maskImage: 'linear-gradient(to right, black 85%, transparent 100%)',
+                              WebkitMaskImage: 'linear-gradient(to right, black 85%, transparent 100%)'
+                            }}
+                          >
+                            {localFavorites.slice(0, 10).map((song) => (
+                              <div
+                                key={`fav-card-${song.id}`}
+                                onClick={() => {
+                                  if (onAddToQueue) {
+                                    onAddToQueue(song);
+                                  }
+                                }}
+                                className="group relative flex flex-col gap-2.5 w-28 shrink-0 snap-start cursor-pointer"
+                                title={`Queue ${song.title}`}
+                              >
+                                <div className="relative w-28 h-28 rounded-2xl overflow-hidden shadow-md border border-white/5 bg-white/5">
+                                  <img
+                                    src={song.thumbnail}
+                                    alt={song.title}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                      e.currentTarget.onerror = null;
+                                      e.currentTarget.src = `https://img.youtube.com/vi/${song.videoId}/mqdefault.jpg`;
+                                    }}
+                                  />
+                                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                                    <div className="p-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 shadow-md">
+                                      <Plus className="w-4.5 h-4.5 text-white" />
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="text-left w-full">
+                                  <h4 className="text-xs font-semibold text-white/80 truncate leading-tight tracking-wide group-hover:text-white transition-colors">
+                                    {song.title}
+                                  </h4>
+                                  <p className="text-[11px] text-white/40 truncate mt-1 leading-none font-medium">
+                                    {song.artist}
+                                  </p>
+                                </div>
+                              </div>
+                            ))}
+
+                            {/* End-gate History Card */}
+                            {localHistory.length > 0 && (
+                              <div
+                                onClick={() => setShowHistory(!showHistory)}
+                                className="group relative flex flex-col gap-2.5 w-24 shrink-0 snap-start cursor-pointer select-none items-center justify-center h-28"
+                                title={showHistory ? "Hide listening history" : "Show listening history"}
+                              >
+                                <div className={`p-2.5 rounded-2xl bg-white/5 ${showHistory ? 'text-white/85 rotate-180' : 'text-white/35'} group-hover:bg-white/10 group-hover:text-white group-hover:scale-110 transition-all duration-300`}>
+                                  <History className="w-5 h-5 text-current" />
+                                </div>
+                                <span className="text-[9px] uppercase tracking-[0.15em] text-white/30 group-hover:text-white/70 transition-colors font-bold leading-tight text-center mt-1">
+                                  {showHistory ? "Hide\nHistory" : "View\nHistory"}
+                                </span>
                               </div>
                             )}
-                          </div>
 
-                          {/* Info */}
-                          <div className="flex-1 text-left min-w-0">
-                            <h3 className={`text-sm font-semibold truncate tracking-tight transition-colors ${
-                              isCurrent ? textAccent300[accentColor] : 'text-white/85 group-hover:text-white'
-                            }`}>
-                              {item.title}
-                            </h3>
-                            <p className="text-xs text-white/40 truncate mt-0.5 font-light">
-                              {item.artist}
-                            </p>
+                            {/* Spacer to prevent text/content clipping by the fade mask */}
+                            <div className="w-[15px] shrink-0 h-1" />
                           </div>
-
-                          {/* Remove button */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onRemove(item.id);
-                              toast.info("Removed from queue");
-                            }}
-                            className="opacity-0 group-hover:opacity-100 p-2 hover:bg-white/10 rounded-full transition-all shrink-0 cursor-pointer text-white/40 hover:text-white/60"
-                            title="Remove from queue"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
                         </motion.div>
-                      );
-                    })}
-                  </AnimatePresence>
+                      )}
+                    </AnimatePresence>
+                  </div>
                 )}
+
+                {/* Understated Library Shortcut Pill */}
+                <div className="py-2 mt-4 flex items-center justify-center select-none shrink-0">
+                  <button 
+                    onClick={() => setViewMode('library')}
+                    className={`group flex items-center gap-2 px-5 py-2.5 rounded-full border ${theme.borderCard} hover:${theme.borderHover} bg-white/[0.015] hover:bg-white/[0.045] transition-all duration-300 shadow-sm cursor-pointer`}
+                  >
+                    <Sparkles className={`w-3.5 h-3.5 ${theme.text} animate-pulse`} />
+                    <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/50 group-hover:text-white/80 transition-colors">
+                      Browse Full Library
+                    </span>
+                    <ChevronRight className="w-3.5 h-3.5 text-white/30 group-hover:text-white/60 group-hover:translate-x-0.5 transition-all" />
+                  </button>
+                </div>
+
+                {/* C. Recently Played Section (scroll-stacked at the very bottom, conditionally toggled) */}
+                <AnimatePresence>
+                  {showHistory && localHistory.length > 0 && (
+                    <motion.div 
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.3, ease: 'easeInOut' }}
+                      className="space-y-3.5 select-none mt-2 overflow-hidden"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <History className="w-3.5 h-3.5 text-white/30" />
+                        <h3 className="text-[10px] uppercase tracking-[0.25em] font-bold text-white/40">Recently Played</h3>
+                      </div>
+
+                      <div 
+                        className="flex overflow-x-auto gap-4 pb-2.5 scrollbar-none snap-x snap-mandatory"
+                        style={{
+                          maskImage: 'linear-gradient(to right, black 85%, transparent 100%)',
+                          WebkitMaskImage: 'linear-gradient(to right, black 85%, transparent 100%)'
+                        }}
+                      >
+                        {localHistory.slice(0, 10).map((song) => (
+                          <div
+                            key={`hist-card-${song.id}`}
+                            onClick={() => {
+                              if (onAddToQueue) {
+                                onAddToQueue(song);
+                              }
+                            }}
+                            className="group relative flex flex-col gap-2.5 w-28 shrink-0 snap-start cursor-pointer"
+                            title={`Re-play ${song.title}`}
+                          >
+                            <div className="relative w-28 h-28 rounded-2xl overflow-hidden shadow-md border border-white/5 bg-white/5">
+                              <img
+                                src={song.thumbnail}
+                                alt={song.title}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  e.currentTarget.onerror = null;
+                                  e.currentTarget.src = `https://img.youtube.com/vi/${song.videoId}/mqdefault.jpg`;
+                                }}
+                              />
+                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                                <div className="p-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 shadow-md">
+                                  <Plus className="w-4.5 h-4.5 text-white" />
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="text-left w-full">
+                              <h4 className="text-xs font-semibold text-white/80 truncate leading-tight tracking-wide group-hover:text-white transition-colors">
+                                {song.title}
+                              </h4>
+                              <p className="text-[11px] text-white/40 truncate mt-1 leading-none font-medium">
+                                {song.artist}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+
+                        {/* Spacer to prevent text/content clipping by the fade mask */}
+                        <div className="w-[15px] shrink-0 h-1" />
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </motion.div>
             )}
+
           </AnimatePresence>
         </div>
       </motion.div>

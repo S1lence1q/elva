@@ -15,8 +15,10 @@ import { DiscoverView } from './components/DiscoverView';
 import { ProfileHubView } from './components/ProfileHubView';
 import { KeyboardShortcutsModal } from './components/KeyboardShortcutsModal';
 import { FluidBackground } from './components/FluidBackground';
+import { getPrimaryArtist } from './utils/stringUtils';
 
 import { SearchResult, VerifiedArtist } from './types';
+import { getDynamicFallbackColors, extractColorsFromImage } from './utils/playerColorUtils';
 import {
   decodeHTMLEntities,
   getArtistDynamicColors,
@@ -298,10 +300,10 @@ export default function App() {
       let updated;
       if (exists) {
         updated = prev.filter((item) => item.id !== song.id);
-        toast.info('Fjernet fra favoritter', { description: song.title });
+        toast.info('Removed from favorites', { description: song.title });
       } else {
         updated = [...prev, song];
-        toast.success('Tilføjet til favoritter', { description: song.title });
+        toast.success('Added to favorites', { description: song.title });
       }
       localStorage.setItem('elva_favorites', JSON.stringify(updated));
       return updated;
@@ -354,6 +356,8 @@ export default function App() {
     videoId?: string;
     channelId?: string;
   } | null>(null);
+
+  const [songColors, setSongColors] = useState<{ primary: string; secondary: string; accent: string } | null>(null);
 
   // Ref for the root container to performantly track and apply mouse coordinates for spotlight grids without React re-renders
   const containerRef = useRef<HTMLDivElement>(null);
@@ -446,6 +450,14 @@ export default function App() {
     localStorage.setItem('elva_show_settings_btn', String(showSettingsButton));
   }, [showSettingsButton]);
 
+  const [enableCustomLyrics, setEnableCustomLyrics] = useState(() => {
+    return localStorage.getItem('elva_enable_custom_lyrics') === 'true';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('elva_enable_custom_lyrics', String(enableCustomLyrics));
+  }, [enableCustomLyrics]);
+
   const [focusedResultIndex, setFocusedResultIndex] = useState<number>(-1);
   const [loadingSongId, setLoadingSongId] = useState<string | null>(null);
 
@@ -459,27 +471,36 @@ export default function App() {
 
   // Helper to retrieve normalized WebGL colors representing current active context
   const getWebGLBackgroundColors = () => {
+    // If a song is loading or playing, transition directly to the extracted song colors!
+    if ((appState === 'ready' || appState === 'processing') && songColors) {
+      return {
+        c1: songColors.primary,
+        c2: songColors.secondary,
+        c3: songColors.accent
+      };
+    }
+
     if (selectedArtist && artistColors) {
       const nameLower = selectedArtist.name.toLowerCase();
       if (nameLower.includes('kundo')) {
         return {
-          c1: '#1b3024', // Deep forest sage green base
-          c2: '#5c8f72', // Sophisticated dusty sage green glow
-          c3: '#2a2438', // Deep muted lavender-purple contrast shadow
+          c1: '#121815', // Deep spruce pine green obsidian
+          c2: '#25342c', // Sophisticated quiet spruce slate glow
+          c3: '#060907', // Spruce contrast shadow
         };
       }
       if (nameLower.includes('kesi')) {
         return {
-          c1: '#3d261c', // Deep roasted coffee brown base
-          c2: '#a88870', // Dusty warm sand / elegant linen glow
-          c3: '#4a3728', // Dull dark bronze / clay contrast shadow
+          c1: '#161412', // Deep warm earth obsidian
+          c2: '#2f2722', // Sophisticated quiet warm sand slate glow
+          c3: '#070605', // Earth contrast shadow
         };
       }
       if (nameLower.includes('lamin')) {
         return {
-          c1: '#21182c', // Deep lavender-indigo slate base
-          c2: '#7c638e', // Dusty glowing amethyst/lavender
-          c3: '#182030', // Dull dark slate shadow
+          c1: '#141319', // Deep amethyst obsidian
+          c2: '#282433', // Sophisticated quiet amethyst/lavender slate glow
+          c3: '#060508', // Amethyst contrast shadow
         };
       }
       return {
@@ -490,9 +511,10 @@ export default function App() {
     }
 
     // 3-way Linear hex interpolation based on vertical scrollProgress
-    const searchColors = { c1: '#1c0d2e', c2: '#3d2810', c3: '#07050d' };
-    const discoverColors = { c1: '#0a2a2d', c2: '#0b1c11', c3: '#040d0e' };
-    const myHubColors = { c1: '#321c4f', c2: '#12233c', c3: '#07050a' };
+    // Calmed down completely: stunning polished mercury silver main background with mild, clean analogous slate scroll flows
+    const searchColors = { c1: '#111216', c2: '#323640', c3: '#040507' }; // Main background: Polished Mercury Silver & Deep Obsidian Slate
+    const discoverColors = { c1: '#141720', c2: '#2c3547', c3: '#07090d' }; // Discover: Sophisticated quiet steel slate-blue glow
+    const myHubColors = { c1: '#161513', c2: '#35322e', c3: '#060504' }; // My Hub: Sophisticated quiet warm platinum ash-silver glow
 
     if (scrollProgress <= 0.5) {
       const factor = scrollProgress / 0.5;
@@ -1107,9 +1129,11 @@ export default function App() {
   };
 
   const handleViewArtistByName = async (artistName: string, channelId?: string) => {
-    const nameTrimmed = artistName.trim();
+    // Extract the primary artist name from collaborative values (e.g. "Lamin, Kesi" -> "Lamin")
+    const primaryArtistName = getPrimaryArtist(artistName);
+    const nameTrimmed = primaryArtistName.trim();
     if (!nameTrimmed || nameTrimmed === 'Unknown Artist' || nameTrimmed === 'Web Stream') {
-      toast.error('Ugyldig kunstner');
+      toast.error('Invalid artist');
       return;
     }
 
@@ -1225,8 +1249,8 @@ export default function App() {
             finalArtwork = resolved[0].thumbnail;
           }
         } else {
-          toast.error("Kunne ikke afspille sang", {
-            description: "Der blev ikke fundet nogen lydstrøm på YouTube."
+          toast.error("Could not play song", {
+            description: "No audio stream was found on YouTube."
           });
           setLoadingSongId(null);
           setAppState('landing');
@@ -1234,8 +1258,8 @@ export default function App() {
         }
       } catch (e) {
         console.error("Failed to dynamically resolve YouTube video ID:", e);
-        toast.error("Fejl ved afspilning", {
-          description: "Kunne ikke hente lydstrømmen for sangen."
+        toast.error("Playback error", {
+          description: "Could not retrieve the audio stream for this song."
         });
         setLoadingSongId(null);
         setAppState('landing');
@@ -1250,6 +1274,14 @@ export default function App() {
       thumbnail: finalArtwork
     });
 
+    // Calculate dynamic fallback colors immediately to start background LERP transition
+    const fallbacks = getDynamicFallbackColors(result.title, result.artist);
+    setSongColors({
+      primary: fallbacks.primary,
+      secondary: fallbacks.secondary,
+      accent: fallbacks.accent
+    });
+
     if (appState === 'ready') {
       setSongData({
         title: result.title,
@@ -1259,6 +1291,20 @@ export default function App() {
         videoId: finalVideoId,
         channelId: result.channelId
       });
+      
+      // Perform background color extraction on active player
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      if (finalArtwork && (finalArtwork.includes('ytimg.com') || finalArtwork.includes('youtube.com') || finalArtwork.startsWith('http'))) {
+        img.src = `https://images.weserv.nl/?url=${encodeURIComponent(finalArtwork)}`;
+      } else {
+        img.src = finalArtwork;
+      }
+      img.onload = () => {
+        const extracted = extractColorsFromImage(img, result.title, result.artist);
+        setSongColors(extracted);
+      };
+
       if (tourType !== null && tourStep === 0) {
         setTourStep(1);
       }
@@ -1271,7 +1317,20 @@ export default function App() {
     const startTime = Date.now();
     const minDisplayTime = 1200; // 1.2s guaranteed display for buttery transitions
 
+    // Preload image before transitioning and perform color extraction
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    if (finalArtwork && (finalArtwork.includes('ytimg.com') || finalArtwork.includes('youtube.com') || finalArtwork.startsWith('http'))) {
+      img.src = `https://images.weserv.nl/?url=${encodeURIComponent(finalArtwork)}`;
+    } else {
+      img.src = finalArtwork;
+    }
+
     const proceedToReady = () => {
+      // Extract colors from the preloaded image directly in App.tsx
+      const extracted = extractColorsFromImage(img, result.title, result.artist);
+      setSongColors(extracted);
+
       const elapsedTime = Date.now() - startTime;
       const remainingTime = Math.max(0, minDisplayTime - elapsedTime);
 
@@ -1292,9 +1351,6 @@ export default function App() {
       }, remainingTime);
     };
 
-    // Preload image before transitioning
-    const img = new Image();
-    img.src = finalArtwork;
     img.onload = proceedToReady;
     img.onerror = proceedToReady;
   };
@@ -1316,6 +1372,11 @@ export default function App() {
 
   const handleRemoveFromQueue = (id: string) => {
     setQueue(queue.filter(item => item.id !== id));
+  };
+
+  const handleClearQueue = () => {
+    setQueue([]);
+    toast.info("Queue cleared");
   };
 
   const handleSelectFromQueue = (id: string) => {
@@ -1633,6 +1694,7 @@ export default function App() {
                   onSelectSong={handleSelectSong}
                   onAddToQueue={handleAddToQueue}
                   accentColor={accentColor}
+                  onSelectArtist={setSelectedArtist}
                 />
               </section>
             </div>
@@ -1700,8 +1762,10 @@ export default function App() {
               songData={songData}
               queue={queue}
               accentColor={accentColor}
+              songColors={songColors}
               onAccentColorChange={setAccentColor}
               onRemoveFromQueue={handleRemoveFromQueue}
+              onClearQueue={handleClearQueue}
               onSelectFromQueue={handleSelectFromQueue}
               onAddToQueue={handleAddToQueue}
               onSelectSong={handleSelectSong}
@@ -1726,6 +1790,8 @@ export default function App() {
               onEnable3DTiltChange={setEnable3DTilt}
               showSettingsButton={showSettingsButton}
               onShowSettingsButtonChange={setShowSettingsButton}
+              enableCustomLyrics={enableCustomLyrics}
+              onEnableCustomLyricsChange={setEnableCustomLyrics}
               onFileSelect={(file) => {
                 if (appState === 'ready') {
                   setSongData({
@@ -1780,6 +1846,8 @@ export default function App() {
             onEnable3DTiltChange={setEnable3DTilt}
             showSettingsButton={showSettingsButton}
             onShowSettingsButtonChange={setShowSettingsButton}
+            enableCustomLyrics={enableCustomLyrics}
+            onEnableCustomLyricsChange={setEnableCustomLyrics}
           />
         )}
       </AnimatePresence>

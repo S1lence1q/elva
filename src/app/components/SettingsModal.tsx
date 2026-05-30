@@ -21,6 +21,8 @@ interface SettingsModalProps {
   onShowSettingsButtonChange?: (show: boolean) => void;
   textureStyle?: 'paper' | 'dots' | 'none';
   onTextureStyleChange?: (style: 'paper' | 'dots' | 'none') => void;
+  enableCustomLyrics?: boolean;
+  onEnableCustomLyricsChange?: (enable: boolean) => void;
 }
 
 function Toggle({ 
@@ -82,7 +84,9 @@ export function SettingsModal({
   showSettingsButton = false,
   onShowSettingsButtonChange,
   textureStyle = 'paper',
-  onTextureStyleChange
+  onTextureStyleChange,
+  enableCustomLyrics = false,
+  onEnableCustomLyricsChange
 }: SettingsModalProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
   
@@ -153,7 +157,7 @@ export function SettingsModal({
         <div className="p-6 space-y-6 overflow-y-auto scrollbar-none">
           {/* Color Theme Preset */}
           <div>
-            <h3 className="text-xs font-semibold text-white/45 uppercase tracking-[0.12em] mb-3 px-1">Atmosfæriske Temaer</h3>
+            <h3 className="text-xs font-semibold text-white/45 uppercase tracking-[0.12em] mb-3 px-1">Atmospheric Themes</h3>
             <div className="grid grid-cols-2 gap-2.5">
               <motion.button
                 whileHover={{ scale: 1.015 }}
@@ -169,7 +173,7 @@ export function SettingsModal({
                   <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-rose-400 via-emerald-400 to-blue-400 shrink-0 shadow-[0_0_12px_rgba(255,255,255,0.15)] animate-pulse" style={{ animationDuration: '3s' }} />
                   <div>
                     <span className={`text-sm block font-light ${themePreset === 'dynamic' ? 'text-white' : 'text-white/70'}`}>Dynamic Album Cover</span>
-                    <span className="text-[10px] text-white/35 font-light mt-0.5 block leading-normal">Farverne morfer og tilpasser sig coveret i realtid</span>
+                    <span className="text-[10px] text-white/35 font-light mt-0.5 block leading-normal">Colors morph and adapt to the cover in real-time</span>
                   </div>
                 </div>
               </motion.button>
@@ -245,7 +249,7 @@ export function SettingsModal({
                   <div className="w-4 h-4 rounded-full bg-gradient-to-tr from-[#f97316] via-[#7c3aed] to-[#d946ef] shrink-0 shadow-[0_0_8px_rgba(249,115,22,0.25)]" />
                   <div className="truncate">
                     <span className={`text-sm block truncate font-light ${themePreset === 'sunset' ? 'text-white font-normal' : 'text-white/70'}`}>Sunset</span>
-                    <span className="text-[9px] text-white/35 truncate block font-light mt-0.5 uppercase tracking-wider">Aftenrøde</span>
+                    <span className="text-[9px] text-white/35 truncate block font-light mt-0.5 uppercase tracking-wider">Sunset Glow</span>
                   </div>
                 </div>
               </motion.button>
@@ -254,12 +258,12 @@ export function SettingsModal({
 
           {/* Aesthetic stack - unified card group */}
           <div className="space-y-3">
-            <h3 className="text-xs font-semibold text-white/45 uppercase tracking-[0.12em] px-1">Visuelle Præferencer</h3>
+            <h3 className="text-xs font-semibold text-white/45 uppercase tracking-[0.12em] px-1">Visual Preferences</h3>
             <Toggle
               checked={textureStyle !== 'none'}
               onChange={(on) => onTextureStyleChange?.(on ? 'paper' : 'none')}
               label="Film Grain Texture"
-              description="Subtil analog retro-støj for et mat, taktilt papir-look"
+              description="Subtle analog retro-noise for a matte, tactile paper-look"
               accentColor={accentColor}
             />
 
@@ -267,7 +271,7 @@ export function SettingsModal({
               checked={zenMode} 
               onChange={(c) => onZenModeChange?.(c)} 
               label="Zen Mode" 
-              description="Skjul automatisk kontroller ved inaktivitet for komplet ro"
+              description="Automatically hide controls during inactivity for complete peace"
               accentColor={accentColor}
             />
           </div>
@@ -301,7 +305,7 @@ export function SettingsModal({
                   <div className="space-y-4 pt-4 pb-1">
                     {/* Accent Color Section inside Advanced */}
                     <div className="p-4 rounded-2xl bg-white/[0.015] border border-white/5 space-y-3.5">
-                      <span className="text-[10px] font-semibold text-white/40 uppercase tracking-[0.12em] block px-0.5">Manuelle Accentfarver</span>
+                      <span className="text-[10px] font-semibold text-white/44 uppercase tracking-[0.12em] block px-0.5">Manual Accent Colors</span>
                       <div className="grid grid-cols-4 gap-2">
                         {(['emerald', 'sand', 'wine', 'navy'] as AccentColor[]).map((color) => {
                           const isActive = accentColor === color;
@@ -348,21 +352,28 @@ export function SettingsModal({
                         checked={enable3DTilt} 
                         onChange={(c) => onEnable3DTiltChange?.(c)} 
                         label="3D Hover Effects" 
-                        description="Tilt albumcoveret blødt efter musens bevægelse"
+                        description="Softly tilt the album cover according to mouse movement"
                         accentColor={accentColor}
                       />
                       <Toggle 
                         checked={showVolumeSlider} 
                         onChange={(c) => onShowVolumeSliderChange?.(c)} 
                         label="Persistent Volume" 
-                        description="Vis fast lydstyrke-slider under afspilleren"
+                        description="Show persistent volume slider under the player"
                         accentColor={accentColor}
                       />
                       <Toggle 
                         checked={showSettingsButton} 
                         onChange={(c) => onShowSettingsButtonChange?.(c)} 
                         label="Persistent Settings Icon" 
-                        description="Vis et fast ⚙-ikon i afspillerens kontroller"
+                        description="Show a persistent settings gear icon in the player's controls"
+                        accentColor={accentColor}
+                      />
+                      <Toggle 
+                        checked={enableCustomLyrics} 
+                        onChange={(c) => onEnableCustomLyricsChange?.(c)} 
+                        label="Custom Lyrics Editor" 
+                        description="Show a button in the lyrics panel to upload or edit your own lyrics"
                         accentColor={accentColor}
                       />
                     </div>

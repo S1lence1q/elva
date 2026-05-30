@@ -214,12 +214,12 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
           <h3 className="text-xs uppercase tracking-[0.25em] font-semibold text-white/55">Featured Charts</h3>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
           {isLoading ? (
             Array.from({ length: 2 }).map((_, idx) => (
               <div 
                 key={idx}
-                className="rounded-3xl border border-white/[0.04] p-6 bg-[#0a0a0c]/60 backdrop-blur-xl h-[170px] flex flex-col justify-between animate-pulse"
+                className="rounded-3xl border border-white/[0.04] p-7 bg-[#0a0a0c]/60 backdrop-blur-xl h-[190px] flex flex-col justify-between animate-pulse"
               >
                 <div className="space-y-3">
                   <div className="h-4 bg-white/10 rounded w-[60%]" />
@@ -245,17 +245,17 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                     borderColor: 'rgba(255, 255, 255, 0.12)',
                     backgroundColor: 'rgba(255, 255, 255, 0.02)'
                   }}
-                  className="relative rounded-3xl border border-white/[0.04] p-5 flex items-center justify-between bg-[#0a0a0c]/60 backdrop-blur-xl h-[170px] group transition-all duration-300 shadow-md select-none cursor-pointer text-left overflow-hidden gap-6"
+                  className="relative rounded-3xl border border-white/[0.04] p-7 flex items-center justify-between bg-[#0a0a0c]/60 backdrop-blur-xl h-[190px] group transition-all duration-300 shadow-md select-none cursor-pointer text-left overflow-hidden gap-6"
                 >
                   {/* Left Column: Info & Controls */}
                   <div className="flex flex-col justify-between h-full flex-1 min-w-0">
-                    <div className="space-y-1.5">
-                      <span className={`text-[8px] font-bold tracking-[0.25em] uppercase ${
+                    <div className="space-y-2">
+                      <span className={`text-[10px] font-bold tracking-[0.35em] uppercase ${
                         chart.id === 'dk_hits' ? 'text-rose-400' : 'text-indigo-400'
                       }`}>
                         Daily Chart
                       </span>
-                      <p className="text-[11px] font-light text-white/50 leading-relaxed line-clamp-3 pr-2">
+                      <p className="text-sm font-normal text-white/70 leading-relaxed line-clamp-3 pr-2">
                         {chart.description}
                       </p>
                     </div>

@@ -526,25 +526,25 @@ export const rankAndSortSearchResults = (results: SearchResult[], query: string)
     const isExplicitRemix = queryLower.includes('remix');
     const isExplicitLyrics = queryLower.includes('lyric');
 
-    if (!isExplicitLive && (titleLower.includes('live') || titleLower.includes('concert') || titleLower.includes('performance'))) {
-      score -= 50;
+    if (!isExplicitLive && (titleLower.includes('live') || titleLower.includes('concert') || titleLower.includes('performance') || artistLower.includes('live') || artistLower.includes('concert'))) {
+      score -= 200;
     }
-    if (!isExplicitCover && (titleLower.includes('cover') || titleLower.includes('tribute') || titleLower.includes('acoustic cover'))) {
-      score -= 60;
+    if (!isExplicitCover && (titleLower.includes('cover') || titleLower.includes('tribute') || titleLower.includes('acoustic cover') || artistLower.includes('cover') || artistLower.includes('tribute'))) {
+      score -= 250;
     }
-    if (!isExplicitRemix && (titleLower.includes('remix') || titleLower.includes('bootleg') || titleLower.includes('edit'))) {
-      score -= 40;
+    if (!isExplicitRemix && (titleLower.includes('remix') || titleLower.includes('bootleg') || titleLower.includes('edit') || artistLower.includes('remix') || artistLower.includes('bootleg'))) {
+      score -= 150;
     }
-    if (!isExplicitLyrics && (titleLower.includes('lyrics') || titleLower.includes('lyric video'))) {
-      score -= 30;
+    if (!isExplicitLyrics && (titleLower.includes('lyrics') || titleLower.includes('lyric video') || artistLower.includes('lyrics') || artistLower.includes('lyric'))) {
+      score -= 200;
     }
     
     // Hard penalty for junk content
-    if (titleLower.includes('10 hours') || titleLower.includes('10h') || titleLower.includes('loop') || titleLower.includes('hour loop')) {
-      score -= 200;
+    if (titleLower.includes('10 hours') || titleLower.includes('10h') || titleLower.includes('loop') || titleLower.includes('hour loop') || titleLower.includes('hours loop') || artistLower.includes('loop')) {
+      score -= 500;
     }
-    if (titleLower.includes('reaction') || titleLower.includes('review') || titleLower.includes('vlog') || titleLower.includes('bts') || titleLower.includes('behind the scenes')) {
-      score -= 150;
+    if (titleLower.includes('reaction') || titleLower.includes('review') || titleLower.includes('vlog') || titleLower.includes('bts') || titleLower.includes('behind the scenes') || artistLower.includes('reaction') || artistLower.includes('vlog')) {
+      score -= 500;
     }
 
     return { result: r, score };
