@@ -133,9 +133,29 @@ Dette dokument er den urokkelige kilde til sandhed (Source of Truth) for Elvas k
     - **Knap-sanering:** Fjernede `onPointerDown` klik-duplikation fra Play/Pause-knappen for 100% præcision.
     - **Volumen-persistens (localStorage):** Spilleren indlæser og gemmer automatisk din valgte lydstyrke (`elva_player_volume`) og pre-mute lydstyrke (`elva_player_premute_volume`) i `localStorage`. Dette sikrer, at lydstyrken altid huskes på tværs af sangskift, når spilleren unmountes, og ved browser-genindlæsning.
 
+### 🌐 14. Continuous Background Playback & Centered Mini-Player Pill ("Sømløs baggrundsafspilning")
+* **Filer:** [App.tsx](file:///Users/applemacbook/AntiGravity%20Shit/Elva.nosync/Elva/src/app/App.tsx)
+* **Hvordan det virker:**
+  - `MusicPlayer` afmonteres **aldrig** fra DOM'en, når der navigeres tilbage til landing page. Den skjules i stedet blødt via Framer Motion med `opacity: 0`, `y: 40` og CSS `visibility: hidden` (på dens overordnede wrapper). Det tillader baggrundslyden, lydstyrkefaderen og YouTube-afspilleren at køre uforstyrret videre.
+  - **B&O-Style Mini-Player Pill:** Når en sang spiller i baggrunden, glider en svævende glaspille (`w-[410px] h-14 rounded-2xl bg-black/55 border-white/10`) frem i bunden af landing page.
+  - **Taktile Kontroller:** Indeholder static cover art (B&O minimalism), afspilningsinfo, klik-for-at-gendanne-afspiller samt taktile genveje for SkipBack, Play/Pause, SkipForward og Stop & Ryd (`X`).
+  - **Fejlfri Centrering (Tailwind v4 clashing):** I Tailwind v4 kompilerer `left-1/2 -translate-x-1/2` til den selvstændige CSS `translate: -50% 0px` egenskab, mens Framer Motion kompilerer `x: '-50%'` inline til `transform: translateX(-50%)`. For at undgå, at de to egenskaber lagde sig oven i hinanden og skubbede pillen skævt til venstre, fjernes `x` helt fra Framer Motions inline animationer. Centreringen styres **rent og fejlfrit** af Tailwind-klassen.
+  - **Decoupled Event-Driven Styring:** Knapperne på MiniPlayeren afsender globale CustomEvents (`'elva-play-prev'`, `'elva-toggle-play'`, `'elva-play-next'`), som opfanges direkte af baggrundsafspilleren for at synkronisere tilstande øjeblikkeligt.
+
+### 🖼️ 15. Decoupled Global Volume HUD & Filmisk Vignette Mask
+* **Filer:** [App.tsx](file:///Users/applemacbook/AntiGravity%20Shit/Elva.nosync/Elva/src/app/App.tsx), [MusicPlayer.tsx](file:///Users/applemacbook/AntiGravity%20Shit/Elva.nosync/Elva/src/app/components/MusicPlayer.tsx)
+* **Hvordan det virker:**
+  - **Rod-niveau Afkobling:** Volume HUD-overlægget er fjernet fra `MusicPlayer.tsx` og flyttet op i rod-niveauet i `App.tsx` som en del af det globale UI.
+  - **Event-Driven Kommunikation:** Lydstyrkeændringer (via piletaster eller sliders) i afspilleren afsender en `'elva-volume-change'` event. `App.tsx` opfanger denne, opdaterer sit eget rod-state og viser en spring-animeret glassmorphic Volume HUD (`z-[99999]`) i toppen af skærmen. Dette løser fuldstændigt problemet med, at HUD'en blev skjult, når afspilleren kørte i baggrunden under `visibility: hidden`.
+  - **Vibrant Filmisk Vignette Maske:** Den overordnede mørklægningsmaske er gjort væsentligt lysere og mere sofistikeret:
+    - **Center-gennemsigtighed på 0%** (`rgba(0,0,0,0.0)`): Bevarer de glødende neon-marmorerede WebGL-farver i fuld styrke midt på skærmen.
+    - **Kant-vignette på 48%** (`rgba(7,7,10,0.48)`): Indrammer skærmen med elegant filmisk dybde.
+    - **Flad dæmpning på kun 8%** (`bg-black/8`): Sikrer optimal kontrast for hvid tekst (som sangtekster) uden at mærke eller dæmpe de lysende farver.
+  - **Persistens på Landing Page:** Masken forbliver **aktiv på landing page**, så længe en sang spiller i baggrunden. Dette eliminerer ethvert lysstyrke- eller farveskift, når du skifter frem og tilbage mellem landing page og den fulde afspiller – baggrundslysstyrken forbliver 100% identisk og ubrudt!
+
 ---
 
-## 📁 14. Modulopbygget Kodebase
+## 📁 16. Modulopbygget Kodebase
 Vi har trukket utilities og logik ud af `MusicPlayer.tsx` for at holde koden let-vedligeholdelig. Vigtige hjælpefiler under `src/app/utils/`:
 1. `playerColorUtils.ts` (HSL/RGB konvertering, downsampled 32x32 scanning og fallbacks).
 2. `lyricsUtils.ts` (LRC parsing og dynamiske fallback lyrics).
