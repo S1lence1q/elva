@@ -3,7 +3,8 @@ import { motion } from 'motion/react';
 import { ArrowLeft, Play, Plus, Music, Heart, Loader2 } from 'lucide-react';
 import { SearchResult } from '../types';
 import { AccentColor, ACCENT_THEMES } from './themeUtils';
-import { toast } from 'sonner';
+import { showMiniHUD } from '../utils/hudUtils';
+import { SongRowOptions } from './SongRowOptions';
 
 export interface Playlist {
   id: string;
@@ -22,6 +23,7 @@ interface PlaylistDetailsViewProps {
   handleAddToQueue: (track: SearchResult) => void;
   favorites: SearchResult[];
   onToggleFavorite: (track: SearchResult) => void;
+  onPlayNext?: (track: SearchResult) => void;
   accentColor: AccentColor;
 }
 
@@ -33,6 +35,7 @@ export const PlaylistDetailsView: React.FC<PlaylistDetailsViewProps> = ({
   handleAddToQueue,
   favorites,
   onToggleFavorite,
+  onPlayNext,
   accentColor
 }) => {
   // Use the playlist's custom theme to create beautiful bespoke experience
@@ -46,9 +49,7 @@ export const PlaylistDetailsView: React.FC<PlaylistDetailsViewProps> = ({
       handleAddToQueue(track);
     });
 
-    toast.success(`Playing ${playlist.name}`, {
-      description: `Loaded ${playlist.tracks.length} tracks into queue.`
-    });
+    showMiniHUD('Playing playlist', 'success');
   };
 
   const isFavorite = (songId: string) => {
@@ -58,10 +59,10 @@ export const PlaylistDetailsView: React.FC<PlaylistDetailsViewProps> = ({
   return (
     <motion.div
       key="immersive-playlist-view"
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -10 }}
-      transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+      initial={{ opacity: 0, scale: 0.95, y: 24, filter: 'blur(8px)' }}
+      animate={{ opacity: 1, scale: 1, y: 0, filter: 'blur(0px)' }}
+      exit={{ opacity: 0, scale: 0.95, y: 24, filter: 'blur(8px)' }}
+      transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
       className="w-full max-w-5xl px-4 flex flex-col h-[calc(100vh-80px)] overflow-y-auto scrollbar-none z-10"
     >
       {/* Navigation bar above the layout */}
@@ -235,7 +236,12 @@ export const PlaylistDetailsView: React.FC<PlaylistDetailsViewProps> = ({
                       </div>
 
                       {/* Favorite & Queue controls */}
-                      <div className="flex items-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity shrink-0">
+                      <div className="flex items-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity shrink-0 select-none">
+                        <SongRowOptions
+                          track={track}
+                          onPlayNext={onPlayNext}
+                          onAddToQueue={handleAddToQueue}
+                        />
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -245,17 +251,6 @@ export const PlaylistDetailsView: React.FC<PlaylistDetailsViewProps> = ({
                           title={isFavorite(track.id) ? "Remove from Favorites" : "Add to Favorites"}
                         >
                           <Heart className={`w-4 h-4 ${isFavorite(track.id) ? 'text-red-500 fill-red-500' : ''}`} />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleAddToQueue(track);
-                            toast.success("Added to queue");
-                          }}
-                          className="p-2.5 rounded-xl hover:bg-white/5 text-white/60 hover:text-white transition-all cursor-pointer"
-                          title="Add to queue"
-                        >
-                          <Plus className="w-4 h-4" />
                         </button>
                       </div>
                     </motion.div>

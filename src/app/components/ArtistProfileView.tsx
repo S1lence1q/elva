@@ -1,8 +1,9 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { ArrowLeft, Play, Plus, Music } from 'lucide-react';
+import { ArrowLeft, Play, Plus, Music, Heart } from 'lucide-react';
 import { SearchResult, VerifiedArtist } from '../types';
 import { ThemeColors } from './themeUtils';
+import { SongRowOptions } from './SongRowOptions';
 
 interface ArtistProfileViewProps {
   selectedArtist: VerifiedArtist;
@@ -23,6 +24,9 @@ interface ArtistProfileViewProps {
   setSelectedArtist: (artist: VerifiedArtist | null) => void;
   setArtistTracks: (tracks: SearchResult[]) => void;
   theme: ThemeColors;
+  favorites?: SearchResult[];
+  onToggleFavorite?: (song: SearchResult) => void;
+  onPlayNext?: (song: SearchResult) => void;
 }
 
 export const ArtistProfileView: React.FC<ArtistProfileViewProps> = ({
@@ -36,15 +40,21 @@ export const ArtistProfileView: React.FC<ArtistProfileViewProps> = ({
   handleAddToQueue,
   setSelectedArtist,
   setArtistTracks,
-  theme
+  theme,
+  favorites = [],
+  onToggleFavorite,
+  onPlayNext
 }) => {
+  const isFavorite = (songId: string) => {
+    return favorites.some(fav => fav.id === songId);
+  };
   return (
     <motion.div
       key="immersive-artist-view"
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -10 }}
-      transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+      initial={{ opacity: 0, scale: 0.95, y: 24, filter: 'blur(8px)' }}
+      animate={{ opacity: 1, scale: 1, y: 0, filter: 'blur(0px)' }}
+      exit={{ opacity: 0, scale: 0.95, y: 24, filter: 'blur(8px)' }}
+      transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
       className="w-full max-w-5xl px-4 flex flex-col h-[calc(100vh-80px)] overflow-y-auto scrollbar-none z-10"
     >
       {/* Navigation bar above the layout */}
@@ -158,28 +168,27 @@ export const ArtistProfileView: React.FC<ArtistProfileViewProps> = ({
                 {artistTracks.map((track, index) => {
                   const isFocused = focusedResultIndex === index;
                   const trackNumber = String(index + 1).padStart(2, '0');
+                  const isLoading = loadingSongId === track.id;
                   return (
                     <motion.div
                       key={`artist-track-${track.id}`}
                       initial={{ opacity: 0, y: 5 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.02, ease: "easeOut" }}
-                      className={`group w-full flex items-center gap-4 py-3.5 px-2 border-b border-white/5 last:border-b-0 bg-transparent transition-colors duration-200 hover:bg-white/[0.02] cursor-pointer ${
-                        loadingSongId === track.id
-                          ? 'bg-white/[0.03]'
-                          : isFocused
-                          ? 'bg-white/[0.04]'
-                          : ''
+                      className={`group w-full flex items-center gap-4 py-4 px-3 border-b border-white/5 last:border-b-0 bg-transparent transition-colors duration-200 hover:bg-white/[0.02] cursor-pointer ${
+                        isLoading ? 'bg-white/[0.03]' : isFocused ? 'bg-white/[0.04]' : ''
                       }`}
                       onClick={() => {
                         if (!loadingSongId) handleSelectSong(track);
                       }}
                     >
-                      <span className="text-[10px] font-mono text-white/25 group-hover:text-white/45 transition-colors shrink-0 w-6 text-right">
+                      {/* Song Number */}
+                      <span className="text-xs font-mono text-white/35 group-hover:text-white/60 transition-colors shrink-0 w-6 text-right">
                         {trackNumber}
                       </span>
 
-                      <div className="relative w-11 h-11 rounded-lg overflow-hidden flex-shrink-0 bg-neutral-900 border border-white/5 shadow-md">
+                      {/* Song Thumbnail */}
+                      <div className="relative w-13 h-13 rounded-xl overflow-hidden flex-shrink-0 bg-neutral-900 border border-white/5 shadow-md">
                         <img 
                           src={track.thumbnail} 
                           alt={track.title} 
@@ -190,39 +199,47 @@ export const ArtistProfileView: React.FC<ArtistProfileViewProps> = ({
                           className="w-full h-full object-cover" 
                         />
                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                          {loadingSongId === track.id ? (
+                          {isLoading ? (
                             <motion.div
                               animate={{ rotate: 360 }}
                               transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}
                               className={`w-4 h-4 rounded-full border border-white/20 ${theme.borderT}`}
                             />
                           ) : (
-                            <Play className="w-4 h-4 text-white fill-white scale-90" />
+                            <Play className="w-5 h-5 text-white fill-white scale-90" />
                           )}
                         </div>
                       </div>
 
-                      <div className="flex-1 text-left min-w-0">
-                        <div className="flex items-center gap-2.5">
-                          <h3 className={`text-sm md:text-base font-semibold truncate transition-colors duration-300 ${
-                            loadingSongId === track.id ? `${theme.text}` : 'text-white/90 group-hover:text-white tracking-tight'
-                          }`}>
-                            {track.title}
-                          </h3>
+                      {/* Title & Artist */}
+                      <div className="flex-1 min-w-0 text-left">
+                        <span className="text-[15px] font-semibold text-white/95 group-hover:text-white transition-colors truncate block">
+                          {track.title}
+                        </span>
+                        <span className="text-[13px] text-white/60 truncate block mt-1">
+                          {track.artist}
+                        </span>
+                      </div>
+
+                      {/* Favorite & Queue controls */}
+                      <div className="flex items-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity shrink-0 select-none">
+                        <SongRowOptions
+                          track={track}
+                          onPlayNext={onPlayNext}
+                          onAddToQueue={handleAddToQueue}
+                        />
+                        {onToggleFavorite && (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleAddToQueue(track);
+                              onToggleFavorite(track);
                             }}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-1 text-white/40 hover:text-white hover:bg-white/10 rounded cursor-pointer shrink-0"
-                            title="Add to queue"
+                            className="p-2.5 rounded-xl hover:bg-white/5 text-white/60 hover:text-white transition-all cursor-pointer"
+                            title={isFavorite(track.id) ? "Remove from Favorites" : "Add to Favorites"}
                           >
-                            <Plus className="w-3.5 h-3.5" />
+                            <Heart className={`w-4 h-4 ${isFavorite(track.id) ? 'text-red-500 fill-red-500' : ''}`} />
                           </button>
-                        </div>
-                        <p className="text-[10px] text-white/40 truncate mt-0.5 font-light">
-                          {track.artist}
-                        </p>
+                        )}
                       </div>
                     </motion.div>
                   );

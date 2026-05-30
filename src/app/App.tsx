@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Music, Link as LinkIcon, Search, Plus, HelpCircle, Keyboard, X, ArrowLeft, ChevronRight, Loader2, Play, Settings } from 'lucide-react';
+import { Music, Link as LinkIcon, Search, Plus, HelpCircle, Keyboard, X, ArrowLeft, ChevronRight, Loader2, Play, Settings, Pause, SkipForward, SkipBack, Volume, Volume1, Volume2, VolumeX } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 import 'sonner/dist/styles.css';
 import { MusicPlayer } from './components/MusicPlayer';
@@ -16,6 +16,7 @@ import { ProfileHubView } from './components/ProfileHubView';
 import { KeyboardShortcutsModal } from './components/KeyboardShortcutsModal';
 import { FluidBackground } from './components/FluidBackground';
 import { getPrimaryArtist } from './utils/stringUtils';
+import { showMiniHUD } from './utils/hudUtils';
 
 import { SearchResult, VerifiedArtist } from './types';
 import { getDynamicFallbackColors, extractColorsFromImage } from './utils/playerColorUtils';
@@ -29,7 +30,8 @@ import {
   executeSearchAPI,
   executeChannelUploadsAPI,
   shouldShowArtistCard,
-  getArtistName
+  getArtistName,
+  getHandPickedImage
 } from './utils/apiUtils';
 
 type AppState = 'landing' | 'processing' | 'ready';
@@ -186,9 +188,25 @@ const SHORTCUT_ARTISTS: VerifiedArtist[] = [
   }
 ];
 
+const accentBgs400: Record<AccentColor, string> = {
+  emerald: 'bg-emerald-400',
+  sand: 'bg-amber-400',
+  wine: 'bg-rose-400',
+  navy: 'bg-slate-400'
+};
+
 export default function App() {
   const [appState, setAppState] = useState<AppState>('landing');
   const [showSettings, setShowSettings] = useState(false);
+  const [isMiniPlaying, setIsMiniPlaying] = useState(true);
+
+  // Global Volume HUD state
+  const [globalVolume, setGlobalVolume] = useState<number>(() => {
+    const saved = localStorage.getItem('elva_player_volume');
+    return saved !== null ? parseInt(saved, 10) : 70;
+  });
+  const [showGlobalVolumeHUD, setShowGlobalVolumeHUD] = useState(false);
+  const globalVolumeHUDTimeoutRef = useRef<any>(null);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [scrollProgress, setScrollProgress] = useState(0);
@@ -300,10 +318,10 @@ export default function App() {
       let updated;
       if (exists) {
         updated = prev.filter((item) => item.id !== song.id);
-        toast.info('Removed from favorites', { description: song.title });
+        showMiniHUD('Removed from Favorites', 'info');
       } else {
         updated = [...prev, song];
-        toast.success('Added to favorites', { description: song.title });
+        showMiniHUD('Added to Favorites', 'success');
       }
       localStorage.setItem('elva_favorites', JSON.stringify(updated));
       return updated;
@@ -314,6 +332,7 @@ export default function App() {
     return !hasSeenIntro;
   });
   const [searchQuery, setSearchQuery] = useState('');
+  const [lastSearchedQuery, setLastSearchedQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
@@ -338,7 +357,10 @@ export default function App() {
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+          return parsed.map((a: any) => {
+            const handPicked = getHandPickedImage(a.name);
+            return handPicked ? { ...a, thumbnail: handPicked } : a;
+          });
         }
       }
     } catch (e) {
@@ -357,7 +379,59 @@ export default function App() {
     channelId?: string;
   } | null>(null);
 
+  const backToHomeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [colorsSongData, setColorsSongData] = useState<any>(null);
+  const colorsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   const [songColors, setSongColors] = useState<{ primary: string; secondary: string; accent: string } | null>(null);
+
+  // Mini HUD state
+  const [hudMessage, setHudMessage] = useState<string | null>(null);
+  const [hudType, setHudType] = useState<'success' | 'info' | 'error'>('success');
+  
+  useEffect(() => {
+    const handleShowHUD = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail) {
+        setHudMessage(customEvent.detail.message);
+        setHudType(customEvent.detail.type || 'success');
+      }
+    };
+    window.addEventListener('elva-show-hud', handleShowHUD);
+    return () => window.removeEventListener('elva-show-hud', handleShowHUD);
+  }, []);
+
+  useEffect(() => {
+    const handleScrollToHub = () => {
+      // 1. Exit fullscreen player and reset view states to show home screen
+      setAppState('landing');
+      setSelectedArtist(null);
+      setSelectedPlaylist(null);
+      
+      // 2. Scroll the viewport container to index 2 (My Hub)
+      setTimeout(() => {
+        const container = scrollContainerRef.current;
+        if (container) {
+          container.scrollTo({
+            top: 2 * container.clientHeight,
+            behavior: 'smooth'
+          });
+        }
+      }, 150);
+    };
+    window.addEventListener('elva-scroll-to-hub', handleScrollToHub);
+    return () => window.removeEventListener('elva-scroll-to-hub', handleScrollToHub);
+  }, []);
+
+  // Auto-dismiss HUD after 1.8 seconds
+  useEffect(() => {
+    if (hudMessage) {
+      const timer = setTimeout(() => {
+        setHudMessage(null);
+      }, 1800);
+      return () => clearTimeout(timer);
+    }
+  }, [hudMessage]);
 
   // Ref for the root container to performantly track and apply mouse coordinates for spotlight grids without React re-renders
   const containerRef = useRef<HTMLDivElement>(null);
@@ -471,8 +545,8 @@ export default function App() {
 
   // Helper to retrieve normalized WebGL colors representing current active context
   const getWebGLBackgroundColors = () => {
-    // If a song is loading or playing, transition directly to the extracted song colors!
-    if ((appState === 'ready' || appState === 'processing') && songColors) {
+    // If a song is loading, playing, or in exit transition (colorsSongData not null yet), transition directly to the extracted song colors!
+    if (songColors && (appState === 'ready' || appState === 'processing' || colorsSongData !== null)) {
       return {
         c1: songColors.primary,
         c2: songColors.secondary,
@@ -480,35 +554,7 @@ export default function App() {
       };
     }
 
-    if (selectedArtist && artistColors) {
-      const nameLower = selectedArtist.name.toLowerCase();
-      if (nameLower.includes('kundo')) {
-        return {
-          c1: '#121815', // Deep spruce pine green obsidian
-          c2: '#25342c', // Sophisticated quiet spruce slate glow
-          c3: '#060907', // Spruce contrast shadow
-        };
-      }
-      if (nameLower.includes('kesi')) {
-        return {
-          c1: '#161412', // Deep warm earth obsidian
-          c2: '#2f2722', // Sophisticated quiet warm sand slate glow
-          c3: '#070605', // Earth contrast shadow
-        };
-      }
-      if (nameLower.includes('lamin')) {
-        return {
-          c1: '#141319', // Deep amethyst obsidian
-          c2: '#282433', // Sophisticated quiet amethyst/lavender slate glow
-          c3: '#060508', // Amethyst contrast shadow
-        };
-      }
-      return {
-        c1: artistColors.accent,
-        c2: artistColors.bgGlow,
-        c3: '#040406',
-      };
-    }
+
 
     // 3-way Linear hex interpolation based on vertical scrollProgress
     // Calmed down completely: stunning polished mercury silver main background with mild, clean analogous slate scroll flows
@@ -644,13 +690,42 @@ export default function App() {
     }
   };
 
-  // Reset selected artist if search query changes
+  // Reset selected artist only if search query is completely empty
   useEffect(() => {
-    setSelectedArtist(null);
-    setArtistTracks([]);
-    setVerifiedArtist(null);
-    setIsVerifyingArtist(false);
+    if (!searchQuery.trim()) {
+      setSelectedArtist(null);
+      setArtistTracks([]);
+      setVerifiedArtist(null);
+      setIsVerifyingArtist(false);
+      setLastSearchedQuery('');
+      setSearchResults([]);
+    }
   }, [searchQuery]);
+
+  // Clear any pending transition back to home if we start playing a new song
+  useEffect(() => {
+    if (appState === 'ready' || appState === 'processing') {
+      if (backToHomeTimeoutRef.current) {
+        clearTimeout(backToHomeTimeoutRef.current);
+        backToHomeTimeoutRef.current = null;
+      }
+      if (colorsTimeoutRef.current) {
+        clearTimeout(colorsTimeoutRef.current);
+        colorsTimeoutRef.current = null;
+      }
+    }
+  }, [appState]);
+
+  // Synchronize colorsSongData when a new song starts playing
+  useEffect(() => {
+    if (songData) {
+      setColorsSongData(songData);
+      if (colorsTimeoutRef.current) {
+        clearTimeout(colorsTimeoutRef.current);
+        colorsTimeoutRef.current = null;
+      }
+    }
+  }, [songData]);
 
   const isFirstVisit = useRef(!sessionStorage.getItem('elva_intro_seen')).current;
   const hasSelectedArtistOnce = useRef(false);
@@ -736,6 +811,30 @@ export default function App() {
 
     window.addEventListener('elva-reset-tour', handleResetTour);
     return () => window.removeEventListener('elva-reset-tour', handleResetTour);
+  }, []);
+
+  useEffect(() => {
+    const handleGlobalVolumeChange = (e: Event) => {
+      const customEvent = e as CustomEvent<{ volume: number }>;
+      const newVol = customEvent.detail.volume;
+      setGlobalVolume(newVol);
+
+      if (globalVolumeHUDTimeoutRef.current) {
+        clearTimeout(globalVolumeHUDTimeoutRef.current);
+      }
+      setShowGlobalVolumeHUD(true);
+      globalVolumeHUDTimeoutRef.current = setTimeout(() => {
+        setShowGlobalVolumeHUD(false);
+      }, 1500);
+    };
+
+    window.addEventListener('elva-volume-change', handleGlobalVolumeChange);
+    return () => {
+      window.removeEventListener('elva-volume-change', handleGlobalVolumeChange);
+      if (globalVolumeHUDTimeoutRef.current) {
+        clearTimeout(globalVolumeHUDTimeoutRef.current);
+      }
+    };
   }, []);
 
   const startTour = () => {
@@ -850,22 +949,23 @@ export default function App() {
     let active = true;
     
     const verifyArtist = async () => {
-      if (!shouldShowArtistCard(searchQuery) || searchResults.length === 0) {
+      if (!shouldShowArtistCard(lastSearchedQuery) || searchResults.length === 0) {
         setVerifiedArtist(null);
         return;
       }
       
       // Get candidate artist from search results using local heuristics
-      const candidate = getArtistName(searchQuery, searchResults);
+      const candidate = getArtistName(lastSearchedQuery, searchResults);
       if (!candidate) {
         setVerifiedArtist(null);
         return;
       }
 
-      // 1. Instantly display the Verified Artist Card (0ms delay) to prevent lag!
+       // 1. Instantly display the Verified Artist Card (0ms delay) to prevent lag!
+      const handPicked = getHandPickedImage(candidate.name);
       setVerifiedArtist({
         name: candidate.name,
-        thumbnail: candidate.thumbnail,
+        thumbnail: handPicked || candidate.thumbnail,
         channelId: candidate.channelId,
         isTopic: candidate.isTopic
       });
@@ -873,6 +973,36 @@ export default function App() {
       setIsVerifyingArtist(true);
       try {
         const queryVal = candidate.name.trim();
+
+        // A. Fetch real, high-resolution official artist profile image from Deezer API dynamically
+        try {
+          if (handPicked) {
+            localStorage.setItem(`elva_artist_img_${queryVal.toLowerCase()}`, handPicked);
+          } else {
+            const deezerRes = await fetchWithTimeout(
+              `https://corsproxy.io/?https://api.deezer.com/search/artist?q=${encodeURIComponent(queryVal)}`,
+              { timeout: 2500 }
+            );
+            if (deezerRes.ok) {
+              const deezerData = await deezerRes.json();
+              const deezerArtist = (deezerData.data || []).find((a: any) => 
+                a.name.toLowerCase() === queryVal.toLowerCase()
+              ) || deezerData.data?.[0];
+              
+              if (deezerArtist && active && (deezerArtist.picture_big || deezerArtist.picture_medium)) {
+                const imgUrl = deezerArtist.picture_big || deezerArtist.picture_medium;
+                localStorage.setItem(`elva_artist_img_${queryVal.toLowerCase()}`, imgUrl);
+                setVerifiedArtist(prev => prev ? {
+                  ...prev,
+                  thumbnail: imgUrl
+                } : null);
+              }
+            }
+          }
+        } catch (de) {
+          console.warn('Deezer artist image fetch failed:', de);
+        }
+
         // 2. Query MusicBrainz silently in the background with a tight 2.5s timeout
         const response = await fetchWithTimeout(
           `https://musicbrainz.org/ws/2/artist/?query=artist:${encodeURIComponent(queryVal)}&fmt=json`,
@@ -929,17 +1059,55 @@ export default function App() {
     return () => {
       active = false;
     };
-  }, [searchResults, searchQuery]);
+  }, [searchResults, lastSearchedQuery]);
  
   // Fetch artist profile official releases in background
   const handleViewArtistProfile = async (artist: VerifiedArtist) => {
-    setSelectedArtist(artist);
+    const isPlaceholderOrEmpty = (url?: string) => {
+      if (!url) return true;
+      return url.includes('unsplash.com') || url === '';
+    };
+
+    const nameLower = artist.name.toLowerCase();
+    const handPickedUrl = getHandPickedImage(artist.name);
+    let cachedDeezerImg = handPickedUrl || localStorage.getItem(`elva_artist_img_${nameLower}`);
+    
+    // Proactive Deezer API Fetch to guarantee official promo pictures are loaded and cached
+    if (!cachedDeezerImg && !handPickedUrl) {
+      try {
+        const deezerRes = await fetchWithTimeout(
+          `https://corsproxy.io/?https://api.deezer.com/search/artist?q=${encodeURIComponent(artist.name.trim())}`,
+          { timeout: 2500 }
+        );
+        if (deezerRes.ok) {
+          const deezerData = await deezerRes.json();
+          const deezerArtist = (deezerData.data || []).find((a: any) => 
+            a.name.toLowerCase() === artist.name.toLowerCase().trim()
+          ) || deezerData.data?.[0];
+          if (deezerArtist && (deezerArtist.picture_big || deezerArtist.picture_medium)) {
+            cachedDeezerImg = deezerArtist.picture_big || deezerArtist.picture_medium;
+            localStorage.setItem(`elva_artist_img_${nameLower}`, cachedDeezerImg);
+            // Dispatch dynamic load event
+            window.dispatchEvent(new CustomEvent('elva-artist-image-loaded', { detail: { name: artist.name, url: cachedDeezerImg } }));
+          }
+        }
+      } catch (de) {
+        console.warn('Deezer artist image fetch in handleViewArtistProfile failed:', de);
+      }
+    }
+
+    const initialArtist = {
+      ...artist,
+      thumbnail: handPickedUrl || (isPlaceholderOrEmpty(artist.thumbnail) ? (cachedDeezerImg || artist.thumbnail) : artist.thumbnail)
+    };
+    
+    setSelectedArtist(initialArtist);
     hasSelectedArtistOnce.current = true;
     
     // Save to recent artists (unique list capped at 4)
     setRecentArtists(prev => {
-      const filtered = prev.filter(a => a.name.toLowerCase() !== artist.name.toLowerCase());
-      const updated = [artist, ...filtered].slice(0, 4);
+      const filtered = prev.filter(a => a.name.toLowerCase() !== initialArtist.name.toLowerCase());
+      const updated = [initialArtist, ...filtered].slice(0, 4);
       try {
         localStorage.setItem('elva_recent_artists', JSON.stringify(updated));
       } catch (e) {
@@ -949,7 +1117,6 @@ export default function App() {
     });
     
     // 1. Instant pre-population from currently active search results to eliminate any loading delay
-    const nameLower = artist.name.toLowerCase();
     const matchingResults = searchResults.filter(track => {
       const trackArtistLower = (track.artist || '').toLowerCase();
       const trackTitleLower = (track.title || '').toLowerCase();
@@ -975,29 +1142,38 @@ export default function App() {
     setIsLoadingArtist(true);
     
     try {
-      let resolvedChannelId = artist.channelId;
-      let resolvedAvatar = artist.thumbnail;
-      let resolvedIsTopic = artist.isTopic || false;
+      let resolvedChannelId = initialArtist.channelId;
+      let resolvedAvatar = handPickedUrl || (isPlaceholderOrEmpty(artist.thumbnail)
+        ? (cachedDeezerImg || initialArtist.thumbnail || artist.thumbnail)
+        : artist.thumbnail);
+      let resolvedIsTopic = initialArtist.isTopic || false;
 
       // 2. Resolve channelId if missing
       if (!resolvedChannelId) {
         // Query specifically for the artist's Topic channel on YouTube to find their verified ID
-        const searchCandidates = await executeSearchAPI(`${artist.name} topic`, 5);
+        const searchCandidates = await executeSearchAPI(`${initialArtist.name} topic`, 5);
         if (searchCandidates.length > 0) {
-          const candidate = getArtistName(artist.name, searchCandidates);
+          const candidate = getArtistName(initialArtist.name, searchCandidates);
           if (candidate) {
             resolvedChannelId = candidate.channelId;
-            resolvedAvatar = candidate.thumbnail;
             resolvedIsTopic = candidate.isTopic || false;
+            // Only overwrite if we don't already have a valid, non-placeholder profile picture/avatar
+            if (!handPickedUrl && isPlaceholderOrEmpty(resolvedAvatar)) {
+              resolvedAvatar = cachedDeezerImg || candidate.thumbnail;
+            }
           } else {
             // Find any result where uploader matches artist name
             const match = searchCandidates.find(t => t.artist.toLowerCase().includes(nameLower));
             if (match) {
               resolvedChannelId = match.channelId;
-              resolvedAvatar = match.thumbnail;
+              if (!handPickedUrl && isPlaceholderOrEmpty(resolvedAvatar)) {
+                resolvedAvatar = cachedDeezerImg || match.thumbnail;
+              }
             } else {
               resolvedChannelId = searchCandidates[0].channelId;
-              resolvedAvatar = searchCandidates[0].thumbnail;
+              if (!handPickedUrl && isPlaceholderOrEmpty(resolvedAvatar)) {
+                resolvedAvatar = cachedDeezerImg || searchCandidates[0].thumbnail;
+              }
             }
           }
         }
@@ -1068,10 +1244,11 @@ export default function App() {
 
       // Save/update verified channel information in UI and recent artists list
       if (resolvedChannelId && (resolvedChannelId !== artist.channelId || resolvedAvatar !== artist.thumbnail)) {
+        const hp = getHandPickedImage(artist.name);
         const updated = {
           ...artist,
           channelId: resolvedChannelId,
-          thumbnail: resolvedAvatar,
+          thumbnail: hp || resolvedAvatar,
           isTopic: resolvedIsTopic
         };
         setSelectedArtist(updated);
@@ -1079,10 +1256,14 @@ export default function App() {
         setRecentArtists(prev => {
           const filtered = prev.filter(a => a.name.toLowerCase() !== artist.name.toLowerCase());
           const updatedList = [updated, ...filtered].slice(0, 4);
+          const cleanedList = updatedList.map(a => {
+            const hpImg = getHandPickedImage(a.name);
+            return hpImg ? { ...a, thumbnail: hpImg } : a;
+          });
           try {
-            localStorage.setItem('elva_recent_artists', JSON.stringify(updatedList));
+            localStorage.setItem('elva_recent_artists', JSON.stringify(cleanedList));
           } catch (e) {}
-          return updatedList;
+          return cleanedList;
         });
       }
 
@@ -1149,9 +1330,10 @@ export default function App() {
     }
 
     // 2. Initialize a high-fidelity temporary VerifiedArtist object
+    const handPicked = getHandPickedImage(nameTrimmed);
     const tempArtist: VerifiedArtist = {
       name: nameTrimmed,
-      thumbnail: songData?.artworkUrl || 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwyfHxtdXNpYyUyMGJhY2tncm91bmR8ZW58MHx8fDE3Nzg5Nzk5NzZ8MA&ixlib=rb-4.1.0&q=80&w=1080',
+      thumbnail: handPicked || songData?.artworkUrl || 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwyfHxtdXNpYyUyMGJhY2tncm91bmR8ZW58MHx8fDE3Nzg5Nzk5NzZ8MA&ixlib=rb-4.1.0&q=80&w=1080',
       channelId: channelId,
     };
 
@@ -1163,12 +1345,17 @@ export default function App() {
     const query = overrideQuery !== undefined ? overrideQuery : searchQuery;
     if (!query.trim()) return;
 
+    setSelectedArtist(null);
+    setArtistTracks([]);
+    setVerifiedArtist(null);
+
     setIsSearching(true);
     const results = await executeSearchAPI(query);
     setIsSearching(false);
 
     if (results.length > 0) {
       setSearchResults(results);
+      setLastSearchedQuery(query);
     } else {
       toast.error('Search failed', { 
         description: 'Could not fetch results from YouTube. Try using an API key or pasting a link directly.' 
@@ -1365,9 +1552,27 @@ export default function App() {
     }
 
     setQueue([...queue, result]);
-    toast.success('Added to queue', {
-      description: result.title,
-    });
+    showMiniHUD('Added to queue', 'success');
+  };
+
+  const handlePlayNext = (result: SearchResult) => {
+    // Don't add duplicates
+    const cleanedQueue = queue.filter(item => item.id !== result.id);
+    
+    // Find index of current playing song in queue
+    const currentIndex = songData 
+      ? cleanedQueue.findIndex(item => item.id === (songData.videoId || songData.audioUrl))
+      : -1;
+    
+    const newQueue = [...cleanedQueue];
+    if (currentIndex >= 0) {
+      newQueue.splice(currentIndex + 1, 0, result);
+    } else {
+      newQueue.unshift(result);
+    }
+    
+    setQueue(newQueue);
+    showMiniHUD('Will play next', 'success');
   };
 
   const handleRemoveFromQueue = (id: string) => {
@@ -1376,7 +1581,7 @@ export default function App() {
 
   const handleClearQueue = () => {
     setQueue([]);
-    toast.info("Queue cleared");
+    showMiniHUD('Queue cleared', 'info');
   };
 
   const handleSelectFromQueue = (id: string) => {
@@ -1439,6 +1644,20 @@ export default function App() {
           }
         />
 
+        {/* Ambient Dark Overlay to blend colors beautifully and prevent transition flashbangs */}
+        <AnimatePresence>
+          {(appState === 'ready' || appState === 'processing' || (appState === 'landing' && songData)) && (
+            <motion.div
+              key="global-ambient-dimmer"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
+              className="absolute inset-0 z-[1] pointer-events-none bg-[radial-gradient(circle_at_center,rgba(0,0,0,0.0)_0%,rgba(7,7,10,0.48)_85%)] bg-black/8"
+            />
+          )}
+        </AnimatePresence>
+
       </motion.div>
 
       <AnimatePresence>
@@ -1446,10 +1665,10 @@ export default function App() {
           <motion.div
             key="landing"
             layout
-            initial={{ opacity: 0, scale: 0.97, filter: 'blur(6px)' }}
-            animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
-            exit={{ opacity: 0, scale: 1.08, filter: 'blur(8px)' }}
-            transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+            initial={{ opacity: 0, scale: 0.97 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.08 }}
+            transition={{ duration: 1.0, ease: [0.16, 1, 0.3, 1] }}
             className="absolute inset-0 z-10 flex flex-col items-center px-0 w-full h-full justify-start"
           >
             {/* Animated gradient orbs during intro */}
@@ -1571,7 +1790,7 @@ export default function App() {
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.35 }}
-                  className="fixed inset-0 z-30 bg-[#0a0a0c]/90 backdrop-blur-2xl flex flex-col items-center justify-center pt-8 pb-12"
+                  className="fixed inset-0 z-30 flex flex-col items-center justify-center pt-8 pb-12"
                 >
                   <ArtistProfileView
                     selectedArtist={selectedArtist}
@@ -1585,6 +1804,9 @@ export default function App() {
                     setSelectedArtist={setSelectedArtist}
                     setArtistTracks={setArtistTracks}
                     theme={theme}
+                    favorites={favorites}
+                    onToggleFavorite={handleToggleFavorite}
+                    onPlayNext={handlePlayNext}
                   />
                 </motion.div>
               )}
@@ -1605,6 +1827,7 @@ export default function App() {
                     handleAddToQueue={handleAddToQueue}
                     favorites={favorites}
                     onToggleFavorite={handleToggleFavorite}
+                    onPlayNext={handlePlayNext}
                     accentColor={accentColor}
                   />
                 </motion.div>
@@ -1612,14 +1835,20 @@ export default function App() {
             </AnimatePresence>
 
             {/* Main Stack Viewport Snap-Scrolling Container */}
-            <div
+            <motion.div
               ref={scrollContainerRef}
               onScroll={handleScroll}
-              className={`w-full h-full overflow-y-auto snap-y snap-mandatory scroll-smooth scrollbar-none flex flex-col relative z-10 transition-all duration-500 ${
-                selectedArtist !== null || selectedPlaylist !== null
-                  ? 'opacity-0 pointer-events-none invisible'
-                  : 'opacity-100'
-              }`}
+              animate={{
+                opacity: (selectedArtist !== null || selectedPlaylist !== null) ? 0 : 1,
+                scale: (selectedArtist !== null || selectedPlaylist !== null) ? 0.96 : 1,
+                y: (selectedArtist !== null || selectedPlaylist !== null) ? -16 : 0,
+                filter: (selectedArtist !== null || selectedPlaylist !== null) ? 'blur(4px)' : 'blur(0px)'
+              }}
+              transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+              className="w-full h-full overflow-y-auto snap-y snap-mandatory scroll-smooth scrollbar-none flex flex-col relative z-10"
+              style={{
+                pointerEvents: (selectedArtist !== null || selectedPlaylist !== null) ? 'none' : 'auto'
+              }}
             >
               {/* SECTION 1: Search & Home */}
               <section className="w-full h-full snap-start shrink-0 flex flex-col items-center justify-start relative px-0 pt-16 pb-24 overflow-y-auto scrollbar-none">
@@ -1639,6 +1868,7 @@ export default function App() {
                   <SearchSection
                     searchQuery={searchQuery}
                     setSearchQuery={setSearchQuery}
+                    lastSearchedQuery={lastSearchedQuery}
                     isSearching={isSearching}
                     searchResults={searchResults}
                     recentArtists={recentArtists}
@@ -1651,6 +1881,7 @@ export default function App() {
                     handleSearch={handleSearch}
                     handleSelectSong={handleSelectSong}
                     handleAddToQueue={handleAddToQueue}
+                    handlePlayNext={handlePlayNext}
                     handleFileSelect={handleFileSelect}
                     theme={theme}
                     isFirstVisit={isFirstVisit}
@@ -1671,6 +1902,7 @@ export default function App() {
                 <DiscoverView
                   onSelectSong={handleSelectSong}
                   onAddToQueue={handleAddToQueue}
+                  onPlayNext={handlePlayNext}
                   accentColor={accentColor}
                   favorites={favorites}
                   onToggleFavorite={handleToggleFavorite}
@@ -1695,9 +1927,10 @@ export default function App() {
                   onAddToQueue={handleAddToQueue}
                   accentColor={accentColor}
                   onSelectArtist={setSelectedArtist}
+                  onPlayNext={handlePlayNext}
                 />
               </section>
-            </div>
+            </motion.div>
 
             {/* Subtle grid overlay for depth */}
             <div className="absolute inset-0 pointer-events-none opacity-[0.015] z-0">
@@ -1720,7 +1953,7 @@ export default function App() {
               duration: 0.4,
               ease: [0.16, 1, 0.3, 1]
             }}
-            className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-6"
+            className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-6 bg-transparent"
           >
             {/* Elegant, clean minimal spinner */}
             <div className="relative w-12 h-12 flex items-center justify-center">
@@ -1749,14 +1982,21 @@ export default function App() {
           </motion.div>
         )}
 
-        {appState === 'ready' && songData && (
+        {songData && (
           <motion.div
             key="ready"
-            initial={{ opacity: 0, scale: 0.96, filter: 'blur(6px)' }}
-            animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
-            exit={{ opacity: 0, scale: 0.96, filter: 'blur(6px)' }}
-            transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{ 
+              opacity: appState === 'ready' ? 1 : 0, 
+              scale: appState === 'ready' ? 1 : 0.96,
+              y: appState === 'ready' ? 0 : 40,
+            }}
+            transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
             className="size-full absolute inset-0 z-20 pointer-events-auto"
+            style={{ 
+              pointerEvents: appState === 'ready' ? 'auto' : 'none',
+              visibility: appState === 'ready' ? 'visible' : 'hidden'
+            }}
           >
             <MusicPlayer
               songData={songData}
@@ -1792,6 +2032,7 @@ export default function App() {
               onShowSettingsButtonChange={setShowSettingsButton}
               enableCustomLyrics={enableCustomLyrics}
               onEnableCustomLyricsChange={setEnableCustomLyrics}
+              onPlayingStateChange={setIsMiniPlaying}
               onFileSelect={(file) => {
                 if (appState === 'ready') {
                   setSongData({
@@ -1815,8 +2056,10 @@ export default function App() {
               }}
               onUrlSubmit={handleUrlSubmit}
               onBackToHome={() => {
+                if (backToHomeTimeoutRef.current) {
+                  clearTimeout(backToHomeTimeoutRef.current);
+                }
                 setAppState('landing');
-                setSongData(null);
                 setSearchQuery('');
                 setSearchResults([]);
               }}
@@ -1852,6 +2095,32 @@ export default function App() {
         )}
       </AnimatePresence>
 
+      {/* Mini HUD Glassmorphic Notification Pill */}
+      <AnimatePresence>
+        {hudMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: -45, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.95 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+            className="fixed top-6 left-1/2 -translate-x-1/2 z-[9999] pointer-events-none select-none"
+          >
+            <div className="flex items-center gap-2.5 px-4.5 py-2.5 rounded-full border border-white/10 bg-black/80 backdrop-blur-2xl shadow-[0_12px_40px_rgba(0,0,0,0.65)]">
+              {hudType === 'success' ? (
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.7)]" />
+              ) : hudType === 'error' ? (
+                <div className="w-1.5 h-1.5 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.7)]" />
+              ) : (
+                <div className="w-1.5 h-1.5 rounded-full bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.7)]" />
+              )}
+              <span className="text-[11px] font-semibold tracking-wide text-white/95">
+                {hudMessage}
+              </span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Onboarding Tour Overlay */}
       <OnboardingTour
         tourType={tourType}
@@ -1869,7 +2138,128 @@ export default function App() {
         accentColor={accentColor}
       />
 
+      {/* Floating MiniPlayer Pill */}
+      <AnimatePresence>
+        {appState === 'landing' && songData && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 30, scale: 0.95 }}
+            transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-[410px] max-w-[92vw] h-14 rounded-2xl border border-white/10 bg-black/55 backdrop-blur-2xl shadow-[0_12px_45px_rgba(0,0,0,0.65)] flex items-center justify-between px-3.5 select-none"
+          >
+            {/* Clickable Area: Expand Player */}
+            <div 
+              onClick={() => setAppState('ready')}
+              className="flex items-center gap-3 cursor-pointer group min-w-0 flex-1"
+            >
+              {/* Static Artwork (B&O Minimalism) */}
+              <div className="w-9 h-9 rounded-lg overflow-hidden relative border border-white/5 shadow-md shrink-0">
+                <img 
+                  src={songData.artworkUrl} 
+                  alt={songData.title}
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  style={{ borderRadius: '8px' }}
+                />
+              </div>
+              
+              {/* Text Info */}
+              <div className="flex flex-col min-w-0">
+                <span className="text-[11px] font-semibold text-white/95 truncate group-hover:text-emerald-400 transition-colors">
+                  {songData.title}
+                </span>
+                <span className="text-[9px] text-white/45 truncate mt-0.5">
+                  {songData.artist}
+                </span>
+              </div>
+            </div>
 
+            {/* Controls (SkipBack, Play/Pause, SkipForward) */}
+            <div className="flex items-center gap-3.5 shrink-0 ml-3">
+              {/* Previous button */}
+              <button
+                onClick={() => window.dispatchEvent(new Event('elva-play-prev'))}
+                className="text-white/50 hover:text-white/95 transition-colors cursor-pointer focus:outline-none"
+                title="Previous track"
+              >
+                <SkipBack className="w-4 h-4 fill-white/10" />
+              </button>
+
+              {/* Play / Pause button */}
+              <motion.button
+                whileHover={{ scale: 1.06 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => window.dispatchEvent(new Event('elva-toggle-play'))}
+                className="w-8.5 h-8.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/8 flex items-center justify-center text-white cursor-pointer transition-colors focus:outline-none"
+              >
+                {isMiniPlaying ? (
+                  <Pause className="w-3.5 h-3.5 fill-white" />
+                ) : (
+                  <Play className="w-3.5 h-3.5 fill-white ml-0.5" />
+                )}
+              </motion.button>
+
+              {/* Next button */}
+              <button
+                onClick={() => window.dispatchEvent(new Event('elva-play-next'))}
+                className="text-white/50 hover:text-white/95 transition-colors cursor-pointer focus:outline-none"
+                title="Next track"
+              >
+                <SkipForward className="w-4 h-4 fill-white/10" />
+              </button>
+
+              {/* Clean divider */}
+              <div className="w-[1px] h-4 bg-white/10" />
+
+              {/* Stop & Close button */}
+              <button
+                onClick={() => {
+                  setColorsSongData(null);
+                  setSongData(null);
+                }}
+                className="text-white/35 hover:text-rose-400 transition-colors cursor-pointer focus:outline-none"
+                title="Stop & Clear"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Global Custom Premium Volume HUD overlay */}
+      <AnimatePresence>
+        {showGlobalVolumeHUD && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: -20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: -10 }}
+            transition={{ type: "spring", stiffness: 350, damping: 25 }}
+            className="fixed top-10 left-1/2 -translate-x-1/2 z-[99999] flex items-center gap-3 px-5 py-3 rounded-full bg-black/60 backdrop-blur-2xl border border-white/10 shadow-[0_12px_40px_rgba(0,0,0,0.5)] pointer-events-none"
+          >
+            {globalVolume === 0 ? (
+              <VolumeX className="w-4 h-4 text-white/55" />
+            ) : globalVolume < 33 ? (
+              <Volume className="w-4 h-4 text-white/80" />
+            ) : globalVolume < 66 ? (
+              <Volume1 className="w-4 h-4 text-white/80" />
+            ) : (
+              <Volume2 className="w-4 h-4 text-white/80" />
+            )}
+            <div className="w-24 h-1.5 bg-white/15 rounded-full overflow-hidden relative">
+              <motion.div
+                className={`h-full ${accentBgs400[accentColor]} rounded-full`}
+                initial={{ width: 0 }}
+                animate={{ width: `${globalVolume}%` }}
+                transition={{ type: "spring", stiffness: 300, damping: 20 }}
+              />
+            </div>
+            <span className="text-xs font-semibold text-white/90 tabular-nums w-8 text-right">
+              {globalVolume}%
+            </span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <Toaster 
         position="top-center" 

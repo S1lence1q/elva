@@ -83,7 +83,7 @@ export const LandingRecents: React.FC<LandingRecentsProps> = ({
       {!showTabs && (
         <div className="flex items-center justify-between px-1">
           <span className="text-[10px] text-white/30 font-bold uppercase tracking-[0.2em]">
-            {hasSongs ? 'Recently Played' : 'Recent Artists'}
+            {hasSongs ? 'Recently Played' : (!localStorage.getItem('elva_recent_artists') ? 'Featured' : 'Recent Artists')}
           </span>
         </div>
       )}

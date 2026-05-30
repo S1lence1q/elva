@@ -92,10 +92,10 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
                     thumbnail: songData.artworkUrl,
                   });
                 }}
-                className="p-2 rounded-xl hover:bg-white/10 text-white/40 hover:text-white cursor-pointer shrink-0 transition-all active:scale-90"
+                className="p-2.5 rounded-xl hover:bg-white/10 text-white/40 hover:text-white cursor-pointer shrink-0 transition-all hover:scale-105 active:scale-95 duration-200"
                 title={isFavorite ? "Fjern fra favoritter" : "Marker som favorit"}
               >
-                <Heart className={`w-4 h-4 ${isFavorite ? 'text-red-500 fill-red-500' : ''}`} />
+                <Heart className={`w-[21px] h-[21px] ${isFavorite ? 'text-red-500 fill-red-500' : ''}`} />
               </button>
             </div>
           )}
@@ -114,10 +114,10 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
                   e.stopPropagation();
                   setShowPlaylistMenu(!showPlaylistMenu);
                 }}
-                className={`p-2 rounded-xl hover:bg-white/10 text-white/40 hover:text-white cursor-pointer transition-all active:scale-90 ${showPlaylistMenu ? 'bg-white/15 text-white' : ''}`}
+                className={`p-2.5 rounded-xl hover:bg-white/10 text-white/40 hover:text-white cursor-pointer transition-all hover:scale-105 active:scale-95 duration-200 ${showPlaylistMenu ? 'bg-white/15 text-white' : ''}`}
                 title="Add to playlist"
               >
-                <ListPlus className="w-4 h-4" />
+                <ListPlus className="w-[21px] h-[21px]" />
               </button>
 
               {/* Glassmorphic Dropdown Menu */}
@@ -146,9 +146,17 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
                           </button>
                         ))
                       ) : (
-                        <div className="text-[10px] text-white/30 px-2.5 py-3 text-center leading-normal">
-                          Ingen playlister oprettet. Opret i Mit Hub!
-                        </div>
+                        <button
+                          onClick={() => {
+                            setShowPlaylistMenu(false);
+                            sessionStorage.setItem('elva_hub_active_tab', 'playlists');
+                            window.dispatchEvent(new CustomEvent('elva-scroll-to-hub'));
+                          }}
+                          className="w-full text-center text-xs font-semibold text-white/40 hover:text-white bg-white/[0.02] hover:bg-white/[0.08] border border-white/5 hover:border-white/10 rounded-xl px-2.5 py-3 transition-all duration-300 cursor-pointer select-none leading-relaxed flex flex-col items-center justify-center gap-1 active:scale-[0.98] mt-1"
+                        >
+                          <span className="text-[11px] font-bold text-white/85">No playlists created</span>
+                          <span className="text-[10px] text-white/40 font-medium hover:text-white transition-colors duration-200">Create in My Hub</span>
+                        </button>
                       )}
                     </div>
                   </motion.div>

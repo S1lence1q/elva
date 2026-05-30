@@ -186,12 +186,33 @@ export function extractColorsFromImage(
       finalHslColors = selected;
     }
 
-    // Enforce gentle, sophisticated slate damping to ensure shader flows, keeping it exceptionally clean
-    const adjustedColors = finalHslColors.map(color => {
-      // Damp saturation to a max of 22% and min of 8% to keep backgrounds unified and non-irritating
-      const s = color.s === 0 ? 0 : Math.min(0.22, Math.max(0.08, color.s * 0.4));
-      // Clamp lightness between 12% and 24% for deep, high-contrast obsidian waves
-      const l = color.s === 0 ? 0.14 : Math.min(0.24, Math.max(0.12, color.l));
+    // Enforce sophisticated, multi-tiered cinematic color mapping
+    // This allows the accent/glow to shine vibrantly while keeping the primary/secondary deep and dark for text readability.
+    const adjustedColors = finalHslColors.map((color, index) => {
+      if (color.s === 0) {
+        // Grayscale baseline for monochrome artwork
+        const lFallback = index === 0 ? 0.16 : index === 1 ? 0.10 : 0.42; // Brighter accent for B&W
+        const rgb = hslToRgb(color.h, 0, lFallback);
+        return { r: rgb[0], g: rgb[1], b: rgb[2] };
+      }
+
+      let s = color.s;
+      let l = color.l;
+
+      if (index === 0) {
+        // Primary: Deep, rich background base
+        s = Math.min(0.60, Math.max(0.26, color.s * 1.05));
+        l = Math.min(0.21, Math.max(0.12, color.l * 0.95));
+      } else if (index === 1) {
+        // Secondary: Medium-depth complementary shade
+        s = Math.min(0.55, Math.max(0.22, color.s * 1.00));
+        l = Math.min(0.18, Math.max(0.10, color.l * 0.85));
+      } else {
+        // Accent: Vibrant ambient cinematic glow (This is what lights up the WebGL fluid!)
+        s = Math.min(0.92, Math.max(0.50, color.s * 1.55));
+        l = Math.min(0.46, Math.max(0.26, color.l * 1.40));
+      }
+
       const rgb = hslToRgb(color.h, s, l);
       return { r: rgb[0], g: rgb[1], b: rgb[2] };
     });
@@ -201,9 +222,9 @@ export function extractColorsFromImage(
     const color3 = adjustedColors[2];
 
     return {
-      primary: `rgba(${color1.r},${color1.g},${color1.b},0.6)`,
-      secondary: `rgba(${color2.r},${color2.g},${color2.b},0.5)`,
-      accent: `rgba(${color3.r},${color3.g},${color3.b},0.4)`
+      primary: `rgba(${color1.r},${color1.g},${color1.b},0.82)`,
+      secondary: `rgba(${color2.r},${color2.g},${color2.b},0.68)`,
+      accent: `rgba(${color3.r},${color3.g},${color3.b},0.62)`
     };
   } catch (e) {
     console.warn('Failed to extract colors from image:', e);

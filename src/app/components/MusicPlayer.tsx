@@ -18,6 +18,7 @@ import { PlayerControls } from './PlayerControls';
 import { AccentColor, ACCENT_THEMES } from './themeUtils';
 import { getDynamicFallbackColors } from '../utils/playerColorUtils';
 import { parseLrc, generateFallbackLyrics, loadCustomLyrics } from '../utils/lyricsUtils';
+import { showMiniHUD } from '../utils/hudUtils';
 import { CustomLyricsModal } from './CustomLyricsModal';
 import { cleanSongTitle } from '../utils/stringUtils';
 import { LyricLine } from '../types';
@@ -77,6 +78,7 @@ interface MusicPlayerProps {
   songColors?: { primary: string; secondary: string; accent: string } | null;
   enableCustomLyrics?: boolean;
   onEnableCustomLyricsChange?: (enable: boolean) => void;
+  onPlayingStateChange?: (playing: boolean) => void;
 }
 
 const THEME_PRESETS = {
@@ -141,7 +143,8 @@ export function MusicPlayer({
   onViewArtist,
   songColors,
   enableCustomLyrics = false,
-  onEnableCustomLyricsChange
+  onEnableCustomLyricsChange,
+  onPlayingStateChange
 }: MusicPlayerProps) {
   const theme = ACCENT_THEMES[accentColor];
 
@@ -177,8 +180,10 @@ export function MusicPlayer({
       localStorage.setItem('elva_player_premute_volume', String(volume));
     }
   }, [volume]);
-  const [showVolumeHUD, setShowVolumeHUD] = useState(false);
-  const volumeHUDTimeoutRef = useRef<any>(null);
+
+  useEffect(() => {
+    onPlayingStateChange?.(isPlaying);
+  }, [isPlaying, onPlayingStateChange]);
   const [showQueue, setShowQueue] = useState(false);
   const [focusSearchInQueue, setFocusSearchInQueue] = useState(false);
   const [isArtworkHovered, setIsArtworkHovered] = useState(false);
@@ -237,7 +242,7 @@ export function MusicPlayer({
         
         // Avoid duplicate tracks in same playlist
         if (playlist.tracks.some((t: any) => t.id === currentTrack.id)) {
-          toast.info('Already added to this playlist');
+          showMiniHUD('Already in this playlist', 'info');
           return;
         }
         
@@ -247,9 +252,7 @@ export function MusicPlayer({
         // Dispatch custom event to notify ProfileHubView
         window.dispatchEvent(new Event('elva-playlists-updated'));
         
-        toast.success(`Added to ${playlist.name}`, {
-          description: songData.title
-        });
+        showMiniHUD(`Added to ${playlist.name}`, 'success');
       }
     } catch (e) {
       console.warn('Failed to add track to playlist:', e);
@@ -495,6 +498,16 @@ export function MusicPlayer({
         if (isMounted) {
           setLyrics(custom.lyrics);
           setIsLyricsSynced(custom.isSynced);
+          setIsLoadingLyrics(false);
+        }
+        return;
+      }
+
+      // If it's a local file upload, do not query external LrcLib API (as it will return garbage matches)
+      if (songData.audioUrl?.startsWith('blob:') || songData.artist === 'Unknown Artist') {
+        if (isMounted) {
+          setLyrics([]);
+          setIsLyricsSynced(false);
           setIsLoadingLyrics(false);
         }
         return;
@@ -1137,6 +1150,28 @@ export function MusicPlayer({
     }
   };
 
+  useEffect(() => {
+    const handleTogglePlayEvent = () => {
+      togglePlayPause();
+    };
+    const handleNextSongEvent = () => {
+      handleNextSong();
+    };
+    const handlePrevSongEvent = () => {
+      handlePreviousSong();
+    };
+
+    window.addEventListener('elva-toggle-play', handleTogglePlayEvent);
+    window.addEventListener('elva-play-next', handleNextSongEvent);
+    window.addEventListener('elva-play-prev', handlePrevSongEvent);
+
+    return () => {
+      window.removeEventListener('elva-toggle-play', handleTogglePlayEvent);
+      window.removeEventListener('elva-play-next', handleNextSongEvent);
+      window.removeEventListener('elva-play-prev', handlePrevSongEvent);
+    };
+  }, [togglePlayPause, handleNextSong, handlePreviousSong]);
+
   const formatTime = (seconds: number) => {
     if (!seconds || isNaN(seconds)) return "0:00";
     const mins = Math.floor(seconds / 60);
@@ -1176,14 +1211,8 @@ export function MusicPlayer({
       audioRef.current.volume = newVol / 100;
     }
 
-    // Custom premium Volume HUD animation
-    if (volumeHUDTimeoutRef.current) {
-      clearTimeout(volumeHUDTimeoutRef.current);
-    }
-    setShowVolumeHUD(true);
-    volumeHUDTimeoutRef.current = setTimeout(() => {
-      setShowVolumeHUD(false);
-    }, 1500);
+    // Dispatch global custom event for the root-level Volume HUD in App.tsx
+    window.dispatchEvent(new CustomEvent('elva-volume-change', { detail: { volume: newVol } }));
   };
 
   // Keyboard shortcuts
@@ -1242,9 +1271,6 @@ export function MusicPlayer({
   useEffect(() => {
     return () => {
       // Clear timers and animation frames to prevent CPU/memory leaks
-      if (volumeHUDTimeoutRef.current) {
-        clearTimeout(volumeHUDTimeoutRef.current);
-      }
       if (faderAnimationRef.current) {
         cancelAnimationFrame(faderAnimationRef.current);
       }
@@ -1417,19 +1443,6 @@ export function MusicPlayer({
         className="hidden" 
       />
 
-      {/* Animated background layers - smooth fade in */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 1.5, delay: 0.3, ease: "easeOut" }}
-        className="absolute inset-0 overflow-hidden pointer-events-none"
-        style={{ willChange: 'opacity' }}
-      >
-        {/* Soft immersive dark vignette and top/bottom gradient maps to protect text readability */}
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(0,0,0,0)_40%,rgba(0,0,0,0.6)_100%)] pointer-events-none z-[5]" />
-        <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-black/50 via-black/10 to-transparent pointer-events-none z-[5]" />
-        <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-black/45 to-transparent pointer-events-none z-[5]" />
-      </motion.div>
 
       <motion.div
         initial={{ opacity: 0, x: 0 }}
@@ -1786,40 +1799,6 @@ export function MusicPlayer({
         </motion.div>
 
       </motion.div>
-
-      {/* Custom Premium Volume HUD overlay */}
-      <AnimatePresence>
-        {showVolumeHUD && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: -20, x: '-50%' }}
-            animate={{ opacity: 1, scale: 1, y: 0, x: '-50%' }}
-            exit={{ opacity: 0, scale: 0.95, y: -10, x: '-50%' }}
-            transition={{ type: "spring", stiffness: 350, damping: 25 }}
-            className="absolute top-10 left-1/2 z-50 flex items-center gap-3 px-5 py-3 rounded-full bg-black/60 backdrop-blur-2xl border border-white/10 shadow-[0_12px_40px_rgba(0,0,0,0.5)] pointer-events-none"
-          >
-            {volume === 0 ? (
-              <VolumeX className="w-4 h-4 text-white/55" />
-            ) : volume < 33 ? (
-              <Volume className={`w-4 h-4 ${theme.text}`} />
-            ) : volume < 66 ? (
-              <Volume1 className={`w-4 h-4 ${theme.text}`} />
-            ) : (
-              <Volume2 className={`w-4 h-4 ${theme.text}`} />
-            )}
-            <div className="w-24 h-1.5 bg-white/15 rounded-full overflow-hidden relative">
-              <motion.div
-                className={`h-full ${accentBgs400[accentColor]} rounded-full`}
-                initial={{ width: 0 }}
-                animate={{ width: `${volume}%` }}
-                transition={{ type: "spring", stiffness: 300, damping: 20 }}
-              />
-            </div>
-            <span className="text-xs font-semibold text-white/90 tabular-nums w-8 text-right">
-              {volume}%
-            </span>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Premium Custom Lyrics Upload Modal */}
       <CustomLyricsModal

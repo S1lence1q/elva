@@ -3,8 +3,9 @@ import { motion } from 'motion/react';
 import { Play, Plus, Compass, Flame, Heart, Sparkles } from 'lucide-react';
 import { SearchResult } from '../types';
 import { AccentColor, ACCENT_THEMES } from './themeUtils';
-import { toast } from 'sonner';
+import { showMiniHUD } from '../utils/hudUtils';
 import { Playlist } from './PlaylistDetailsView';
+import { SongRowOptions } from './SongRowOptions';
 
 import topHitsDenmark from '../../top_hits_denmark.png';
 import topHitsGlobal from '../../top_hits_global.png';
@@ -12,6 +13,7 @@ import topHitsGlobal from '../../top_hits_global.png';
 interface DiscoverViewProps {
   onSelectSong: (song: SearchResult) => void;
   onAddToQueue: (song: SearchResult) => void;
+  onPlayNext?: (song: SearchResult) => void;
   accentColor: AccentColor;
   favorites: SearchResult[];
   onToggleFavorite: (song: SearchResult) => void;
@@ -69,6 +71,7 @@ const FALLBACK_GLOBAL: SearchResult[] = [
 export const DiscoverView: React.FC<DiscoverViewProps> = ({
   onSelectSong,
   onAddToQueue,
+  onPlayNext,
   accentColor,
   favorites,
   onToggleFavorite,
@@ -168,9 +171,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
       onAddToQueue(track);
     });
 
-    toast.success(`Playing ${name}`, {
-      description: `Loaded ${tracks.length} tracks into queue.`
-    });
+    showMiniHUD(`Playing ${name}`, 'success');
   };
 
   const isFavorite = (songId: string) => {
@@ -351,7 +352,12 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
+                  <div className="flex items-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity select-none">
+                    <SongRowOptions
+                      track={song}
+                      onPlayNext={onPlayNext}
+                      onAddToQueue={onAddToQueue}
+                    />
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -361,17 +367,6 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                       title={isFavorite(song.id) ? "Remove from favorites" : "Add to favorites"}
                     >
                       <Heart className={`w-4 h-4 ${isFavorite(song.id) ? 'text-red-500 fill-red-500' : ''}`} />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onAddToQueue(song);
-                        toast.success("Added to queue");
-                      }}
-                      className="p-2.5 rounded-xl hover:bg-white/5 transition-all text-white/60 hover:text-white cursor-pointer"
-                      title="Add to queue"
-                    >
-                      <Plus className="w-4 h-4" />
                     </button>
                   </div>
                 </motion.div>
@@ -419,7 +414,12 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
+                  <div className="flex items-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity select-none">
+                    <SongRowOptions
+                      track={song}
+                      onPlayNext={onPlayNext}
+                      onAddToQueue={onAddToQueue}
+                    />
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -429,17 +429,6 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                       title={isFavorite(song.id) ? "Remove from favorites" : "Add to favorites"}
                     >
                       <Heart className={`w-4 h-4 ${isFavorite(song.id) ? 'text-red-500 fill-red-500' : ''}`} />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onAddToQueue(song);
-                        toast.success("Added to queue");
-                      }}
-                      className="p-2.5 rounded-xl hover:bg-white/5 transition-all text-white/60 hover:text-white cursor-pointer"
-                      title="Add to queue"
-                    >
-                      <Plus className="w-4 h-4" />
                     </button>
                   </div>
                 </motion.div>

@@ -4,6 +4,7 @@ import { Music, X, Search, Plus, Play, Upload, Loader2, Heart, ListMusic, Trash2
 import { toast } from 'sonner';
 import { AccentColor, ACCENT_THEMES } from './themeUtils';
 import { getPrimaryArtist } from '../utils/stringUtils';
+import { getHandPickedImage } from '../utils/apiUtils';
 
 interface QueueItem {
   id: string;
@@ -57,6 +58,48 @@ interface QueueProps {
   onUrlSubmit?: (url: string) => void;
 }
 
+const ArtistAvatar = ({ name, fallbackThumbnail }: { name: string, fallbackThumbnail: string }) => {
+  const handPicked = getHandPickedImage(name);
+  const [imgUrl, setImgUrl] = useState(handPicked || fallbackThumbnail);
+
+  useEffect(() => {
+    if (handPicked) {
+      setImgUrl(handPicked);
+      return;
+    }
+    let active = true;
+    const fetchRealImg = async () => {
+      try {
+        const cached = localStorage.getItem(`elva_artist_img_${name.toLowerCase()}`);
+        if (cached) {
+          setImgUrl(cached);
+          return;
+        }
+        
+        const res = await fetch(`https://corsproxy.io/?https://api.deezer.com/search/artist?q=${encodeURIComponent(name)}`);
+        if (res.ok) {
+          const data = await res.json();
+          const artist = (data.data || []).find((a: any) => a.name.toLowerCase() === name.toLowerCase()) || data.data?.[0];
+          if (artist && active && (artist.picture_medium || artist.picture_big)) {
+            const url = artist.picture_medium || artist.picture_big;
+            setImgUrl(url);
+            localStorage.setItem(`elva_artist_img_${name.toLowerCase()}`, url);
+            // Also notify profile hub if it was loaded
+            window.dispatchEvent(new CustomEvent('elva-artist-image-loaded', { detail: { name, url } }));
+          }
+        }
+      } catch (e) {
+        // Safe silent fallback
+      }
+    };
+    
+    fetchRealImg();
+    return () => { active = false; };
+  }, [name, fallbackThumbnail]);
+
+  return <img src={imgUrl} alt={name} className="w-full h-full object-cover rounded-full" />;
+};
+
 export function Queue({
   items,
   currentSongId,
@@ -77,6 +120,7 @@ export function Queue({
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -119,6 +163,29 @@ export function Queue({
 
   useEffect(() => {
     loadLocalStorageItems();
+  }, []);
+
+  useEffect(() => {
+    const handlePlaylistsUpdated = () => {
+      loadLocalStorageItems();
+      setSelectedQueuePlaylist(prev => {
+        if (!prev) return null;
+        try {
+          const stored = localStorage.getItem('elva_playlists');
+          const lists = stored ? JSON.parse(stored) : [];
+          const updated = lists.find((p: any) => p.id === prev.id);
+          return updated || null;
+        } catch {
+          return prev;
+        }
+      });
+    };
+    window.addEventListener('elva-playlists-updated', handlePlaylistsUpdated);
+    window.addEventListener('storage', handlePlaylistsUpdated);
+    return () => {
+      window.removeEventListener('elva-playlists-updated', handlePlaylistsUpdated);
+      window.removeEventListener('storage', handlePlaylistsUpdated);
+    };
   }, []);
 
   // Reset sub-views if search query changes
@@ -177,11 +244,10 @@ export function Queue({
     }
   }, [focusSearchOnMount]);
 
-  // Clear search results if query is empty
+  // Reset search state on query changes so it displays "Press Enter to search" immediately when typing
   useEffect(() => {
-    if (!searchQuery.trim()) {
-      setSearchResults([]);
-    }
+    setHasSearched(false);
+    setSearchResults([]);
   }, [searchQuery]);
 
   const handleSearch = async () => {
@@ -196,6 +262,7 @@ export function Queue({
     }
 
     setIsSearching(true);
+    setHasSearched(true);
     try {
       if (onSearch) {
         const results = await onSearch(searchQuery.trim(), 20);
@@ -404,6 +471,10 @@ export function Queue({
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                 placeholder="Search songs or paste links..."
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck="false"
                 className="w-full pl-12 pr-10 py-3 rounded-2xl bg-white/5 border border-white/8 hover:border-white/15 focus:border-white/20 text-white placeholder-white/30 text-sm focus:outline-none transition-all duration-200"
               />
               {searchQuery && (
@@ -648,9 +719,10 @@ export function Queue({
                           onClick={async () => {
                             if (onFetchChannelUploads) {
                               setIsLoadingArtist(true);
+                              const cachedImg = localStorage.getItem(`elva_artist_img_${artist.name.toLowerCase()}`) || artist.thumbnail;
                               setSelectedArtist({
                                 name: artist.name,
-                                thumbnail: artist.thumbnail,
+                                thumbnail: cachedImg,
                                 channelId: artist.channelId,
                                 isTopic: true
                               });
@@ -663,7 +735,7 @@ export function Queue({
                           title={`Browse ${artist.name}`}
                         >
                           <div className="relative w-16 h-16 rounded-full overflow-hidden p-0.5 border border-white/10 hover:border-white/30 group-hover:scale-105 transition-all duration-300 shadow-md">
-                            <img src={artist.thumbnail} alt={artist.name} className="w-full h-full object-cover rounded-full" />
+                            <ArtistAvatar name={artist.name} fallbackThumbnail={artist.thumbnail} />
                           </div>
                           <span className="text-[10px] text-white/40 group-hover:text-white transition-colors text-center truncate w-full font-semibold">
                             {artist.name}
@@ -775,9 +847,13 @@ export function Queue({
                     </div>
                   ))}
                 </motion.div>
-              ) : (
+              ) : hasSearched ? (
                 <div className="py-24 text-center select-none">
                   <p className="text-white/40 text-xs font-semibold">No results found</p>
+                </div>
+              ) : (
+                <div className="py-24 text-center select-none">
+                  <p className="text-white/30 text-[11px] font-medium tracking-wide uppercase">Press Enter to search</p>
                 </div>
               )
             ) : (

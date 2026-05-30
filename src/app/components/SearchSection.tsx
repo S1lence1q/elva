@@ -5,10 +5,12 @@ import { SearchResult, VerifiedArtist } from '../types';
 import { ThemeColors } from './themeUtils';
 import { shouldShowArtistCard } from '../utils/apiUtils';
 import { LandingRecents } from './LandingRecents';
+import { SongRowOptions } from './SongRowOptions';
 
 interface SearchSectionProps {
   searchQuery: string;
   setSearchQuery: (query: string) => void;
+  lastSearchedQuery?: string;
   isSearching: boolean;
   searchResults: SearchResult[];
   recentArtists: VerifiedArtist[];
@@ -21,6 +23,7 @@ interface SearchSectionProps {
   handleSearch: (overrideQuery?: string) => void;
   handleSelectSong: (track: SearchResult) => void;
   handleAddToQueue: (track: SearchResult) => void;
+  handlePlayNext?: (track: SearchResult) => void;
   handleFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
   theme: ThemeColors;
   isFirstVisit: boolean;
@@ -30,6 +33,7 @@ interface SearchSectionProps {
 export const SearchSection: React.FC<SearchSectionProps> = ({
   searchQuery,
   setSearchQuery,
+  lastSearchedQuery,
   isSearching,
   searchResults,
   recentArtists,
@@ -42,6 +46,7 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
   handleSearch,
   handleSelectSong,
   handleAddToQueue,
+  handlePlayNext,
   handleFileSelect,
   theme,
   isFirstVisit,
@@ -129,6 +134,10 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
             }}
             placeholder="Search or paste a link..."
             autoFocus
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck="false"
             className="w-full pl-16 pr-8 py-6 rounded-3xl bg-white/[0.02] border border-white/[0.08] text-white/90 placeholder-white/25 text-lg font-light tracking-wide focus:outline-none focus:border-white/15 focus:bg-white/[0.04] transition-all duration-300 backdrop-blur-2xl"
           />
 
@@ -174,14 +183,15 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
           >
             {/* Search Results List with Glowing Premium Clickable Artist Profile Card */}
             <>
-              {shouldShowArtistCard(searchQuery) && verifiedArtist && (
+              {shouldShowArtistCard(lastSearchedQuery || searchQuery) && verifiedArtist && (
                 (() => {
                   const artist = verifiedArtist;
                   const isFocused = focusedResultIndex === 0;
                   return (
                     <motion.div
-                       initial={{ opacity: 0, y: -10 }}
-                       animate={{ opacity: 1, y: 0 }}
+                       initial={{ opacity: 0, scale: 0.98 }}
+                       animate={{ opacity: 1, scale: 1 }}
+                       transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
                        onClick={() => handleViewArtistProfile(artist)}
                        className={`relative overflow-hidden p-6 rounded-3xl bg-gradient-to-br from-[#121214]/65 via-[#0d0d0e]/40 to-black/20 border transition-all duration-300 mb-6 flex items-center justify-between gap-6 group shadow-lg cursor-pointer active:scale-[0.99] backdrop-blur-xl w-full ${
                          isFocused
@@ -232,7 +242,7 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
               )}
 
               {searchResults.map((result, index) => {
-                const hasArtistCard = shouldShowArtistCard(searchQuery) && verifiedArtist;
+                const hasArtistCard = shouldShowArtistCard(lastSearchedQuery || searchQuery) && verifiedArtist;
                 const actualIndex = hasArtistCard ? index + 1 : index;
                 const isFocused = focusedResultIndex === actualIndex;
 
@@ -298,18 +308,14 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
                       </p>
                     </div>
 
-                    {/* Add to queue */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleAddToQueue(result);
-                      }}
-                      className="relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-white/10 transition-all opacity-0 group-hover:opacity-100 duration-200"
-                      title="Add to queue"
-                    >
-                      <Plus className="w-3.5 h-3.5 text-white/40" />
-                      <span className="text-xs text-white/40">Queue</span>
-                    </button>
+                     {/* More options dropdown */}
+                     <div className="opacity-0 group-hover:opacity-100 duration-200 shrink-0">
+                       <SongRowOptions
+                         track={result}
+                         onPlayNext={handlePlayNext}
+                         onAddToQueue={handleAddToQueue}
+                       />
+                     </div>
                   </motion.div>
                 );
               })}

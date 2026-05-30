@@ -112,10 +112,10 @@ const FS_SOURCE = `
     waveBand1 = pow(waveBand1, 2.0);
     waveBand2 = pow(waveBand2, 2.2);
 
-    // Dynamic, saturated color mixing
-    vec3 c1 = u_color1 * 1.25; // Slightly boost primary vibrance
-    vec3 c2 = u_color2 * 1.20; // Slightly boost secondary vibrance
-    vec3 c3 = u_color3; 
+    // Dynamic, saturated color mixing (giving it massive cinematic punch and glow!)
+    vec3 c1 = u_color1 * 1.45; // Boost primary base vibrance
+    vec3 c2 = u_color2 * 1.40; // Boost secondary vibrance
+    vec3 c3 = u_color3 * 1.95; // Give accent color a huge radiant backlight glow boost!
     vec3 c4 = u_color4; 
 
     // Map weights based on our marbled wave bands
@@ -267,7 +267,7 @@ export const FluidBackground: React.FC<FluidBackgroundProps> = ({
       resizeCanvas();
 
       // Smoothly LERP colors in memory (R, G, B) to prevent sudden jumps
-      const speed = 0.035; // Gentle blend morph speed
+      const speed = 0.045; // Premium slow, fluid blend morph speed matching the 1.2s transitions
       for (let i = 0; i < 4; i++) {
         for (let c = 0; c < 3; c++) {
           const targetVal = targetColorsRef.current[i][c];
