@@ -156,7 +156,33 @@ Dette dokument er den urokkelige kilde til sandhed (Source of Truth) for Elvas k
 ---
 
 ## 📁 16. Modulopbygget Kodebase
-Vi har trukket utilities og logik ud af `MusicPlayer.tsx` for at holde koden let-vedligeholdelig. Vigtige hjælpefiler under `src/app/utils/`:
-1. `playerColorUtils.ts` (HSL/RGB konvertering, downsampled 32x32 scanning og fallbacks).
-2. `lyricsUtils.ts` (LRC parsing og dynamiske fallback lyrics).
-3. `stringUtils.ts` (Song title sanitizing).
+
+### `src/app/utils/` — Utilities
+1. `playerColorUtils.ts` — HSL/RGB konvertering, downsampled 32x32 scanning og fallbacks.
+2. `lyricsUtils.ts` — LRC parsing og dynamiske fallback lyrics.
+3. `stringUtils.ts` — Song title sanitizing.
+4. `apiUtils.ts` — YouTube search, ranking, channel uploads.
+5. `hudUtils.ts` — Global `showMiniHUD()` toast-hjælper.
+
+### `src/app/hooks/` — Custom React Hooks (fra App.tsx og MusicPlayer.tsx refactor)
+Disse hooks er udtrukket for at holde `App.tsx` og `MusicPlayer.tsx` fokuserede og fri for koderod.
+
+| Hook | Formål |
+|------|--------|
+| `useScrollTracking.ts` | LERP-baseret scroll-progress tracker + velocity turbulence engine for WebGL |
+| `useBackgroundColors.ts` | Beregner og interpolerer WebGL-baggrundsfarverne baseret på scroll-position og sang-farver |
+| `useKeyboardShortcuts.ts` | Globale keyboard shortcuts (mellemrum, piletaster, osv.) — event-driven, kobles på `window` |
+| `useSearchLogic.ts` | Søge-state, debounce, YouTube API kald og resultat-håndtering |
+| `useFadeVolume.ts` | `requestAnimationFrame`-baseret volume fader (`fadeVolume(target, duration)`). Promise-baseret med safeguard mod hængende async tråde via `fadeResolveRef`. |
+| `useAudioPlayer.ts` | HTML5 `<audio>` player livscyklus: src-load, play/pause synkronisering, `onended` → næste sang, Web Audio API analyzer init |
+| `useYouTubePlayer.ts` | YouTube IFrame API livscyklus: `YT.Player` oprettelse, event callbacks (`onStateChange`), destroy on unmount for memory leak prevention |
+
+### `src/app/components/` — Vigtige komponenter
+- **`App.tsx`** — Root controller og state host. Orchestrerer alle hooks og delegerer UI til `LandingPage.tsx`. Hoster det globale Volume HUD og MiniPlayer Pill.
+- **`LandingPage.tsx`** — Udtrukket UI-komponent for landing page. Modtager all relevant state og callbacks som props fra `App.tsx`. Indeholder Search, Charts og My Hub sektionerne.
+- **`MusicPlayer.tsx`** — Bridge mellem player-hooks og præsentationslaget (`LyricsPanel`, `PlayerControls`). Bruger `useFadeVolume`, `useAudioPlayer` og `useYouTubePlayer`.
+- **`LyricsPanel.tsx`** — Apple Music-stil floating lyrics med interactive scrubbing.
+- **`PlayerControls.tsx`** — Afspillingskontroller, volumen-slider, seek-bar.
+- **`Queue.tsx`** — Sidebar med køstyring, søgning, favoritter og historik.
+- **`ProfileHubView.tsx`** — Widescreen My Hub profil-side med tabs.
+- **`LandingRecents.tsx`** — Vandret rullende historik + artist-kortvisning.

@@ -8,8 +8,7 @@ declare global {
 }
 
 import { motion, useMotionValue, useSpring, useTransform, AnimatePresence } from 'motion/react';
-import { Play, Pause, List, Plus, SkipBack, SkipForward, Settings, X, Volume, Volume1, Volume2, VolumeX } from 'lucide-react';
-import * as Slider from '@radix-ui/react-slider';
+import { List, Plus, Settings } from 'lucide-react';
 import { toast } from 'sonner';
 import { Queue } from './Queue';
 import { SettingsModal } from './SettingsModal';
@@ -17,14 +16,16 @@ import { LyricsPanel } from './LyricsPanel';
 import { PlayerControls } from './PlayerControls';
 import { AccentColor, ACCENT_THEMES } from './themeUtils';
 import { getDynamicFallbackColors } from '../utils/playerColorUtils';
-import { parseLrc, generateFallbackLyrics, loadCustomLyrics } from '../utils/lyricsUtils';
+import { parseLrc, loadCustomLyrics } from '../utils/lyricsUtils';
 import { showMiniHUD } from '../utils/hudUtils';
 import { CustomLyricsModal } from './CustomLyricsModal';
 import { cleanSongTitle } from '../utils/stringUtils';
-import { LyricLine } from '../types';
+import { LyricLine, SearchResult } from '../types';
 
-
-import { SearchResult } from '../types';
+// Import newly extracted hooks
+import { useFadeVolume } from '../hooks/useFadeVolume';
+import { useAudioPlayer } from '../hooks/useAudioPlayer';
+import { useYouTubePlayer } from '../hooks/useYouTubePlayer';
 
 interface QueueItem {
   id: string;
@@ -148,7 +149,6 @@ export function MusicPlayer({
 }: MusicPlayerProps) {
   const theme = ACCENT_THEMES[accentColor];
 
-  // Helper mappings for dynamic class bindings
   const accentBgs: Record<AccentColor, string> = {
     emerald: 'bg-emerald-500',
     sand: 'bg-amber-500',
@@ -162,9 +162,10 @@ export function MusicPlayer({
     wine: 'bg-rose-400',
     navy: 'bg-slate-400'
   };
+
   const [isPlaying, setIsPlaying] = useState(true);
   const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0); // 4:03 in seconds
+  const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState<number>(() => {
     const saved = localStorage.getItem('elva_player_volume');
     return saved !== null ? parseInt(saved, 10) : 70;
@@ -184,6 +185,7 @@ export function MusicPlayer({
   useEffect(() => {
     onPlayingStateChange?.(isPlaying);
   }, [isPlaying, onPlayingStateChange]);
+
   const [showQueue, setShowQueue] = useState(false);
   const [focusSearchInQueue, setFocusSearchInQueue] = useState(false);
   const [isArtworkHovered, setIsArtworkHovered] = useState(false);
@@ -204,20 +206,16 @@ export function MusicPlayer({
   const isPlayingRef = useRef(isPlaying);
   const lastToggleTimeRef = useRef(0);
   const isTransitioningRef = useRef(false);
+
   const setPlaying = (value: boolean) => {
     isPlayingRef.current = value;
     setIsPlaying(value);
   };
+
   useEffect(() => {
     isPlayingRef.current = isPlaying;
   }, [isPlaying]);
 
-  // Volume Fader & Seamless Crossfade/Dip system
-  const faderRef = useRef(1); // multiplier 0 to 1
-  const faderAnimationRef = useRef<number | null>(null);
-  const fadeResolveRef = useRef<(() => void) | null>(null);
-  const isFadingOutRef = useRef(false);
-  const isTogglingPlayPauseRef = useRef(false);
   const volumeRef = useRef(volume);
   useEffect(() => {
     volumeRef.current = volume;
@@ -225,171 +223,19 @@ export function MusicPlayer({
 
   const handleNextSongRef = useRef<() => Promise<void>>(async () => {});
 
-  const handleAddToPlaylist = (playlistId: string) => {
-    try {
-      const stored = localStorage.getItem('elva_playlists');
-      const plist: any[] = stored ? JSON.parse(stored) : [];
-      const playlist = plist.find(p => p.id === playlistId);
-      
-      if (playlist) {
-        const currentTrack = {
-          id: songData.videoId || songData.audioUrl,
-          videoId: songData.videoId || '',
-          title: songData.title,
-          artist: songData.artist,
-          thumbnail: songData.artworkUrl
-        };
-        
-        // Avoid duplicate tracks in same playlist
-        if (playlist.tracks.some((t: any) => t.id === currentTrack.id)) {
-          showMiniHUD('Already in this playlist', 'info');
-          return;
-        }
-        
-        playlist.tracks.push(currentTrack);
-        localStorage.setItem('elva_playlists', JSON.stringify(plist));
-        
-        // Dispatch custom event to notify ProfileHubView
-        window.dispatchEvent(new Event('elva-playlists-updated'));
-        
-        showMiniHUD(`Added to ${playlist.name}`, 'success');
-      }
-    } catch (e) {
-      console.warn('Failed to add track to playlist:', e);
-    }
-  };
+  // 1. Volume Fader Hook
+  const { fadeVolume, faderRef, faderAnimationRef, fadeResolveRef, isFadingOutRef } = useFadeVolume({
+    volumeRef,
+    ytPlayerRef,
+    audioRef,
+    videoId: songData.videoId
+  });
 
-  // Automatic play-count & listening-time tracker (15 seconds trigger)
-  useEffect(() => {
-    if (!isPlaying) return;
-    
-    let playTimer = setTimeout(() => {
-      // 1. Increment play count for this track
-      try {
-        const stored = localStorage.getItem('elva_play_counts');
-        const counts: any = stored ? JSON.parse(stored) : {};
-        
-        const trackId = songData.videoId || songData.audioUrl;
-        if (!counts[trackId]) {
-          counts[trackId] = {
-            title: songData.title,
-            artist: songData.artist,
-            count: 0,
-            lastPlayed: Date.now()
-          };
-        }
-        counts[trackId].count += 1;
-        counts[trackId].lastPlayed = Date.now();
-        localStorage.setItem('elva_play_counts', JSON.stringify(counts));
-        
-        // 2. Increment weekly stats lytte-tid
-        const storedWeekly = localStorage.getItem('elva_weekly_time');
-        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        const currentDayName = days[new Date().getDay()];
-        
-        let stats: { day: string; min: number }[] = storedWeekly ? JSON.parse(storedWeekly) : [
-          { day: 'Mon', min: 12 },
-          { day: 'Tue', min: 45 },
-          { day: 'Wed', min: 25 },
-          { day: 'Thu', min: 60 },
-          { day: 'Fri', min: 85 },
-          { day: 'Sat', min: 110 },
-          { day: 'Sun', min: 50 }
-        ];
-        
-        const dayStat = stats.find(s => s.day === currentDayName);
-        if (dayStat) {
-          dayStat.min += 3; // Add 3 minutes per play
-        } else {
-          stats.push({ day: currentDayName, min: 3 });
-        }
-        localStorage.setItem('elva_weekly_time', JSON.stringify(stats));
-
-        // Dispatch a custom event to notify ProfileHubView to update stats reactively!
-        window.dispatchEvent(new Event('elva-stats-updated'));
-      } catch (e) {
-        console.warn('Failed to update stats in localStorage:', e);
-      }
-    }, 15000); // 15 seconds trigger
-
-    return () => clearTimeout(playTimer);
-  }, [songData.videoId, songData.audioUrl, isPlaying]);
-
-
-  const fadeVolume = (target: number, duration: number): Promise<void> => {
-    return new Promise((resolve) => {
-      if (faderAnimationRef.current) {
-        cancelAnimationFrame(faderAnimationRef.current);
-        faderAnimationRef.current = null;
-      }
-
-      if (fadeResolveRef.current) {
-        fadeResolveRef.current();
-      }
-      fadeResolveRef.current = resolve;
-
-      const startValue = faderRef.current;
-      const startTime = performance.now();
-
-      const run = (now: number) => {
-        const elapsed = now - startTime;
-        const progress = Math.min(elapsed / duration, 1);
-        
-        // Ease-out quad for fading in, ease-in quad for fading out
-        const isFadingIn = target > startValue;
-        const ease = isFadingIn 
-          ? progress * (2 - progress) // Ease-out
-          : progress * progress;       // Ease-in
-        faderRef.current = startValue + (target - startValue) * ease;
-
-        // Apply faded volume to active player
-        const activeVol = Math.round(volumeRef.current * faderRef.current);
-        if (songData.videoId && ytPlayerRef.current && ytPlayerRef.current.setVolume) {
-          try {
-            ytPlayerRef.current.setVolume(activeVol);
-          } catch (e) {}
-        }
-        if (audioRef.current) {
-          audioRef.current.volume = activeVol / 100;
-        }
-
-        if (progress < 1) {
-          faderAnimationRef.current = requestAnimationFrame(run);
-        } else {
-          faderRef.current = target;
-          faderAnimationRef.current = null;
-          fadeResolveRef.current = null;
-          resolve();
-        }
-      };
-
-      faderAnimationRef.current = requestAnimationFrame(run);
-    });
-  };
-
-  const [showSettings, setShowSettings] = useState(false);
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [isLoadingNewSong, setIsLoadingNewSong] = useState(false);
-  const [showSettingsHint, setShowSettingsHint] = useState(false);
-  const [imageBlur, setImageBlur] = useState(20);
-  const [previousArtwork, setPreviousArtwork] = useState<string | null>(null);
-  const [showPreviousArtwork, setShowPreviousArtwork] = useState(false);
-  const [dominantColors, setDominantColors] = useState(() => songColors || getDynamicFallbackColors(songData.title || '', songData.artist || ''));
-  const [targetColors, setTargetColors] = useState(() => songColors || getDynamicFallbackColors(songData.title || '', songData.artist || ''));
-  const extractedColors = songColors || getDynamicFallbackColors(songData.title || '', songData.artist || '');
+  const isTogglingPlayPauseRef = useRef(false);
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const audioSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
-
-
-  useEffect(() => {
-    if (themePreset === 'dynamic') {
-      setTargetColors(extractedColors);
-    } else {
-      setTargetColors(THEME_PRESETS[themePreset]);
-    }
-  }, [themePreset, extractedColors]);
 
   const initAudioAnalyzer = () => {
     if (analyserRef.current) return;
@@ -410,8 +256,6 @@ export function MusicPlayer({
       }
       const analyser = globalAnalyser;
       
-      // Use local component-level audio source node to avoid memory leaks
-      // and ensure re-mount connects the active audio element correctly.
       if (!audioSourceRef.current) {
         audioSourceRef.current = ctx.createMediaElementSource(audioRef.current);
       }
@@ -429,9 +273,144 @@ export function MusicPlayer({
     }
   };
 
+  const isYouTubeMode = !!songData.videoId;
 
+  // 2. HTML5 Audio Player Hook
+  useAudioPlayer({
+    audioUrl: songData.audioUrl,
+    isYouTubeMode,
+    isPlaying,
+    setPlaying,
+    setDuration,
+    fadeVolume,
+    faderRef,
+    handleNextSong: () => handleNextSong(),
+    initAudioAnalyzer,
+    audioRef,
+    isTransitioningRef,
+    audioContextRef
+  });
 
-  // Optimized pre-calculated particles trajectory array (responsively mapped using %)
+  // 3. YouTube Player Hook
+  useYouTubePlayer({
+    videoId: songData.videoId,
+    isYouTubeMode,
+    isPlaying,
+    isPlayingRef,
+    setPlaying,
+    setDuration,
+    fadeVolume,
+    faderRef,
+    handleNextSongRef,
+    isTransitioningRef,
+    ytPlayerRef,
+    faderAnimationRef,
+    audioRef
+  });
+
+  // Automatic play-count & listening-time tracker
+  useEffect(() => {
+    if (!isPlaying) return;
+    
+    let playTimer = setTimeout(() => {
+      try {
+        const stored = localStorage.getItem('elva_play_counts');
+        const counts: any = stored ? JSON.parse(stored) : {};
+        
+        const trackId = songData.videoId || songData.audioUrl;
+        if (!counts[trackId]) {
+          counts[trackId] = {
+            title: songData.title,
+            artist: songData.artist,
+            count: 0,
+            lastPlayed: Date.now()
+          };
+        }
+        counts[trackId].count += 1;
+        counts[trackId].lastPlayed = Date.now();
+        localStorage.setItem('elva_play_counts', JSON.stringify(counts));
+        
+        const storedWeekly = localStorage.getItem('elva_weekly_time');
+        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const currentDayName = days[new Date().getDay()];
+        
+        let stats: { day: string; min: number }[] = storedWeekly ? JSON.parse(storedWeekly) : [
+          { day: 'Mon', min: 12 },
+          { day: 'Tue', min: 45 },
+          { day: 'Wed', min: 25 },
+          { day: 'Thu', min: 60 },
+          { day: 'Fri', min: 85 },
+          { day: 'Sat', min: 110 },
+          { day: 'Sun', min: 50 }
+        ];
+        
+        const dayStat = stats.find(s => s.day === currentDayName);
+        if (dayStat) {
+          dayStat.min += 3;
+        } else {
+          stats.push({ day: currentDayName, min: 3 });
+        }
+        localStorage.setItem('elva_weekly_time', JSON.stringify(stats));
+
+        window.dispatchEvent(new Event('elva-stats-updated'));
+      } catch (e) {
+        console.warn('Failed to update stats in localStorage:', e);
+      }
+    }, 15000);
+
+    return () => clearTimeout(playTimer);
+  }, [songData.videoId, songData.audioUrl, isPlaying]);
+
+  const handleAddToPlaylist = (playlistId: string) => {
+    try {
+      const stored = localStorage.getItem('elva_playlists');
+      const plist: any[] = stored ? JSON.parse(stored) : [];
+      const playlist = plist.find(p => p.id === playlistId);
+      
+      if (playlist) {
+        const currentTrack = {
+          id: songData.videoId || songData.audioUrl,
+          videoId: songData.videoId || '',
+          title: songData.title,
+          artist: songData.artist,
+          thumbnail: songData.artworkUrl
+        };
+        
+        if (playlist.tracks.some((t: any) => t.id === currentTrack.id)) {
+          showMiniHUD('Already in this playlist', 'info');
+          return;
+        }
+        
+        playlist.tracks.push(currentTrack);
+        localStorage.setItem('elva_playlists', JSON.stringify(plist));
+        
+        window.dispatchEvent(new Event('elva-playlists-updated'));
+        showMiniHUD(`Added to ${playlist.name}`, 'success');
+      }
+    } catch (e) {
+      console.warn('Failed to add track to playlist:', e);
+    }
+  };
+
+  const [showSettings, setShowSettings] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [isLoadingNewSong, setIsLoadingNewSong] = useState(false);
+  const [showSettingsHint, setShowSettingsHint] = useState(false);
+  const [imageBlur, setImageBlur] = useState(20);
+  const [previousArtwork, setPreviousArtwork] = useState<string | null>(null);
+  const [showPreviousArtwork, setShowPreviousArtwork] = useState(false);
+  const [dominantColors, setDominantColors] = useState(() => songColors || getDynamicFallbackColors(songData.title || '', songData.artist || ''));
+  const [targetColors, setTargetColors] = useState(() => songColors || getDynamicFallbackColors(songData.title || '', songData.artist || ''));
+  const extractedColors = songColors || getDynamicFallbackColors(songData.title || '', songData.artist || '');
+
+  useEffect(() => {
+    if (themePreset === 'dynamic') {
+      setTargetColors(extractedColors);
+    } else {
+      setTargetColors(THEME_PRESETS[themePreset]);
+    }
+  }, [themePreset, extractedColors]);
+
   const optimizedParticles = useMemo(() => {
     return Array.from({ length: 30 }).map((_, i) => ({
       id: i,
@@ -466,13 +445,11 @@ export function MusicPlayer({
     setLyricsVersion(prev => prev + 1);
   };
 
-
-  // Sync lyrics with time
   useEffect(() => {
     if (lyrics.length === 0 || !isLyricsSynced) return;
     let activeIndex = -1;
     for (let i = 0; i < lyrics.length; i++) {
-      if (currentTime >= lyrics[i].time - 0.5) { // 0.5s pre-highlight for smooth reading
+      if (currentTime >= lyrics[i].time - 0.5) {
         activeIndex = i;
       } else {
         break;
@@ -481,7 +458,6 @@ export function MusicPlayer({
     setCurrentLyricIndex(activeIndex);
   }, [currentTime, lyrics, isLyricsSynced]);
 
-  // Fetch lyrics from LrcLib (or custom lyrics local store)
   useEffect(() => {
     if (!songData.title) return;
     
@@ -492,7 +468,6 @@ export function MusicPlayer({
       setCurrentLyricIndex(-1);
       setIsLyricsSynced(false);
 
-      // Check if custom uploaded lyrics exist in localStorage first
       const custom = loadCustomLyrics(songData.videoId, songData.title, songData.artist);
       if (custom) {
         if (isMounted) {
@@ -503,7 +478,6 @@ export function MusicPlayer({
         return;
       }
 
-      // If it's a local file upload, do not query external LrcLib API (as it will return garbage matches)
       if (songData.audioUrl?.startsWith('blob:') || songData.artist === 'Unknown Artist') {
         if (isMounted) {
           setLyrics([]);
@@ -557,9 +531,7 @@ export function MusicPlayer({
     return () => { isMounted = false; };
   }, [songData.title, songData.artist, songData.videoId, lyricsVersion]);
 
-  // Lyrics keyboard shortcut has been consolidated into the main global keydown handler below to prevent duplicate events.
-
-  // Zen Mode: Track user activity to auto-hide UI controls when idle
+  // Zen Mode Idle Tracker
   const [isUserIdle, setIsUserIdle] = useState(false);
   const idleTimerRef = useRef<any>(null);
 
@@ -575,7 +547,7 @@ export function MusicPlayer({
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
       idleTimerRef.current = setTimeout(() => {
         setIsUserIdle(true);
-      }, 3000); // 3 seconds of inactivity
+      }, 3000);
     };
 
     resetIdleTimer();
@@ -597,11 +569,9 @@ export function MusicPlayer({
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
 
-  // Very subtle spring for smooth tilt
   const rotateX = useSpring(useTransform(mouseY, [-300, 300], [2, -2]), { stiffness: 150, damping: 20 });
   const rotateY = useSpring(useTransform(mouseX, [-300, 300], [-2, 2]), { stiffness: 150, damping: 20 });
 
-  // Generate waveform once and memoize it
   const waveformData = useMemo(() => {
     return Array.from({ length: 60 }, (_, i) => {
       const pattern = Math.sin(i * 0.3) * 0.4 + Math.random() * 0.3 + 0.3;
@@ -609,7 +579,6 @@ export function MusicPlayer({
     });
   }, []);
 
-  // Show settings hint once on first load
   useEffect(() => {
     const hasSeenHint = localStorage.getItem('elva_settings_hint_seen');
     if (!hasSeenHint) {
@@ -621,14 +590,11 @@ export function MusicPlayer({
     }
   }, []);
 
-  // Smooth color transition effect - delegated entirely to hardware-accelerated CSS variables transitions
   useEffect(() => {
     setDominantColors(targetColors);
   }, [targetColors]);
 
-  // Preload and transition artwork images to enable gorgeous visual crossfades
   useEffect(() => {
-    // Store previous artwork for crossfade
     if (songData.artworkUrl !== previousArtwork) {
       setPreviousArtwork(songData.artworkUrl);
       setShowPreviousArtwork(true);
@@ -648,17 +614,14 @@ export function MusicPlayer({
     }
 
     img.onload = () => {
-      // Progressive loading: instant clean crossfade
       setTimeout(() => {
         setIsLoadingNewSong(false);
         setIsLoaded(true);
-        // Hide previous artwork after transition
         setTimeout(() => setShowPreviousArtwork(false), 800);
       }, 50);
     };
 
     img.onerror = () => {
-      // If the ultra-HD thumbnail failed, try falling back to the standard-HD thumbnail!
       if (img.src.includes('maxresdefault.jpg')) {
         const fallbackUrl = songData.artworkUrl.replace('maxresdefault.jpg', 'hqdefault.jpg');
         if (fallbackUrl && (fallbackUrl.includes('ytimg.com') || fallbackUrl.includes('youtube.com') || fallbackUrl.startsWith('http'))) {
@@ -669,7 +632,6 @@ export function MusicPlayer({
         return;
       }
 
-      // If all fails, gracefully complete animations using the beautifully generated title/artist theme!
       setTimeout(() => {
         setIsLoaded(true);
         setIsLoadingNewSong(false);
@@ -702,7 +664,6 @@ export function MusicPlayer({
       const x = e.clientX;
       const y = e.clientY;
       
-      // Ignore spurious leave events if the mouse is actually still inside the boundaries
       if (
         x >= rect.left && 
         x <= rect.right && 
@@ -719,165 +680,9 @@ export function MusicPlayer({
     stableCenterRef.current = { x: 0, y: 0 };
   };
 
-  // Load YT IFrame API and handle audio/video playback
-  const isYouTubeMode = !!songData.videoId;
-
-  // Manage YouTube player instance creation and destruction
-  useEffect(() => {
-    if (isYouTubeMode) {
-      if (audioRef.current) {
-        audioRef.current.pause();
-      }
-
-      const createYTPlayer = () => {
-        const container = document.getElementById('yt-player-container');
-        if (!container) return;
-
-        ytPlayerRef.current = new window.YT.Player('yt-player-container', {
-          height: '0',
-          width: '0',
-          videoId: songData.videoId,
-          playerVars: {
-            autoplay: isPlaying ? 1 : 0,
-            controls: 0,
-            disablekb: 1,
-          },
-          events: {
-            onReady: (e: any) => {
-              // Start at 0 volume and fade in!
-              faderRef.current = 0;
-              e.target.setVolume(0);
-              setDuration(e.target.getDuration());
-              if (isPlayingRef.current) {
-                e.target.playVideo();
-                fadeVolume(1, 800);
-              } else {
-                e.target.pauseVideo();
-              }
-            },
-            onStateChange: (e: any) => {
-              if (e.data === window.YT.PlayerState.ENDED) {
-                handleNextSongRef.current();
-              } else if (e.data === window.YT.PlayerState.PLAYING) {
-                setPlaying(true);
-                isTransitioningRef.current = false;
-                setDuration(e.target.getDuration());
-                // Fade in if the fader is at 0 or low
-                if (faderRef.current < 0.1) {
-                  fadeVolume(1, 800);
-                }
-              } else if (e.data === window.YT.PlayerState.PAUSED) {
-                // Ignore pause event during initial load transition
-                if (!isTransitioningRef.current) {
-                  setPlaying(false);
-                }
-              }
-            }
-          }
-        });
-      };
-
-      if (!window.YT) {
-        const tag = document.createElement('script');
-        tag.src = "https://www.youtube.com/iframe_api";
-        const firstScriptTag = document.getElementsByTagName('script')[0];
-        firstScriptTag?.parentNode?.insertBefore(tag, firstScriptTag);
-
-        window.onYouTubeIframeAPIReady = () => {
-          createYTPlayer();
-        };
-      } else if (!ytPlayerRef.current) {
-        createYTPlayer();
-      }
-    }
-
-    return () => {
-      // Cancel active fade animations to prevent animation frame leaks
-      if (faderAnimationRef.current) {
-        cancelAnimationFrame(faderAnimationRef.current);
-        faderAnimationRef.current = null;
-      }
-
-      // Destroy YouTube player instance to release memory completely
-      if (ytPlayerRef.current) {
-        try {
-          if (typeof ytPlayerRef.current.destroy === 'function') {
-            ytPlayerRef.current.destroy();
-          }
-        } catch (e) {
-          console.warn("Failed to destroy YT Player on song change/unmount:", e);
-        }
-        ytPlayerRef.current = null;
-      }
-    };
-  }, [isYouTubeMode]);
-
-  // Load new video when videoId changes
-  useEffect(() => {
-    if (isYouTubeMode && songData.videoId) {
-      isTransitioningRef.current = true;
-      if (ytPlayerRef.current && typeof ytPlayerRef.current.loadVideoById === 'function') {
-        // Start at 0 volume and load track!
-        faderRef.current = 0;
-        try { ytPlayerRef.current.setVolume(0); } catch(e){}
-        ytPlayerRef.current.loadVideoById(songData.videoId);
-        setPlaying(true);
-        ytPlayerRef.current.playVideo();
-        // Delay the fadeVolume in-call until PLAYING state is active in onStateChange callback!
-      }
-    }
-  }, [songData.videoId, isYouTubeMode]);
-
-  // Manage local audio playback
-  useEffect(() => {
-    if (!isYouTubeMode && songData.audioUrl) {
-      if (ytPlayerRef.current && ytPlayerRef.current.pauseVideo) {
-        try { ytPlayerRef.current.pauseVideo(); } catch(e){}
-      }
-      if (audioRef.current) {
-        isTransitioningRef.current = true;
-        audioRef.current.src = songData.audioUrl;
-        // Start at 0 volume and play, then fade in!
-        faderRef.current = 0;
-        audioRef.current.volume = 0;
-        setPlaying(true);
-        initAudioAnalyzer();
-        if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
-          audioContextRef.current.resume();
-        }
-        audioRef.current.play()
-          .then(() => {
-            isTransitioningRef.current = false;
-            fadeVolume(1, 800);
-          })
-          .catch(console.error);
-      }
-    }
-
-    return () => {
-      // Pause local audio and clear source to release hardware audio decoders/buffers
-      if (audioRef.current) {
-        try {
-          audioRef.current.pause();
-          audioRef.current.src = "";
-          audioRef.current.load();
-        } catch (e) {}
-      }
-    };
-  }, [isYouTubeMode, songData.audioUrl]);
-
   // Sync isPlaying state to players
   useEffect(() => {
-    // If we are actively toggling via UI/MediaSession, let togglePlayPause manage its own transitions
-    if (isTogglingPlayPauseRef.current) {
-      return;
-    }
-    // If we are currently transitioning tracks, skip this sync as the load effects handle their own fades
-    if (isTransitioningRef.current) {
-      return;
-    }
-    // If we are currently fading out in togglePlayPause, skip this sync to avoid clashing/premature pauses
-    if (isFadingOutRef.current) {
+    if (isTogglingPlayPauseRef.current || isTransitioningRef.current || isFadingOutRef.current) {
       return;
     }
 
@@ -908,11 +713,11 @@ export function MusicPlayer({
       }
     }
   }, [isPlaying]);
-  // Media Session API – integrates with macOS media keys (F7/F8/F9), AirPods, and Control Center
+
+  // Media Session API Integration
   useEffect(() => {
     if (!('mediaSession' in navigator)) return;
 
-    // Set track metadata so OS knows what's playing
     navigator.mediaSession.metadata = new MediaMetadata({
       title: songData.title,
       artist: songData.artist,
@@ -921,10 +726,8 @@ export function MusicPlayer({
         : [],
     });
 
-    // Keep playback state in sync with OS
     navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
 
-    // Play/pause handlers: read current state from ref, set directly – no debounce, no stale closure
     navigator.mediaSession.setActionHandler('play', () => {
       if (!isPlayingRef.current) {
         togglePlayPause();
@@ -958,9 +761,8 @@ export function MusicPlayer({
     };
   }, [songData.title, songData.artist, songData.artworkUrl, isPlaying, songData.videoId]);
 
-  // Progress timer for current time
+  // Progress timer
   useEffect(() => {
-
     if (isPlaying) {
       progressTimerRef.current = setInterval(() => {
         if (songData.videoId && ytPlayerRef.current && ytPlayerRef.current.getCurrentTime) {
@@ -997,10 +799,7 @@ export function MusicPlayer({
       }
 
       if (nextPlaying) {
-        // 1. Snappily update UI playing state
         setPlaying(true);
-        
-        // 2. Clear fader, set volume to 0, start playback
         faderRef.current = 0;
         if (songData.videoId && ytPlayerRef.current && ytPlayerRef.current.setVolume) {
           try { ytPlayerRef.current.setVolume(0); } catch (e){}
@@ -1019,17 +818,13 @@ export function MusicPlayer({
           audioRef.current.play().catch(console.error);
         }
         
-        // 3. Fade in smoothly
         await fadeVolume(1, 400);
       } else {
-        // 1. Snappily update UI playing state so interface responds instantly
         isFadingOutRef.current = true;
         setPlaying(false);
 
-        // 2. Fade out smoothly in the background
         await fadeVolume(0, 300);
 
-        // 3. Pause only if the user hasn't toggled play again during the fade
         if (!isPlayingRef.current) {
           if (songData.videoId && ytPlayerRef.current && ytPlayerRef.current.pauseVideo) {
             try { ytPlayerRef.current.pauseVideo(); } catch (e) {}
@@ -1069,7 +864,6 @@ export function MusicPlayer({
     const shouldFade = isPlaying && !nearEnd;
 
     if (queue.length === 0) {
-      // If queue is empty, fade out and stop rather than loop
       if (shouldFade) {
         await fadeVolume(0, 400);
       }
@@ -1085,8 +879,7 @@ export function MusicPlayer({
         audioRef.current.currentTime = 0;
         audioRef.current.pause();
       }
-      faderRef.current = 1; // silently reset fader multiplier for next play
-      // Apply manual volume back immediately
+      faderRef.current = 1;
       const activeVol = volumeRef.current;
       if (songData.videoId && ytPlayerRef.current?.setVolume) {
         try { ytPlayerRef.current.setVolume(activeVol); } catch(e){}
@@ -1122,7 +915,7 @@ export function MusicPlayer({
       if (shouldFade) {
         await fadeVolume(0, 400);
       }
-      skipTime(-currentTime); // seek to 0
+      skipTime(-currentTime);
       if (shouldFade) {
         await fadeVolume(1, 400);
       }
@@ -1132,7 +925,7 @@ export function MusicPlayer({
       if (shouldFade) {
         await fadeVolume(0, 400);
       }
-      skipTime(-currentTime); // seek to 0
+      skipTime(-currentTime);
       if (shouldFade) {
         await fadeVolume(1, 400);
       }
@@ -1193,7 +986,6 @@ export function MusicPlayer({
     const newVol = value[0];
     setVolume(newVol);
 
-    // Cancel fader animation and reset fader to 1 so manual adjustment takes full priority
     if (faderAnimationRef.current) {
       cancelAnimationFrame(faderAnimationRef.current);
       faderAnimationRef.current = null;
@@ -1211,14 +1003,12 @@ export function MusicPlayer({
       audioRef.current.volume = newVol / 100;
     }
 
-    // Dispatch global custom event for the root-level Volume HUD in App.tsx
     window.dispatchEvent(new CustomEvent('elva-volume-change', { detail: { volume: newVol } }));
   };
 
-  // Keyboard shortcuts
+  // Keyboard controls
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      // Don't trigger playback shortcuts if the user is typing in an input field or textarea
       const target = e.target as HTMLElement;
       if (
         target &&
@@ -1267,10 +1057,9 @@ export function MusicPlayer({
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [isPlaying, currentTime, volume, preMuteVolume]);
 
-  // Master Cleanup Effect for Component Unmount to prevent any background loops, intervals, or threads
+  // Master teardown unmount cleanup
   useEffect(() => {
     return () => {
-      // Clear timers and animation frames to prevent CPU/memory leaks
       if (faderAnimationRef.current) {
         cancelAnimationFrame(faderAnimationRef.current);
       }
@@ -1282,7 +1071,6 @@ export function MusicPlayer({
         clearInterval(progressTimerRef.current);
       }
       
-      // Disconnect local audio source node to free Web Audio memory
       if (audioSourceRef.current) {
         try {
           audioSourceRef.current.disconnect();
@@ -1290,7 +1078,6 @@ export function MusicPlayer({
         audioSourceRef.current = null;
       }
       
-      // Suspend global AudioContext to release system-level hardware audio threads
       if (globalAudioContext && globalAudioContext.state === 'running') {
         try {
           globalAudioContext.suspend();
@@ -1315,9 +1102,6 @@ export function MusicPlayer({
         '--theme-secondary-shadow-idle': dominantColors.secondary.replace('0.5', '0.15'),
       } as React.CSSProperties}
     >
-
-
-
 
       {/* Settings hint - only shown once */}
       <AnimatePresence>
@@ -1350,7 +1134,7 @@ export function MusicPlayer({
         </motion.button>
       </div>
 
-      {/* Dedicated Overlay Container to prevent React DOM child index / Framer Motion insertBefore desync bugs */}
+      {/* Dedicated Overlay Container */}
       <div className="absolute inset-0 pointer-events-none z-50">
         {/* Settings modal */}
         <AnimatePresence>
@@ -1443,7 +1227,6 @@ export function MusicPlayer({
         className="hidden" 
       />
 
-
       <motion.div
         initial={{ opacity: 0, x: 0 }}
         animate={{ 
@@ -1457,9 +1240,8 @@ export function MusicPlayer({
         className="relative z-10 flex flex-col items-center px-8 w-full"
         style={{ maxWidth: 1152 }}
       >
-        {/* Layout wrapper: side-by-side absolute translations on large screens for zero-reflow smooth transitions */}
         <div className={isLargeScreen ? 'relative w-full h-[550px] flex items-center justify-center' : 'flex flex-col items-center justify-center w-full'}>
-          {/* Stacked Artwork Card + micro-hint */}
+          {/* Stacked Artwork Card */}
           <motion.div 
             animate={{
               x: showLyrics && isLargeScreen ? -284 : 0,
@@ -1474,21 +1256,18 @@ export function MusicPlayer({
               height: 520,
             }}
           >
-            {/* Album artwork with controls */}
             <div
               id="artwork-card"
               ref={artworkRef}
               className="relative cursor-pointer w-[520px] h-[520px]"
               style={{ perspective: 1200 }}
             >
-              {/* OUTER LAYER: Handles the 180 degree flip animation cleanly without motionValue conflict */}
               <motion.div
                 className="w-full h-full relative"
                 animate={{ rotateY: showLyrics && !isLargeScreen ? 180 : 0 }}
                 transition={{ rotateY: { duration: 1.4, ease: [0.16, 1, 0.3, 1] } }}
                 style={{ transformStyle: 'preserve-3d' }}
               >
-            {/* INNER LAYER: Handles the buttery smooth mouse tilt tracking */}
             <motion.div
               onMouseEnter={handleMouseEnter}
               onMouseMove={handleMouseMove}
@@ -1520,7 +1299,6 @@ export function MusicPlayer({
                   visibility: showLyrics && !isLargeScreen ? 'hidden' : 'visible'
                 }}
               >
-              {/* Layered glass depth behind artwork - optimized */}
           <div
             className="absolute inset-0 rounded-3xl bg-white/[0.02] shadow-[0_20px_60px_rgba(0,0,0,0.5)]"
             style={{
@@ -1536,7 +1314,7 @@ export function MusicPlayer({
             }}
           />
 
-          {/* Ambient glow layers — blur 80→45, 60→35, 50→30 (invisible difference, big GPU gain) */}
+          {/* Ambient glow layers */}
           <div
             className="absolute -inset-16 rounded-full pointer-events-none transition-opacity duration-1000"
             style={{
@@ -1562,10 +1340,9 @@ export function MusicPlayer({
             }}
           />
 
-          {/* Cinematic rim light */}
           <div className="absolute -inset-1 rounded-3xl bg-gradient-to-br from-white/10 via-transparent to-white/5 opacity-60 pointer-events-none" />
 
-          {/* Album artwork card with dynamic colored shadows */}
+          {/* Album artwork card */}
           <div
             className="relative rounded-3xl overflow-hidden transition-all duration-500 w-full h-full cursor-pointer"
             style={{
@@ -1575,17 +1352,14 @@ export function MusicPlayer({
               isolation: 'isolate'
             }}
             onPointerDown={(e) => {
-              // Ensure we respond to mouse/pointer press down instantly to bypass mouse up desyncs
               if (e.button === 0) {
                 togglePlayPause();
               }
             }}
-            onClick={(e) => {
-              // Fallback if pointerdown is somehow bypassed or for standard keyboard access
+            onClick={() => {
               togglePlayPause();
             }}
           >
-            {/* Current artwork (drawn behind previous artwork) */}
             <motion.img
               src={songData.artworkUrl}
               alt="Album artwork"
@@ -1613,7 +1387,6 @@ export function MusicPlayer({
               }}
             />
 
-            {/* Previous artwork for crossfade (drawn on top with z-[2] to fade out smoothly and reveal current artwork underneath) */}
             {showPreviousArtwork && previousArtwork && (
               <motion.img
                 src={previousArtwork}
@@ -1634,7 +1407,6 @@ export function MusicPlayer({
               />
             )}
 
-            {/* Subtle inner glow */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-white/5 pointer-events-none" />
 
             <PlayerControls
@@ -1657,31 +1429,29 @@ export function MusicPlayer({
               onViewArtist={onViewArtist}
             />
           </div>
-          </div>
-          {/* END FRONT FACE */}
+              </div>
 
-          {!isLargeScreen && (
-            <LyricsPanel
-              showLyrics={showLyrics}
-              lyrics={lyrics}
-              isLoadingLyrics={isLoadingLyrics}
-              isLyricsSynced={isLyricsSynced}
-              currentLyricIndex={currentLyricIndex}
-              seekToAbsoluteTime={seekToAbsoluteTime}
-              setShowLyrics={setShowLyrics}
-              theme={theme}
-              onOpenUploadModal={() => setIsLyricsModalOpen(true)}
-              hasCustomLyrics={loadCustomLyrics(songData.videoId, songData.title, songData.artist) !== null}
-              enableCustomLyrics={enableCustomLyrics}
-            />
-          )}
+              {!isLargeScreen && (
+                <LyricsPanel
+                  showLyrics={showLyrics}
+                  lyrics={lyrics}
+                  isLoadingLyrics={isLoadingLyrics}
+                  isLyricsSynced={isLyricsSynced}
+                  currentLyricIndex={currentLyricIndex}
+                  seekToAbsoluteTime={seekToAbsoluteTime}
+                  setShowLyrics={setShowLyrics}
+                  theme={theme}
+                  onOpenUploadModal={() => setIsLyricsModalOpen(true)}
+                  hasCustomLyrics={loadCustomLyrics(songData.videoId, songData.title, songData.artist) !== null}
+                  enableCustomLyrics={enableCustomLyrics}
+                />
+              )}
             </motion.div>
           </motion.div>
-          </div>
-
+            </div>
           </motion.div>
 
-          {/* Side-by-Side Lyrics Panel (only rendered on large screens inside AnimatePresence) */}
+          {/* Side-by-Side Lyrics Panel */}
           <AnimatePresence>
             {showLyrics && isLargeScreen && (
               <motion.div
@@ -1715,7 +1485,7 @@ export function MusicPlayer({
           </AnimatePresence>
         </div>
 
-        {/* Bottom controls - Add Music, Queue & Settings */}
+        {/* Bottom controls */}
         <motion.div
           initial={{ opacity: 0, x: 0 }}
           animate={{ 
@@ -1728,10 +1498,7 @@ export function MusicPlayer({
           }}
           className={`mt-8 flex items-center justify-center gap-3 ${isUserIdle && zenMode ? 'pointer-events-none' : ''}`}
         >
-          {/* Buttons: premium dark high-contrast glassmorphic style */}
-          {/* Segmented Capsule Control: + Add Music | Queue (x) */}
           <div className="flex items-center rounded-full bg-black/35 border border-white/12 overflow-hidden backdrop-blur-md shadow-[0_8px_32px_rgba(0,0,0,0.3)] transition-all">
-            {/* Left Segment: Add Music */}
             <button
               id="add-music-button"
               onClick={() => {
@@ -1752,10 +1519,8 @@ export function MusicPlayer({
               <span className="text-sm font-medium tracking-wide">Add Music</span>
             </button>
 
-            {/* Elegant Divider */}
             <div className="h-5 w-[1px] bg-white/10 shrink-0" />
 
-            {/* Right Segment: Queue */}
             <button
               id="queue-button"
               onClick={() => {
@@ -1797,10 +1562,8 @@ export function MusicPlayer({
             </button>
           )}
         </motion.div>
-
       </motion.div>
 
-      {/* Premium Custom Lyrics Upload Modal */}
       <CustomLyricsModal
         isOpen={isLyricsModalOpen}
         onClose={() => setIsLyricsModalOpen(false)}
