@@ -751,69 +751,108 @@ const cleanArtistName = (name: string): string =>
     .trim();
 
 /**
- * Resolves the official YouTube Music Topic channel ID for an artist.
- * Topic channels (e.g. "KESI - Topic") contain ONLY official audio uploaded
- * by YouTube Music — no fan content, no lyric videos, no covers.
- * Falls back to VEVO channel if no Topic channel is found.
- * Returns null if no official channel can be identified.
+ * Searches Piped/Invidious for channels matching artistName using the dedicated
+ * channel search endpoint (not video search). Returns actual channel entities
+ * so we can match on name directly — no guessing from video uploader fields.
+ */
+const searchForChannels = async (
+  query: string
+): Promise<Array<{ id: string; name: string }>> => {
+  // Piped: /search?q={query}&filter=channels
+  for (const instance of TOPIC_PIPED_INSTANCES) {
+    try {
+      const url = `${instance}/search?q=${encodeURIComponent(query)}&filter=channels`;
+      const res = await robustFetch(url, undefined, true);
+      if (!res.ok) continue;
+      const data = await res.json();
+      const items: any[] = data?.items || [];
+      const channels = items
+        .filter((item: any) => item.url && item.name)
+        .map((item: any) => {
+          const match = (item.url as string).match(/\/channel\/([^\/\?]+)/i);
+          return match ? { id: match[1], name: decodeHTMLEntities(item.name) } : null;
+        })
+        .filter(Boolean) as Array<{ id: string; name: string }>;
+      if (channels.length > 0) return channels;
+    } catch {
+      // try next
+    }
+  }
+
+  // Invidious fallback: /api/v1/search?q={query}&type=channel
+  for (const instance of TOPIC_INVIDIOUS_INSTANCES) {
+    try {
+      const url = `${instance}/api/v1/search?q=${encodeURIComponent(query)}&type=channel`;
+      const res = await robustFetch(url, undefined, true);
+      if (!res.ok) continue;
+      const data = await res.json();
+      const items: any[] = Array.isArray(data) ? data : [];
+      const channels = items
+        .filter((item: any) => item.authorId && item.author)
+        .map((item: any) => ({ id: item.authorId, name: decodeHTMLEntities(item.author) }));
+      if (channels.length > 0) return channels;
+    } catch {
+      // try next
+    }
+  }
+
+  return [];
+};
+
+/**
+ * Resolves the official YouTube Music Topic/VEVO channel for an artist.
+ * Uses Piped's channel-search endpoint (filter=channels) for precise matching —
+ * we get actual channel names back, not video uploader fields.
+ *
+ * Priority: Topic channel → VEVO → exact name match → null
  */
 export const resolveTopicChannelId = async (
   artistName: string
 ): Promise<{ channelId: string; type: 'topic' | 'vevo' | 'official' } | null> => {
   const nameLower = artistName.trim().toLowerCase();
-  const topicQuery = `${artistName.trim()} - Topic`;
-  const vevoQuery = `${artistName.trim()}VEVO`;
 
-  // Run Topic and VEVO searches in parallel for speed
-  const [topicResults, vevoResults] = await Promise.allSettled([
-    executeRawSearchAPI(topicQuery, 5),
-    executeRawSearchAPI(vevoQuery, 5)
+  // Search for "{artist}" and "{artist} topic" in parallel via channel endpoint
+  const [generalResults, topicResults] = await Promise.allSettled([
+    searchForChannels(artistName.trim()),
+    searchForChannels(`${artistName.trim()} topic`)
   ]);
 
-  const topicTracks = topicResults.status === 'fulfilled' ? topicResults.value : [];
-  const vevoTracks = vevoResults.status === 'fulfilled' ? vevoResults.value : [];
+  const general = generalResults.status === 'fulfilled' ? generalResults.value : [];
+  const topicSearch = topicResults.status === 'fulfilled' ? topicResults.value : [];
+  const all = [...general, ...topicSearch];
 
-  // 1. Find exact Topic channel — channel title must be "{name} - Topic" exactly
-  for (const track of topicTracks) {
-    const artistField = (track.artist || '').trim().toLowerCase();
-    if (
-      artistField === `${nameLower} - topic` ||
-      artistField === `${nameLower}-topic`
-    ) {
-      return { channelId: track.channelId!, type: 'topic' };
+  // Deduplicate by channel ID
+  const seen = new Set<string>();
+  const channels = all.filter(c => {
+    if (seen.has(c.id)) return false;
+    seen.add(c.id);
+    return true;
+  });
+
+  // 1. Exact Topic channel: name === "{artist} - Topic"
+  for (const ch of channels) {
+    if (ch.name.toLowerCase() === `${nameLower} - topic`) {
+      return { channelId: ch.id, type: 'topic' };
     }
   }
 
-  // Also check vevo results for a topic channel (sometimes cross-listed)
-  for (const track of vevoTracks) {
-    const artistField = (track.artist || '').trim().toLowerCase();
-    if (
-      artistField === `${nameLower} - topic` ||
-      artistField === `${nameLower}-topic`
-    ) {
-      return { channelId: track.channelId!, type: 'topic' };
+  // 2. VEVO channel: name === "{artist}VEVO"
+  for (const ch of channels) {
+    if (ch.name.toLowerCase() === `${nameLower}vevo`) {
+      return { channelId: ch.id, type: 'vevo' };
     }
   }
 
-  // 2. Find VEVO channel — channel title must be "{name}VEVO" exactly
-  for (const track of vevoTracks) {
-    const artistField = (track.artist || '').trim().toLowerCase();
-    if (artistField === `${nameLower}vevo`) {
-      return { channelId: track.channelId!, type: 'vevo' };
-    }
-  }
-
-  // 3. Find official channel — channel title is exactly the artist name
-  const allCandidates = [...topicTracks, ...vevoTracks];
-  for (const track of allCandidates) {
-    const artistField = (track.artist || '').trim().toLowerCase();
-    if (artistField === nameLower && track.channelId) {
-      return { channelId: track.channelId, type: 'official' };
+  // 3. Official channel: name === exact artist name
+  for (const ch of channels) {
+    if (ch.name.toLowerCase() === nameLower) {
+      return { channelId: ch.id, type: 'official' };
     }
   }
 
   return null;
 };
+
 
 /**
  * Fetches ALL uploads from a channel by paginating through Piped's nextpage tokens.
