@@ -723,6 +723,8 @@ export default function App() {
             handleViewArtistByName={searchLogic.handleViewArtistByName}
             handleUrlSubmit={searchLogic.handleUrlSubmit}
             handleFileSelect={handleFileSelect}
+            handleSearch={searchLogic.handleSearch}
+            setArtistTracks={searchLogic.setArtistTracks}
           />
         )}
 

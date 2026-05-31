@@ -46,6 +46,8 @@ interface LandingPageProps {
   handleViewArtistByName: (name: string, channelId?: string) => void;
   handleUrlSubmit: (url: string) => void;
   handleFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  handleSearch: (overrideQuery?: string) => void;
+  setArtistTracks: (tracks: SearchResult[]) => void;
 }
 
 export function LandingPage({
@@ -84,7 +86,9 @@ export function LandingPage({
   handleViewArtistProfile,
   handleViewArtistByName,
   handleUrlSubmit,
-  handleFileSelect
+  handleFileSelect,
+  handleSearch,
+  setArtistTracks
 }: LandingPageProps) {
   return (
     <motion.div

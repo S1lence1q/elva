@@ -720,6 +720,235 @@ export const executeChannelUploadsAPI = async (channelId: string, limit: number 
   return [];
 };
 
+const TOPIC_PIPED_INSTANCES = [
+  'https://api.piped.private.coffee',
+  'https://pipedapi.kavin.rocks',
+  'https://pipedapi.lunar.icu',
+  'https://pipedapi.colby.host',
+  'https://api.piped.yt',
+  'https://pipedapi.tokhmi.xyz',
+  'https://pipedapi.moomoo.me'
+];
+
+const TOPIC_INVIDIOUS_INSTANCES = [
+  'https://yewtu.be',
+  'https://invidious.io.lol',
+  'https://invidious.flokinet.to',
+  'https://iv.melmac.space'
+];
+
+const cleanTrackTitle = (title: string): string =>
+  title
+    .replace(/\s*\((Official Audio|Official Music Video|Official Video|Official Lyric Video|Audio|Video|Lyrics|Lyric Video|Music Video|HD|HQ|4K|Visualizer|Animated Video|Full Video)\)\s*/gi, '')
+    .replace(/\s*\[(Official Audio|Official Music Video|Official Video|Official Lyric Video|Audio|Video|Lyrics|Lyric Video|Music Video|HD|HQ|4K|Visualizer|Animated Video|Full Video)\]\s*/gi, '')
+    .trim();
+
+const cleanArtistName = (name: string): string =>
+  name
+    .replace(/\s*-\s*Topic\s*$/i, '')
+    .replace(/\s*VEVO\s*$/i, '')
+    .replace(/\s*Official\s*$/i, '')
+    .trim();
+
+/**
+ * Resolves the official YouTube Music Topic channel ID for an artist.
+ * Topic channels (e.g. "KESI - Topic") contain ONLY official audio uploaded
+ * by YouTube Music — no fan content, no lyric videos, no covers.
+ * Falls back to VEVO channel if no Topic channel is found.
+ * Returns null if no official channel can be identified.
+ */
+export const resolveTopicChannelId = async (
+  artistName: string
+): Promise<{ channelId: string; type: 'topic' | 'vevo' | 'official' } | null> => {
+  const nameLower = artistName.trim().toLowerCase();
+  const topicQuery = `${artistName.trim()} - Topic`;
+  const vevoQuery = `${artistName.trim()}VEVO`;
+
+  // Run Topic and VEVO searches in parallel for speed
+  const [topicResults, vevoResults] = await Promise.allSettled([
+    executeRawSearchAPI(topicQuery, 5),
+    executeRawSearchAPI(vevoQuery, 5)
+  ]);
+
+  const topicTracks = topicResults.status === 'fulfilled' ? topicResults.value : [];
+  const vevoTracks = vevoResults.status === 'fulfilled' ? vevoResults.value : [];
+
+  // 1. Find exact Topic channel — channel title must be "{name} - Topic" exactly
+  for (const track of topicTracks) {
+    const artistField = (track.artist || '').trim().toLowerCase();
+    if (
+      artistField === `${nameLower} - topic` ||
+      artistField === `${nameLower}-topic`
+    ) {
+      return { channelId: track.channelId!, type: 'topic' };
+    }
+  }
+
+  // Also check vevo results for a topic channel (sometimes cross-listed)
+  for (const track of vevoTracks) {
+    const artistField = (track.artist || '').trim().toLowerCase();
+    if (
+      artistField === `${nameLower} - topic` ||
+      artistField === `${nameLower}-topic`
+    ) {
+      return { channelId: track.channelId!, type: 'topic' };
+    }
+  }
+
+  // 2. Find VEVO channel — channel title must be "{name}VEVO" exactly
+  for (const track of vevoTracks) {
+    const artistField = (track.artist || '').trim().toLowerCase();
+    if (artistField === `${nameLower}vevo`) {
+      return { channelId: track.channelId!, type: 'vevo' };
+    }
+  }
+
+  // 3. Find official channel — channel title is exactly the artist name
+  const allCandidates = [...topicTracks, ...vevoTracks];
+  for (const track of allCandidates) {
+    const artistField = (track.artist || '').trim().toLowerCase();
+    if (artistField === nameLower && track.channelId) {
+      return { channelId: track.channelId, type: 'official' };
+    }
+  }
+
+  return null;
+};
+
+/**
+ * Fetches ALL uploads from a channel by paginating through Piped's nextpage tokens.
+ * This gives a complete discography rather than just the latest 15-30 videos.
+ * Falls back to Invidious if all Piped instances fail.
+ */
+export const fetchAllChannelUploads = async (
+  channelId: string,
+  limit: number = 150
+): Promise<SearchResult[]> => {
+  if (!channelId) return [];
+
+  const apiKey = (import.meta as any).env.VITE_YOUTUBE_API_KEY;
+
+  // Official API path: use uploads playlist (UC → UU prefix)
+  if (apiKey) {
+    try {
+      const uploadsPlaylistId = channelId.startsWith('UC')
+        ? channelId.replace(/^UC/, 'UU')
+        : channelId;
+      const allItems: SearchResult[] = [];
+      let pageToken: string | undefined;
+
+      do {
+        const url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=${uploadsPlaylistId}&key=${apiKey}${pageToken ? `&pageToken=${pageToken}` : ''}`;
+        const response = await fetchWithTimeout(url);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+
+        if (data?.items) {
+          for (const item of data.items) {
+            const videoId = item.snippet.resourceId?.videoId || '';
+            if (videoId.length !== 11) continue;
+            allItems.push({
+              id: videoId,
+              title: cleanTrackTitle(decodeHTMLEntities(item.snippet.title)),
+              artist: cleanArtistName(decodeHTMLEntities(item.snippet.channelTitle || '')),
+              thumbnail: `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`,
+              videoId,
+              channelId
+            });
+          }
+        }
+        pageToken = data?.nextPageToken;
+      } while (pageToken && allItems.length < limit);
+
+      if (allItems.length > 0) return allItems.slice(0, limit);
+    } catch (err) {
+      console.warn('Official API channel uploads failed, trying Piped:', err);
+    }
+  }
+
+  // Piped path: paginate via nextpage tokens
+  const mapPipedItem = (item: any): SearchResult | null => {
+    const ytMatch = (item.url || '').match(/(?:v=|\/watch\?v=)([^"&?\/\s]{11})/i);
+    const videoId = ytMatch ? ytMatch[1] : item.videoId || '';
+    if (!videoId || videoId.length !== 11) return null;
+    let cId = item.uploaderId;
+    if (!cId && item.uploaderUrl) {
+      const m = item.uploaderUrl.match(/\/channel\/([^\/]+)/i);
+      if (m) cId = m[1];
+    }
+    return {
+      id: videoId,
+      title: cleanTrackTitle(decodeHTMLEntities(item.title || '')),
+      artist: cleanArtistName(decodeHTMLEntities(item.uploaderName || '')),
+      thumbnail: `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`,
+      videoId,
+      channelId: cId || channelId
+    };
+  };
+
+  for (const instance of TOPIC_PIPED_INSTANCES) {
+    try {
+      const allItems: SearchResult[] = [];
+      let nextpage: string | null = null;
+      let firstPage = true;
+
+      do {
+        let url: string;
+        if (firstPage) {
+          url = `${instance}/channel/${channelId}`;
+        } else {
+          url = `${instance}/nextpage/channel/${channelId}?nextpage=${encodeURIComponent(nextpage!)}`;
+        }
+
+        const response = await robustFetch(url, undefined, true);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+
+        const streams: any[] = firstPage
+          ? (data.relatedStreams || [])
+          : (data.relatedStreams || []);
+
+        for (const item of streams) {
+          const mapped = mapPipedItem(item);
+          if (mapped) allItems.push(mapped);
+        }
+
+        nextpage = data.nextpage || null;
+        firstPage = false;
+      } while (nextpage && allItems.length < limit);
+
+      if (allItems.length > 0) return allItems.slice(0, limit);
+    } catch (err) {
+      // try next instance
+    }
+  }
+
+  // Invidious fallback (no pagination support, but gets latest uploads)
+  for (const instance of TOPIC_INVIDIOUS_INSTANCES) {
+    try {
+      const response = await robustFetch(`${instance}/api/v1/channels/${channelId}/videos?sort_by=newest`, undefined, true);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      const videos: any[] = Array.isArray(data) ? data : (data.videos || []);
+      const mapped = videos
+        .filter((v: any) => v.videoId?.length === 11)
+        .map((v: any) => ({
+          id: v.videoId,
+          title: cleanTrackTitle(decodeHTMLEntities(v.title || '')),
+          artist: cleanArtistName(decodeHTMLEntities(v.author || '')),
+          thumbnail: `https://i.ytimg.com/vi/${v.videoId}/maxresdefault.jpg`,
+          videoId: v.videoId,
+          channelId
+        }));
+      if (mapped.length > 0) return mapped.slice(0, limit);
+    } catch (err) {
+      // try next instance
+    }
+  }
+
+  return [];
+};
+
 export const shouldShowArtistCard = (query: string) => {
   const trimmed = query.trim().toLowerCase();
   if (!trimmed) return false;
