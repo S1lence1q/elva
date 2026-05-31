@@ -12,6 +12,7 @@ import {
   fetchWithTimeout,
   fetchVideoDetails
 } from '../utils/apiUtils';
+import { getDiscographyCache, setDiscographyCache } from '../utils/discographyCache';
 
 const SHORTCUT_ARTISTS: VerifiedArtist[] = [
   {
@@ -320,14 +321,23 @@ export function useSearchLogic({
         });
       }
 
-      // ── Step 2: Fetch complete discography from the official channel ──
+      // ── Step 2: Check cache before hitting any API ──
+      const cached = getDiscographyCache(artist.name);
+      if (cached) {
+        setArtistTracks(cached.tracks);
+        // Skip straight to the end — MusicBrainz background enrichment still runs below
+        return;
+      }
+
+
+      // ── Step 3: Fetch complete discography from the official channel ──
       let tracks: SearchResult[] = [];
 
       if (resolvedChannelId) {
         tracks = await fetchAllChannelUploads(resolvedChannelId, 150);
       }
 
-      // ── Step 3: Strict fallback if no official channel found or uploads empty ──
+      // ── Step 4: Strict fallback if no official channel found or uploads empty ──
       // Only include tracks where the uploader channel title EXACTLY matches the artist name.
       // No loose matching, no name-in-title heuristics.
       if (tracks.length === 0) {
@@ -350,7 +360,7 @@ export function useSearchLogic({
         }
       }
 
-      // ── Step 4: Deduplicate by videoId ──
+      // ── Step 5: Deduplicate by videoId ──
       const seen = new Set<string>();
       tracks = tracks.filter(t => {
         if (!t.videoId || seen.has(t.videoId)) return false;
@@ -358,38 +368,17 @@ export function useSearchLogic({
         return true;
       });
 
-      setArtistTracks(tracks);
-
-      // ── Step 5: Background MusicBrainz metadata enrichment ──
-      try {
-        const mbRes = await fetchWithTimeout(
-          `https://musicbrainz.org/ws/2/artist/?query=artist:${encodeURIComponent(artist.name)}&fmt=json`,
-          { headers: { 'User-Agent': 'ElvaMusicApp/1.0 ( contact@elva.fm )' } },
-          2500
+      // ── Step 6: Save to cache ──
+      if (tracks.length > 0) {
+        setDiscographyCache(
+          artist.name,
+          tracks,
+          resolvedChannelId || '',
+          (topicResult?.type ?? 'provided') as 'topic' | 'vevo' | 'official' | 'provided'
         );
-        if (mbRes.ok) {
-          const mbData = await mbRes.json();
-          const matchedArtist = (mbData.artists || []).find((a: any) => {
-            const nLower = (a.name || '').toLowerCase();
-            return (a.score || 0) >= 85 && (nLower === nameLower || nLower.includes(nameLower) || nameLower.includes(nLower));
-          });
-          if (matchedArtist) {
-            const tagsList = (matchedArtist.tags || [])
-              .filter((t: any) => (t.count || 0) > 0)
-              .sort((a: any, b: any) => (b.count || 0) - (a.count || 0))
-              .map((t: any) => t.name)
-              .slice(0, 3);
-            setSelectedArtist(prev => prev ? {
-              ...prev,
-              disambiguation: matchedArtist.disambiguation || undefined,
-              country: matchedArtist.country || undefined,
-              tags: tagsList.length > 0 ? tagsList : undefined
-            } : null);
-          }
-        }
-      } catch (mbErr) {
-        console.warn('MusicBrainz enrichment failed:', mbErr);
       }
+
+      setArtistTracks(tracks);
 
     } catch (error) {
       console.error('Failed to load artist profile:', error);
@@ -397,7 +386,37 @@ export function useSearchLogic({
     } finally {
       setIsLoadingArtist(false);
     }
+
+    // ── MusicBrainz enrichment (background, non-blocking) ──
+    // Runs after loading is done so it never delays the UI.
+    fetchWithTimeout(
+      `https://musicbrainz.org/ws/2/artist/?query=artist:${encodeURIComponent(artist.name)}&fmt=json`,
+      { headers: { 'User-Agent': 'ElvaMusicApp/1.0 ( contact@elva.fm )' } },
+      2500
+    ).then(async mbRes => {
+      if (!mbRes.ok) return;
+      const mbData = await mbRes.json();
+      const matchedArtist = (mbData.artists || []).find((a: any) => {
+        const nLower = (a.name || '').toLowerCase();
+        const nameLower = artist.name.trim().toLowerCase();
+        return (a.score || 0) >= 85 && (nLower === nameLower || nLower.includes(nameLower) || nameLower.includes(nLower));
+      });
+      if (matchedArtist) {
+        const tagsList = (matchedArtist.tags || [])
+          .filter((t: any) => (t.count || 0) > 0)
+          .sort((a: any, b: any) => (b.count || 0) - (a.count || 0))
+          .map((t: any) => t.name)
+          .slice(0, 3);
+        setSelectedArtist(prev => prev ? {
+          ...prev,
+          disambiguation: matchedArtist.disambiguation || undefined,
+          country: matchedArtist.country || undefined,
+          tags: tagsList.length > 0 ? tagsList : undefined
+        } : null);
+      }
+    }).catch(() => {});
   };
+
 
   const handleViewArtistByName = async (artistName: string, channelId?: string) => {
     const primaryArtistName = getPrimaryArtist(artistName);
