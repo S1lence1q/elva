@@ -14,6 +14,7 @@ import { showMiniHUD } from './utils/hudUtils';
 import { SearchResult, VerifiedArtist } from './types';
 import { getDynamicFallbackColors, extractColorsFromImage } from './utils/playerColorUtils';
 import { executeSearchAPI, executeChannelUploadsAPI } from './utils/apiUtils';
+import { parseLocalMetadata } from './utils/metadataParser';
 
 // Import newly extracted hooks and components
 import { useScrollTracking } from './hooks/useScrollTracking';
@@ -209,24 +210,25 @@ export default function App() {
     }
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setAppState('processing');
+    const meta = await parseLocalMetadata(file);
 
     setTimeout(() => {
       setSongData({
-        title: file.name.replace(/\.[^/.]+$/, ''),
-        artist: 'Unknown Artist',
-        artworkUrl: 'https://images.unsplash.com/photo-1676068368612-1c8b3e2afed0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxhbGJ1bSUyMGNvdmVyJTIwbXVzaWMlMjBhYnN0cmFjdCUyMGFydCUyMGNvbG9yZnVsfGVufDF8fHx8MTc3ODk2NjA3OHww&ixlib=rb-4.1.0&q=80&w=1080',
+        title: meta.title,
+        artist: meta.artist,
+        artworkUrl: meta.artworkUrl,
         audioUrl: URL.createObjectURL(file)
       });
       setAppState('ready');
       if (tourType !== null && tourStep === 0) {
         setTourStep(1);
       }
-    }, 1500);
+    }, 1200);
   };
 
   const handleSelectSong = async (result: SearchResult) => {
@@ -629,16 +631,17 @@ export default function App() {
     setQueue(reordered);
   };
 
-  const handleQueueFileSelect = (file: File) => {
+  const handleQueueFileSelect = async (file: File) => {
+    const meta = await parseLocalMetadata(file);
     const fileResult: SearchResult = {
       id: 'local_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9),
-      title: file.name.replace(/\.[^/.]+$/, ''),
-      artist: 'Local File',
-      thumbnail: 'https://images.unsplash.com/photo-1676068368612-1c8b3e2afed0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxhbGJ1bSUyMGNvdmVyJTIwbXVzaWMlMjBhYnN0cmFjdCUyMGFydCUyMGNvbG9yZnVsfGVufDF8fHx8MTc3ODk2NjA3OHww&ixlib=rb-4.1.0&q=80&w=1080',
+      title: meta.title,
+      artist: meta.artist,
+      thumbnail: meta.artworkUrl,
       audioUrl: URL.createObjectURL(file),
       videoId: ''
     };
-    setQueue([...queue, fileResult]);
+    setQueue(prevQueue => [...prevQueue, fileResult]);
     showMiniHUD('Added file to queue', 'success');
   };
 
