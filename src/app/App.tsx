@@ -715,6 +715,7 @@ export default function App() {
             isIntroActive={isIntroActive}
             scrollProgress={scrollProgress}
             scrollContainerRef={scrollContainerRef}
+            onScroll={handleScroll}
             selectedArtist={selectedArtist}
             setSelectedArtist={searchLogic.setSelectedArtist}
             selectedPlaylist={selectedPlaylist}

@@ -13,6 +13,7 @@ interface LandingPageProps {
   isIntroActive: boolean;
   scrollProgress: number;
   scrollContainerRef: React.RefObject<HTMLDivElement | null>;
+  onScroll?: () => void;
   selectedArtist: VerifiedArtist | null;
   setSelectedArtist: React.Dispatch<React.SetStateAction<VerifiedArtist | null>>;
   selectedPlaylist: Playlist | null;
@@ -54,6 +55,7 @@ export function LandingPage({
   isIntroActive,
   scrollProgress,
   scrollContainerRef,
+  onScroll,
   selectedArtist,
   setSelectedArtist,
   selectedPlaylist,
@@ -266,6 +268,7 @@ export function LandingPage({
       {/* Main Stack Viewport Snap-Scrolling Container */}
       <motion.div
         ref={scrollContainerRef}
+        onScroll={onScroll}
         animate={{
           opacity: (selectedArtist !== null || selectedPlaylist !== null) ? 0 : 1,
           scale: (selectedArtist !== null || selectedPlaylist !== null) ? 0.96 : 1,
