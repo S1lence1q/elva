@@ -531,7 +531,10 @@ export function MusicPlayer({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.3, duration: 0.4 }}
-          onClick={onBackToHome}
+          onClick={() => {
+            setShowLyrics(false);
+            if (onBackToHome) onBackToHome();
+          }}
           className="text-xl font-light text-white/30 hover:text-white/50 tracking-wider transition-colors cursor-pointer"
         >
           Elva
