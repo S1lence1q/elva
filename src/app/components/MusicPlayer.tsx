@@ -803,7 +803,7 @@ export function MusicPlayer({
               togglePlayPause();
             }}
           >
-            {/* Incoming artwork: starts blurred + slightly scaled, sharpens into focus */}
+            {/* Incoming artwork: fades in while sharpening from blur — no scale change */}
             <motion.img
               key={songData.artworkUrl}
               src={songData.artworkUrl}
@@ -818,16 +818,14 @@ export function MusicPlayer({
                 }
               }}
               className={`w-full h-full object-cover z-[1] ${songData.videoId ? 'scale-[1.35]' : ''}`}
-              initial={{ opacity: 0, scale: 1.06, filter: 'blur(18px)' }}
+              initial={{ opacity: 0, filter: 'blur(16px)' }}
               animate={{
                 opacity: isLoaded ? (isPlaying ? 1 : 0.8) : 0,
-                scale: isLoaded ? (songData.videoId ? 1.35 : 1) : 1.06,
-                filter: isLoaded ? 'blur(0px)' : 'blur(18px)',
+                filter: isLoaded ? 'blur(0px)' : 'blur(16px)',
               }}
               transition={{
-                opacity: { duration: 0.9, ease: 'easeOut' },
-                scale: { duration: 1.1, ease: [0.25, 0.46, 0.45, 0.94] },
-                filter: { duration: 1.0, ease: 'easeOut' },
+                opacity: { duration: 0.85, ease: 'easeOut' },
+                filter: { duration: 0.95, ease: 'easeOut' },
               }}
             />
 
@@ -846,8 +844,8 @@ export function MusicPlayer({
                 }}
                 className={`absolute inset-0 w-full h-full object-cover z-[2] ${songData.videoId ? 'scale-[1.35]' : ''}`}
                 initial={{ opacity: 1, filter: 'blur(0px)' }}
-                animate={{ opacity: isLoaded ? 0 : 1, filter: isLoaded ? 'blur(8px)' : 'blur(0px)' }}
-                transition={{ duration: 0.9, ease: 'easeInOut' }}
+                animate={{ opacity: isLoaded ? 0 : 1, filter: isLoaded ? 'blur(10px)' : 'blur(0px)' }}
+                transition={{ duration: 0.85, ease: 'easeInOut' }}
               />
             )}
 
