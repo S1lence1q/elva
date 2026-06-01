@@ -16,16 +16,13 @@ import { LyricsPanel } from './LyricsPanel';
 import { PlayerControls } from './PlayerControls';
 import { AccentColor, ACCENT_THEMES } from './themeUtils';
 import { getDynamicFallbackColors } from '../utils/playerColorUtils';
-import { parseLrc, loadCustomLyrics } from '../utils/lyricsUtils';
+import { loadCustomLyrics } from '../utils/lyricsUtils';
 import { showMiniHUD } from '../utils/hudUtils';
 import { CustomLyricsModal } from './CustomLyricsModal';
-import { cleanSongTitle } from '../utils/stringUtils';
-import { LyricLine, SearchResult } from '../types';
-
-// Import newly extracted hooks
-import { useFadeVolume } from '../hooks/useFadeVolume';
-import { useAudioPlayer } from '../hooks/useAudioPlayer';
-import { useYouTubePlayer } from '../hooks/useYouTubePlayer';
+import { SearchResult } from '../types';
+import { usePlaybackCore } from '../hooks/usePlaybackCore';
+import { useLyrics } from '../hooks/useLyrics';
+import { usePlayStats } from '../hooks/usePlayStats';
 
 interface QueueItem {
   id: string;
@@ -105,9 +102,6 @@ const THEME_PRESETS = {
   }
 };
 
-let globalAudioContext: AudioContext | null = null;
-let globalAnalyser: AnalyserNode | null = null;
-
 export function MusicPlayer({ 
   songData, 
   queue = [], 
@@ -163,28 +157,47 @@ export function MusicPlayer({
     navy: 'bg-slate-400'
   };
 
-  const [isPlaying, setIsPlaying] = useState(true);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [volume, setVolume] = useState<number>(() => {
-    const saved = localStorage.getItem('elva_player_volume');
-    return saved !== null ? parseInt(saved, 10) : 70;
-  });
-  const [preMuteVolume, setPreMuteVolume] = useState<number>(() => {
-    const saved = localStorage.getItem('elva_player_premute_volume');
-    return saved !== null ? parseInt(saved, 10) : 70;
+  const {
+    isPlaying,
+    isPlayingRef,
+    currentTime,
+    duration,
+    setDuration,
+    volume,
+    preMuteVolume,
+    setPreMuteVolume,
+    audioRef,
+    fadeVolume,
+    togglePlayPause,
+    handleNextSong,
+    handlePreviousSong,
+    handleSliderChange,
+    handleVolumeChange,
+    skipTime,
+    seekToAbsoluteTime,
+    formatTime,
+    waveformData,
+    setPlaying,
+  } = usePlaybackCore({
+    songData,
+    queue: queue.map((item) => ({ id: item.id, videoId: item.videoId })),
+    onSelectFromQueue,
+    onPlayingStateChange,
   });
 
-  useEffect(() => {
-    localStorage.setItem('elva_player_volume', String(volume));
-    if (volume > 0) {
-      localStorage.setItem('elva_player_premute_volume', String(volume));
-    }
-  }, [volume]);
+  usePlayStats(songData, isPlaying);
 
-  useEffect(() => {
-    onPlayingStateChange?.(isPlaying);
-  }, [isPlaying, onPlayingStateChange]);
+  const {
+    showLyrics,
+    setShowLyrics,
+    lyrics,
+    isLoadingLyrics,
+    currentLyricIndex,
+    isLyricsSynced,
+    isLyricsModalOpen,
+    setIsLyricsModalOpen,
+    handleLyricsReload,
+  } = useLyrics(songData, currentTime);
 
   const [showQueue, setShowQueue] = useState(false);
   const [focusSearchInQueue, setFocusSearchInQueue] = useState(false);
@@ -199,167 +212,6 @@ export function MusicPlayer({
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
-  
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const ytPlayerRef = useRef<any>(null);
-  const progressTimerRef = useRef<any>(null);
-  const isPlayingRef = useRef(isPlaying);
-  const lastToggleTimeRef = useRef(0);
-  const isTransitioningRef = useRef(false);
-
-  const setPlaying = (value: boolean) => {
-    isPlayingRef.current = value;
-    setIsPlaying(value);
-  };
-
-  useEffect(() => {
-    isPlayingRef.current = isPlaying;
-  }, [isPlaying]);
-
-  const volumeRef = useRef(volume);
-  useEffect(() => {
-    volumeRef.current = volume;
-  }, [volume]);
-
-  const handleNextSongRef = useRef<() => Promise<void>>(async () => {});
-
-  // 1. Volume Fader Hook
-  const { fadeVolume, faderRef, faderAnimationRef, fadeResolveRef, isFadingOutRef } = useFadeVolume({
-    volumeRef,
-    ytPlayerRef,
-    audioRef,
-    videoId: songData.videoId
-  });
-
-  const isTogglingPlayPauseRef = useRef(false);
-
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const audioSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
-
-  const initAudioAnalyzer = () => {
-    if (analyserRef.current) return;
-    if (!audioRef.current) return;
-    
-    try {
-      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioContextClass) return;
-      
-      if (!globalAudioContext) {
-        globalAudioContext = new AudioContextClass();
-      }
-      const ctx = globalAudioContext;
-
-      if (!globalAnalyser) {
-        globalAnalyser = ctx.createAnalyser();
-        globalAnalyser.fftSize = 256;
-      }
-      const analyser = globalAnalyser;
-      
-      if (!audioSourceRef.current) {
-        audioSourceRef.current = ctx.createMediaElementSource(audioRef.current);
-      }
-      const source = audioSourceRef.current;
-      
-      source.disconnect();
-      source.connect(analyser);
-      analyser.disconnect();
-      analyser.connect(ctx.destination);
-      
-      analyserRef.current = analyser;
-      audioContextRef.current = ctx;
-    } catch (err) {
-      console.warn("Failed to initialize Web Audio API analyzer:", err);
-    }
-  };
-
-  const isYouTubeMode = !!songData.videoId;
-
-  // 2. HTML5 Audio Player Hook
-  useAudioPlayer({
-    audioUrl: songData.audioUrl,
-    isYouTubeMode,
-    isPlaying,
-    setPlaying,
-    setDuration,
-    fadeVolume,
-    faderRef,
-    handleNextSong: () => handleNextSong(),
-    initAudioAnalyzer,
-    audioRef,
-    isTransitioningRef,
-    audioContextRef
-  });
-
-  // 3. YouTube Player Hook
-  useYouTubePlayer({
-    videoId: songData.videoId,
-    isYouTubeMode,
-    isPlaying,
-    isPlayingRef,
-    setPlaying,
-    setDuration,
-    fadeVolume,
-    faderRef,
-    handleNextSongRef,
-    isTransitioningRef,
-    ytPlayerRef,
-    faderAnimationRef,
-    audioRef
-  });
-
-  // Automatic play-count & listening-time tracker
-  useEffect(() => {
-    if (!isPlaying) return;
-    
-    let playTimer = setTimeout(() => {
-      try {
-        const stored = localStorage.getItem('elva_play_counts');
-        const counts: any = stored ? JSON.parse(stored) : {};
-        
-        const trackId = songData.videoId || songData.audioUrl;
-        if (!counts[trackId]) {
-          counts[trackId] = {
-            title: songData.title,
-            artist: songData.artist,
-            count: 0,
-            lastPlayed: Date.now()
-          };
-        }
-        counts[trackId].count += 1;
-        counts[trackId].lastPlayed = Date.now();
-        localStorage.setItem('elva_play_counts', JSON.stringify(counts));
-        
-        const storedWeekly = localStorage.getItem('elva_weekly_time');
-        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        const currentDayName = days[new Date().getDay()];
-        
-        let stats: { day: string; min: number }[] = storedWeekly ? JSON.parse(storedWeekly) : [
-          { day: 'Mon', min: 12 },
-          { day: 'Tue', min: 45 },
-          { day: 'Wed', min: 25 },
-          { day: 'Thu', min: 60 },
-          { day: 'Fri', min: 85 },
-          { day: 'Sat', min: 110 },
-          { day: 'Sun', min: 50 }
-        ];
-        
-        const dayStat = stats.find(s => s.day === currentDayName);
-        if (dayStat) {
-          dayStat.min += 3;
-        } else {
-          stats.push({ day: currentDayName, min: 3 });
-        }
-        localStorage.setItem('elva_weekly_time', JSON.stringify(stats));
-
-        window.dispatchEvent(new Event('elva-stats-updated'));
-      } catch (e) {
-        console.warn('Failed to update stats in localStorage:', e);
-      }
-    }, 15000);
-
-    return () => clearTimeout(playTimer);
-  }, [songData.videoId, songData.audioUrl, isPlaying]);
 
   const handleAddToPlaylist = (playlistId: string) => {
     try {
@@ -432,105 +284,6 @@ export function MusicPlayer({
     }));
   }, []);
 
-  // Lyrics State
-  const [showLyrics, setShowLyrics] = useState(false);
-  const [lyrics, setLyrics] = useState<LyricLine[]>([]);
-  const [isLoadingLyrics, setIsLoadingLyrics] = useState(false);
-  const [currentLyricIndex, setCurrentLyricIndex] = useState(-1);
-  const [isLyricsSynced, setIsLyricsSynced] = useState(false);
-  const [isLyricsModalOpen, setIsLyricsModalOpen] = useState(false);
-  const [lyricsVersion, setLyricsVersion] = useState(0);
-
-  const handleLyricsReload = () => {
-    setLyricsVersion(prev => prev + 1);
-  };
-
-  useEffect(() => {
-    if (lyrics.length === 0 || !isLyricsSynced) return;
-    let activeIndex = -1;
-    for (let i = 0; i < lyrics.length; i++) {
-      if (currentTime >= lyrics[i].time - 0.5) {
-        activeIndex = i;
-      } else {
-        break;
-      }
-    }
-    setCurrentLyricIndex(activeIndex);
-  }, [currentTime, lyrics, isLyricsSynced]);
-
-  useEffect(() => {
-    if (!songData.title) return;
-    
-    let isMounted = true;
-    const fetchLyricsData = async () => {
-      setIsLoadingLyrics(true);
-      setLyrics([]);
-      setCurrentLyricIndex(-1);
-      setIsLyricsSynced(false);
-
-      const custom = loadCustomLyrics(songData.videoId, songData.title, songData.artist);
-      if (custom) {
-        if (isMounted) {
-          setLyrics(custom.lyrics);
-          setIsLyricsSynced(custom.isSynced);
-          setIsLoadingLyrics(false);
-        }
-        return;
-      }
-
-      if (songData.audioUrl?.startsWith('blob:') || songData.artist === 'Unknown Artist') {
-        if (isMounted) {
-          setLyrics([]);
-          setIsLyricsSynced(false);
-          setIsLoadingLyrics(false);
-        }
-        return;
-      }
-
-      try {
-        const cleanedTitle = cleanSongTitle(songData.title);
-        const query = encodeURIComponent(`${cleanedTitle} ${songData.artist !== 'Unknown Artist' && songData.artist !== 'Web Stream' ? songData.artist : ''}`.trim());
-        const res = await fetch(`https://lrclib.net/api/search?q=${query}`);
-        if (!res.ok) throw new Error('API Error');
-        const data = await res.json();
-        
-        if (isMounted) {
-          if (data && data.length > 0) {
-            const track = data[0];
-            if (track.syncedLyrics) {
-              setLyrics(parseLrc(track.syncedLyrics));
-              setIsLyricsSynced(true);
-            } else if (track.plainLyrics) {
-              const lines = track.plainLyrics.split('\n').filter((l: string) => l.trim().length > 0);
-              setLyrics(lines.map((text: string) => ({
-                time: 0,
-                text: text.trim()
-              })));
-              setIsLyricsSynced(false);
-            } else {
-              setLyrics([]);
-              setIsLyricsSynced(false);
-            }
-          } else {
-            setLyrics([]);
-            setIsLyricsSynced(false);
-          }
-        }
-      } catch (err) {
-        console.error("Lyrics fetch error:", err);
-        if (isMounted) {
-          setLyrics([]);
-          setIsLyricsSynced(false);
-        }
-      } finally {
-        if (isMounted) setIsLoadingLyrics(false);
-      }
-    };
-    
-    fetchLyricsData();
-    return () => { isMounted = false; };
-  }, [songData.title, songData.artist, songData.videoId, lyricsVersion]);
-
   // Zen Mode Idle Tracker
   const [isUserIdle, setIsUserIdle] = useState(false);
   const idleTimerRef = useRef<any>(null);
@@ -571,13 +324,6 @@ export function MusicPlayer({
 
   const rotateX = useSpring(useTransform(mouseY, [-300, 300], [2, -2]), { stiffness: 150, damping: 20 });
   const rotateY = useSpring(useTransform(mouseX, [-300, 300], [-2, 2]), { stiffness: 150, damping: 20 });
-
-  const waveformData = useMemo(() => {
-    return Array.from({ length: 60 }, (_, i) => {
-      const pattern = Math.sin(i * 0.3) * 0.4 + Math.random() * 0.3 + 0.3;
-      return Math.min(1, Math.max(0.15, pattern));
-    });
-  }, []);
 
   useEffect(() => {
     const hasSeenHint = localStorage.getItem('elva_settings_hint_seen');
@@ -680,332 +426,6 @@ export function MusicPlayer({
     stableCenterRef.current = { x: 0, y: 0 };
   };
 
-  // Sync isPlaying state to players
-  useEffect(() => {
-    if (isTogglingPlayPauseRef.current || isTransitioningRef.current || isFadingOutRef.current) {
-      return;
-    }
-
-    if (songData.videoId && ytPlayerRef.current && ytPlayerRef.current.playVideo) {
-      if (isPlaying) {
-        faderRef.current = 0;
-        try { ytPlayerRef.current.setVolume(0); } catch (e) {}
-        ytPlayerRef.current.playVideo();
-        fadeVolume(1, 400);
-      } else {
-        ytPlayerRef.current.pauseVideo();
-      }
-    } else if (audioRef.current) {
-      if (isPlaying) {
-        faderRef.current = 0;
-        audioRef.current.volume = 0;
-        initAudioAnalyzer();
-        if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
-          audioContextRef.current.resume();
-        }
-        audioRef.current.play()
-          .then(() => {
-            fadeVolume(1, 400);
-          })
-          .catch(console.error);
-      } else {
-        audioRef.current.pause();
-      }
-    }
-  }, [isPlaying]);
-
-  // Media Session API Integration
-  useEffect(() => {
-    if (!('mediaSession' in navigator)) return;
-
-    navigator.mediaSession.metadata = new MediaMetadata({
-      title: songData.title,
-      artist: songData.artist,
-      artwork: songData.artworkUrl
-        ? [{ src: songData.artworkUrl, sizes: '512x512', type: 'image/jpeg' }]
-        : [],
-    });
-
-    navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
-
-    navigator.mediaSession.setActionHandler('play', () => {
-      if (!isPlayingRef.current) {
-        togglePlayPause();
-      }
-    });
-    navigator.mediaSession.setActionHandler('pause', () => {
-      if (isPlayingRef.current) {
-        togglePlayPause();
-      }
-    });
-    navigator.mediaSession.setActionHandler('previoustrack', () => {
-      handlePreviousSong();
-    });
-    navigator.mediaSession.setActionHandler('nexttrack', () => {
-      handleNextSongRef.current();
-    });
-    navigator.mediaSession.setActionHandler('seekto', (details) => {
-      if (details.seekTime !== undefined) {
-        handleSliderChange([details.seekTime]);
-      }
-    });
-
-    return () => {
-      if ('mediaSession' in navigator) {
-        navigator.mediaSession.setActionHandler('play', null);
-        navigator.mediaSession.setActionHandler('pause', null);
-        navigator.mediaSession.setActionHandler('previoustrack', null);
-        navigator.mediaSession.setActionHandler('nexttrack', null);
-        navigator.mediaSession.setActionHandler('seekto', null);
-      }
-    };
-  }, [songData.title, songData.artist, songData.artworkUrl, isPlaying, songData.videoId]);
-
-  // Progress timer
-  useEffect(() => {
-    if (isPlaying) {
-      progressTimerRef.current = setInterval(() => {
-        if (songData.videoId && ytPlayerRef.current && ytPlayerRef.current.getCurrentTime) {
-          setCurrentTime(ytPlayerRef.current.getCurrentTime());
-          const dur = ytPlayerRef.current.getDuration();
-          if (dur > 0) setDuration(dur);
-        } else if (audioRef.current) {
-          setCurrentTime(audioRef.current.currentTime);
-        }
-      }, 50);
-    } else if (progressTimerRef.current) {
-      clearInterval(progressTimerRef.current);
-    }
-
-    return () => {
-      if (progressTimerRef.current) clearInterval(progressTimerRef.current);
-    };
-  }, [isPlaying, songData.videoId]);
-
-  const togglePlayPause = async () => {
-    const now = Date.now();
-    if (now - lastToggleTimeRef.current < 250) {
-      return;
-    }
-    lastToggleTimeRef.current = now;
-    isTogglingPlayPauseRef.current = true;
-
-    try {
-      const nextPlaying = !isPlaying;
-      if (currentTime >= duration && duration > 0) {
-        setCurrentTime(0);
-        if (songData.videoId && ytPlayerRef.current) ytPlayerRef.current.seekTo(0);
-        if (audioRef.current) audioRef.current.currentTime = 0;
-      }
-
-      if (nextPlaying) {
-        setPlaying(true);
-        faderRef.current = 0;
-        if (songData.videoId && ytPlayerRef.current && ytPlayerRef.current.setVolume) {
-          try { ytPlayerRef.current.setVolume(0); } catch (e){}
-        }
-        if (audioRef.current) {
-          audioRef.current.volume = 0;
-        }
-
-        if (songData.videoId && ytPlayerRef.current && ytPlayerRef.current.playVideo) {
-          try { ytPlayerRef.current.playVideo(); } catch (e) {}
-        } else if (audioRef.current) {
-          initAudioAnalyzer();
-          if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
-            audioContextRef.current.resume();
-          }
-          audioRef.current.play().catch(console.error);
-        }
-        
-        await fadeVolume(1, 400);
-      } else {
-        isFadingOutRef.current = true;
-        setPlaying(false);
-
-        await fadeVolume(0, 300);
-
-        if (!isPlayingRef.current) {
-          if (songData.videoId && ytPlayerRef.current && ytPlayerRef.current.pauseVideo) {
-            try { ytPlayerRef.current.pauseVideo(); } catch (e) {}
-          } else if (audioRef.current) {
-            audioRef.current.pause();
-          }
-        }
-        isFadingOutRef.current = false;
-      }
-    } finally {
-      isTogglingPlayPauseRef.current = false;
-    }
-  };
-
-  const skipTime = (seconds: number) => {
-    const newTime = Math.max(0, Math.min(duration, currentTime + seconds));
-    setCurrentTime(newTime);
-    if (songData.videoId && ytPlayerRef.current && ytPlayerRef.current.seekTo) {
-      ytPlayerRef.current.seekTo(newTime, true);
-    } else if (audioRef.current) {
-      audioRef.current.currentTime = newTime;
-    }
-  };
-
-  const seekToAbsoluteTime = (time: number) => {
-    const newTime = Math.max(0, Math.min(duration || 9999, time));
-    setCurrentTime(newTime);
-    if (songData.videoId && ytPlayerRef.current && ytPlayerRef.current.seekTo) {
-      ytPlayerRef.current.seekTo(newTime, true);
-    } else if (audioRef.current) {
-      audioRef.current.currentTime = newTime;
-    }
-  };
-
-  const handleNextSong = async () => {
-    const nearEnd = duration > 0 && currentTime >= duration - 0.8;
-    const shouldFade = isPlaying && !nearEnd;
-
-    if (queue.length === 0) {
-      if (shouldFade) {
-        await fadeVolume(0, 400);
-      }
-      setPlaying(false);
-      setCurrentTime(0);
-      if (songData.videoId && ytPlayerRef.current?.seekTo) {
-        try {
-          ytPlayerRef.current.seekTo(0, true);
-          ytPlayerRef.current.pauseVideo();
-        } catch(e){}
-      }
-      if (audioRef.current) {
-        audioRef.current.currentTime = 0;
-        audioRef.current.pause();
-      }
-      faderRef.current = 1;
-      const activeVol = volumeRef.current;
-      if (songData.videoId && ytPlayerRef.current?.setVolume) {
-        try { ytPlayerRef.current.setVolume(activeVol); } catch(e){}
-      }
-      if (audioRef.current) {
-        audioRef.current.volume = activeVol / 100;
-      }
-      toast.info("Queue is empty", {
-        description: "Add more songs to keep the music playing!",
-      });
-      return;
-    }
-    
-    if (shouldFade) {
-      await fadeVolume(0, 400);
-    }
-    const currentIndex = queue.findIndex(item => item.videoId === songData.videoId);
-    const nextIndex = currentIndex >= queue.length - 1 ? 0 : currentIndex + 1;
-    const nextSong = queue[nextIndex];
-    if (nextSong && onSelectFromQueue) {
-      onSelectFromQueue(nextSong.id);
-    }
-  };
-
-  useEffect(() => {
-    handleNextSongRef.current = handleNextSong;
-  }, [handleNextSong]);
-
-  const handlePreviousSong = async () => {
-    const shouldFade = isPlaying;
-
-    if (queue.length === 0) {
-      if (shouldFade) {
-        await fadeVolume(0, 400);
-      }
-      skipTime(-currentTime);
-      if (shouldFade) {
-        await fadeVolume(1, 400);
-      }
-      return;
-    }
-    if (currentTime > 3) {
-      if (shouldFade) {
-        await fadeVolume(0, 400);
-      }
-      skipTime(-currentTime);
-      if (shouldFade) {
-        await fadeVolume(1, 400);
-      }
-      return;
-    }
-    
-    if (shouldFade) {
-      await fadeVolume(0, 400);
-    }
-    const currentIndex = queue.findIndex(item => item.videoId === songData.videoId);
-    const prevIndex = currentIndex <= 0 ? queue.length - 1 : currentIndex - 1;
-    const prevSong = queue[prevIndex];
-    if (prevSong && onSelectFromQueue) {
-      onSelectFromQueue(prevSong.id);
-    }
-  };
-
-  useEffect(() => {
-    const handleTogglePlayEvent = () => {
-      togglePlayPause();
-    };
-    const handleNextSongEvent = () => {
-      handleNextSong();
-    };
-    const handlePrevSongEvent = () => {
-      handlePreviousSong();
-    };
-
-    window.addEventListener('elva-toggle-play', handleTogglePlayEvent);
-    window.addEventListener('elva-play-next', handleNextSongEvent);
-    window.addEventListener('elva-play-prev', handlePrevSongEvent);
-
-    return () => {
-      window.removeEventListener('elva-toggle-play', handleTogglePlayEvent);
-      window.removeEventListener('elva-play-next', handleNextSongEvent);
-      window.removeEventListener('elva-play-prev', handlePrevSongEvent);
-    };
-  }, [togglePlayPause, handleNextSong, handlePreviousSong]);
-
-  const formatTime = (seconds: number) => {
-    if (!seconds || isNaN(seconds)) return "0:00";
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const handleSliderChange = (value: number[]) => {
-    const newTime = value[0];
-    setCurrentTime(newTime);
-    if (songData.videoId && ytPlayerRef.current && ytPlayerRef.current.seekTo) {
-      ytPlayerRef.current.seekTo(newTime, true);
-    } else if (audioRef.current) {
-      audioRef.current.currentTime = newTime;
-    }
-  };
-
-  const handleVolumeChange = (value: number[]) => {
-    const newVol = value[0];
-    setVolume(newVol);
-
-    if (faderAnimationRef.current) {
-      cancelAnimationFrame(faderAnimationRef.current);
-      faderAnimationRef.current = null;
-    }
-    if (fadeResolveRef.current) {
-      fadeResolveRef.current();
-      fadeResolveRef.current = null;
-    }
-    faderRef.current = 1;
-
-    if (songData.videoId && ytPlayerRef.current && ytPlayerRef.current.setVolume) {
-      ytPlayerRef.current.setVolume(newVol);
-    }
-    if (audioRef.current) {
-      audioRef.current.volume = newVol / 100;
-    }
-
-    window.dispatchEvent(new CustomEvent('elva-volume-change', { detail: { volume: newVol } }));
-  };
-
   // Keyboard controls
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
@@ -1055,36 +475,16 @@ export function MusicPlayer({
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [isPlaying, currentTime, volume, preMuteVolume]);
-
-  // Master teardown unmount cleanup
-  useEffect(() => {
-    return () => {
-      if (faderAnimationRef.current) {
-        cancelAnimationFrame(faderAnimationRef.current);
-      }
-      if (fadeResolveRef.current) {
-        fadeResolveRef.current();
-        fadeResolveRef.current = null;
-      }
-      if (progressTimerRef.current) {
-        clearInterval(progressTimerRef.current);
-      }
-      
-      if (audioSourceRef.current) {
-        try {
-          audioSourceRef.current.disconnect();
-        } catch (e) {}
-        audioSourceRef.current = null;
-      }
-      
-      if (globalAudioContext && globalAudioContext.state === 'running') {
-        try {
-          globalAudioContext.suspend();
-        } catch (e) {}
-      }
-    };
-  }, []);
+  }, [
+    volume,
+    preMuteVolume,
+    togglePlayPause,
+    skipTime,
+    handleVolumeChange,
+    setPreMuteVolume,
+    setShowLyrics,
+    setShowSettings,
+  ]);
 
   return (
     <div 

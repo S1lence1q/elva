@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useCallback } from 'react';
 
 interface FadeVolumeOptions {
   volumeRef: React.MutableRefObject<number>;
@@ -18,7 +18,7 @@ export function useFadeVolume({
   const fadeResolveRef = useRef<(() => void) | null>(null);
   const isFadingOutRef = useRef(false);
 
-  const fadeVolume = (target: number, duration: number): Promise<void> => {
+  const fadeVolume = useCallback((target: number, duration: number): Promise<void> => {
     return new Promise((resolve) => {
       if (faderAnimationRef.current) {
         cancelAnimationFrame(faderAnimationRef.current);
@@ -67,7 +67,7 @@ export function useFadeVolume({
 
       faderAnimationRef.current = requestAnimationFrame(run);
     });
-  };
+  }, [videoId, volumeRef, ytPlayerRef, audioRef]);
 
   return {
     fadeVolume,

@@ -15,7 +15,7 @@ Sidst opdateret: 2026-05-26 23:45
 | **Fase 2: 120fps GPU Optimering** | Konvertering til rene GPU transform-animationer uden layout-reflows | **100% Gennemført** |
 | **Fase 3: Artist Matching** | Optimering af YouTube-søgning og artist profil-genveje | **100% Gennemført** |
 | **Fase 3: Advanced Settings** | Opgradering af indstillinger til et "Advanced Control Center" | **100% Gennemført** |
-| **Fase 3: Farve-Ekstraktion** | Justering af farvemætnings-grænser og luminance-bund | *Mangler* |
+| **Fase 3: Farve-Ekstraktion** | Justering af farvemætnings-grænser og luminance-bund | **100% Gennemført** |
 
 ---
 
@@ -79,14 +79,9 @@ Sidst opdateret: 2026-05-26 23:45
     *   Skjult manuelle accentfarver og nørdede toggles i Advanced-menuen for at holde standard-oplevelsen minimalistisk og stringent.
 *   **Filer:** `src/app/components/SettingsModal.tsx`dstændig perfekt kurateret design-preset, mens avancerede brugere stadig kan udfolde og tilpasse farverne under motorhjelmen.
 
-#### 🟡 8. Dynamic Color Extraction Tweaks
-*   **Hvad mangler:**
-    *   Farveekstraktoren (der scanner albumcoverets pixels) trækker nogle gange meget dæmpede eller kedelige nuancer ud, selvom coveret indeholder flotte, levende farvespor.
-    *   Ekstremt mørke eller næsten sorte albumcovers kan få WebGL fluid-baggrunden til at slukke helt og blive kulsort, hvilket mindsker den dynamiske og luksuriøse atmosfære.
-*   **Planlagt Løsning:**
-    *   Justere farvemætnings-grænseværdien (`colorfulness threshold`) i canvas-pixel-scanneren.
-    *   Implementere en boost-multiplikator for levende accenter.
-    *   Lægge en minimums-luminansbund (`luminance ceiling/floor`), der sikrer, at WebGL-baggrunden altid lyser en lille smule bioluminescent op, selvom sangens cover er komplet sort.
+#### 🟢 8. Dynamic Color Extraction Tweaks
+*   **Status:** Implementeret via muted extraction, charcoal/silver-mist for lav-mætning covers, og bioluminescent floor i `playerColorUtils.ts`. Eventuel finjustering af hvilke accenter der vægtes højest er valgfri polish.
+*   **Filer:** `src/app/utils/playerColorUtils.ts`
 
 ---
 
