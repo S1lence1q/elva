@@ -603,33 +603,33 @@ export function Queue({
                   </div>
                 </div>
 
-                <div className="space-y-1.5 px-5">
+                <div className="space-y-2 px-5">
                   {artistTracks.map((track) => (
                     <div
                       key={`artist-track-${track.id}`}
                       onClick={() => handlePlaySongDirectly(track)}
-                      className="group w-full flex items-center justify-between py-2.5 px-4 hover:bg-white/[0.02] transition-colors duration-300 cursor-pointer rounded-2xl border border-transparent hover:border-white/5"
+                      className="group w-full flex items-center justify-between p-3 rounded-2xl bg-white/[0.015] hover:bg-white/[0.04] border border-white/[0.04] hover:border-white/10 transition-all duration-300 shadow-md cursor-pointer"
                     >
                       <div className="flex items-center gap-3.5 truncate mr-3 flex-1">
-                        <div className="relative w-11 h-11 rounded-xl overflow-hidden flex-shrink-0 bg-neutral-900 border border-white/5 shadow-md">
+                        <div className="relative w-14 h-14 rounded-2xl overflow-hidden shadow-lg shrink-0 border border-white/5 bg-white/5">
                           <img src={track.thumbnail} alt={track.title} className="w-full h-full object-cover" />
                           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                            <Play className="w-3.5 h-3.5 text-white fill-white" />
+                            <Play className="w-4 h-4 text-white fill-white" />
                           </div>
                         </div>
                         <div className="text-left truncate">
-                          <h3 className="text-xs font-semibold text-white/95 truncate leading-tight tracking-wide">{track.title}</h3>
-                          <p className="text-[10px] text-white/40 truncate mt-0.5 leading-none">{track.artist}</p>
+                          <h3 className="text-sm font-semibold text-white/95 truncate tracking-wide leading-snug">{track.title}</h3>
+                          <p className="text-xs text-white/50 truncate mt-1 leading-none">{track.artist}</p>
                         </div>
                       </div>
                       
                       {onAddToQueue && (
                         <button
                           onClick={(e) => handleAddSongToQueue(e, track)}
-                          className="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 text-white/70 hover:text-white cursor-pointer hover:scale-105 active:scale-95 transition-all shadow-sm"
+                          className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 text-white/70 hover:text-white cursor-pointer hover:scale-105 active:scale-95 transition-all shadow-sm"
                           title="Add to queue"
                         >
-                          <Plus className="w-3.5 h-3.5 text-current" />
+                          <Plus className="w-4 h-4 text-current" />
                         </button>
                       )}
                     </div>
@@ -664,33 +664,33 @@ export function Queue({
                   </div>
                 </div>
 
-                <div className="space-y-1.5 px-5">
+                <div className="space-y-2 px-5">
                   {(selectedQueuePlaylist.tracks || []).map((track, idx) => (
                     <div
                       key={`plist-track-${track.id}-${idx}`}
                       onClick={() => handlePlaySongDirectly(track)}
-                      className="group w-full flex items-center justify-between py-2.5 px-4 hover:bg-white/[0.02] transition-all duration-300 cursor-pointer rounded-2xl border border-transparent hover:border-white/5"
+                      className="group w-full flex items-center justify-between p-3 rounded-2xl bg-white/[0.015] hover:bg-white/[0.04] border border-white/[0.04] hover:border-white/10 transition-all duration-300 shadow-md cursor-pointer"
                     >
                       <div className="flex items-center gap-3.5 truncate mr-3 flex-1">
-                        <div className="relative w-11 h-11 rounded-xl overflow-hidden shadow-md shrink-0 border border-white/5 bg-white/5">
+                        <div className="relative w-14 h-14 rounded-2xl overflow-hidden shadow-lg shrink-0 border border-white/5 bg-white/5">
                           <img src={track.thumbnail} alt={track.title} className="w-full h-full object-cover" />
                           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                            <Play className="w-3.5 h-3.5 text-white fill-white" />
+                            <Play className="w-4 h-4 text-white fill-white" />
                           </div>
                         </div>
                         <div className="text-left truncate">
-                          <h4 className="text-xs font-semibold text-white/90 truncate max-w-[200px] leading-tight">{track.title}</h4>
-                          <p className="text-[10px] text-white/40 truncate max-w-[200px] mt-0.5 leading-none">{track.artist}</p>
+                          <h4 className="text-sm font-semibold text-white/90 truncate tracking-wide leading-snug">{track.title}</h4>
+                          <p className="text-xs text-white/50 truncate mt-1 leading-none">{track.artist}</p>
                         </div>
                       </div>
                       
                       {onAddToQueue && (
                         <button
                           onClick={(e) => handleAddSongToQueue(e, track)}
-                          className="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 text-white/70 hover:text-white cursor-pointer hover:scale-105 active:scale-95 transition-all shadow-sm"
+                          className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 text-white/70 hover:text-white cursor-pointer hover:scale-105 active:scale-95 transition-all shadow-sm"
                           title="Add to queue"
                         >
-                          <Plus className="w-3.5 h-3.5" />
+                          <Plus className="w-4 h-4" />
                         </button>
                       )}
                     </div>
@@ -849,24 +849,24 @@ export function Queue({
                           className="group w-full flex items-center justify-between p-3 rounded-2xl bg-white/[0.015] hover:bg-white/[0.04] border border-white/[0.04] hover:border-white/10 transition-all duration-300 shadow-md cursor-pointer"
                         >
                           <div className="flex items-center gap-3.5 truncate mr-3 flex-1 text-left">
-                            <div className="relative w-12 h-12 rounded-xl overflow-hidden shadow-lg shrink-0 border border-white/5 bg-white/5">
+                            <div className="relative w-14 h-14 rounded-2xl overflow-hidden shadow-lg shrink-0 border border-white/5 bg-white/5">
                               <img src={song.thumbnail} alt={song.title} className="w-full h-full object-cover" />
                               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                 <Play className="w-4 h-4 text-white fill-white" />
                               </div>
                             </div>
                             <div className="truncate">
-                              <h4 className="text-xs font-semibold text-white/90 truncate tracking-wide leading-tight">{song.title}</h4>
-                              <p className="text-[11px] text-white/50 truncate mt-0.5 leading-none font-medium">{song.artist}</p>
+                              <h4 className="text-sm font-semibold text-white/90 truncate tracking-wide leading-snug">{song.title}</h4>
+                              <p className="text-xs text-white/50 truncate mt-1 leading-none font-medium">{song.artist}</p>
                             </div>
                           </div>
                           {onAddToQueue && (
                             <button
                               onClick={(e) => handleAddSongToQueue(e, song)}
-                              className="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 text-white/70 hover:text-white cursor-pointer hover:scale-105 active:scale-95 transition-all shadow-sm"
+                              className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 text-white/70 hover:text-white cursor-pointer hover:scale-105 active:scale-95 transition-all shadow-sm"
                               title="Add to queue"
                             >
-                              <Plus className="w-3.5 h-3.5" />
+                              <Plus className="w-4 h-4" />
                             </button>
                           )}
                         </div>
