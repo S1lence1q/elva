@@ -163,6 +163,7 @@ Dette dokument er den urokkelige kilde til sandhed (Source of Truth) for Elvas k
 3. `stringUtils.ts` — Song title sanitizing.
 4. `apiUtils.ts` — YouTube search, ranking, channel uploads.
 5. `hudUtils.ts` — Global `showMiniHUD()` toast-hjælper.
+6. `discographyCache.ts` — 48-timers localStorage-baseret discography cache med LRU eviction.
 
 ### `src/app/hooks/` — Custom React Hooks (fra App.tsx og MusicPlayer.tsx refactor)
 Disse hooks er udtrukket for at holde `App.tsx` og `MusicPlayer.tsx` fokuserede og fri for koderod.
@@ -176,6 +177,9 @@ Disse hooks er udtrukket for at holde `App.tsx` og `MusicPlayer.tsx` fokuserede 
 | `useFadeVolume.ts` | `requestAnimationFrame`-baseret volume fader (`fadeVolume(target, duration)`). Promise-baseret med safeguard mod hængende async tråde via `fadeResolveRef`. |
 | `useAudioPlayer.ts` | HTML5 `<audio>` player livscyklus: src-load, play/pause synkronisering, `onended` → næste sang, Web Audio API analyzer init |
 | `useYouTubePlayer.ts` | YouTube IFrame API livscyklus: `YT.Player` oprettelse, event callbacks (`onStateChange`), destroy on unmount for memory leak prevention |
+| `usePlaybackCore.ts` | Core afspilnings-livscyklus og stats/volume synkronisering til HTML5 og YouTube Iframe spillere |
+| `useLyrics.ts` | LRC parsing og dynamisk synkronisering/søgning af sangtekster |
+| `usePlayStats.ts` | Sporing af afspilningshistorik, nyligt afspillede og ugentlig lyttetid |
 
 ### `src/app/components/` — Vigtige komponenter
 - **`App.tsx`** — Root controller og state host. Orchestrerer alle hooks og delegerer UI til `LandingPage.tsx`. Hoster det globale Volume HUD og MiniPlayer Pill.
