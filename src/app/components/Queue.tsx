@@ -129,6 +129,7 @@ export function Queue({
   // Drag and Drop States and Handlers
   const [localItems, setLocalItems] = useState<QueueItem[]>(items);
   const [activeDragIndex, setActiveDragIndex] = useState<number | null>(null);
+  const displayItems = activeDragIndex !== null ? localItems : items;
 
   useEffect(() => {
     if (activeDragIndex === null) {
@@ -1048,22 +1049,29 @@ export function Queue({
                     )}
                   </div>
 
-                  {items.length === 0 ? (
-                    <div className="flex items-center gap-3.5 p-3 rounded-2xl border border-white/[0.04] bg-white/[0.005] select-none text-left min-h-[88px] transition-all duration-300">
-                      <div className="w-16 h-16 rounded-2xl border border-white/5 bg-white/[0.02] flex items-center justify-center shrink-0">
-                        <Music className="w-5 h-5 text-white/20 animate-pulse" />
-                      </div>
-                      <div className="truncate">
-                        <h4 className="text-sm font-semibold text-white/50 tracking-wide leading-tight">Your queue is empty</h4>
-                        <p className="text-[10px] text-white/25 mt-1.5 leading-snug font-medium truncate max-w-[240px]">
-                          Add tracks from likes or playlists below
-                        </p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col gap-2.5">
-                      <AnimatePresence mode="popLayout">
-                        {localItems.map((item, index) => {
+                  <div className="flex flex-col gap-2.5">
+                    <AnimatePresence mode="popLayout">
+                      {items.length === 0 ? (
+                        <motion.div
+                          key="queue-empty-placeholder"
+                          initial={{ opacity: 0, y: 5 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.95 }}
+                          transition={{ duration: 0.2 }}
+                          className="flex items-center gap-3.5 p-3 rounded-2xl border border-white/[0.04] bg-white/[0.005] select-none text-left min-h-[88px]"
+                        >
+                          <div className="w-16 h-16 rounded-2xl border border-white/5 bg-white/[0.02] flex items-center justify-center shrink-0">
+                            <Music className="w-5 h-5 text-white/20 animate-pulse" />
+                          </div>
+                          <div className="truncate">
+                            <h4 className="text-sm font-semibold text-white/50 tracking-wide leading-tight">Your queue is empty</h4>
+                            <p className="text-[10px] text-white/25 mt-1.5 leading-snug font-medium truncate max-w-[240px]">
+                              Add tracks from likes or playlists below
+                            </p>
+                          </div>
+                        </motion.div>
+                      ) : (
+                        displayItems.map((item, index) => {
                           // 100% Robust matches utilizing videoId AND title + artist checks!
                           const isCurrent = 
                             (item.videoId && item.videoId === currentSongId) || 
@@ -1147,10 +1155,10 @@ export function Queue({
                               </button>
                             </motion.div>
                           );
-                        })}
-                      </AnimatePresence>
-                    </div>
-                  )}
+                        })
+                      )}
+                    </AnimatePresence>
+                  </div>
                 </div>
 
                 {/* B. Quick-Add Favorites Section (scroll-stacked below queue) */}

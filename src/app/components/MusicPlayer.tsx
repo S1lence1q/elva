@@ -79,6 +79,7 @@ interface MusicPlayerProps {
   enableCustomLyrics?: boolean;
   onEnableCustomLyricsChange?: (enable: boolean) => void;
   onPlayingStateChange?: (playing: boolean) => void;
+  appState?: string;
 }
 
 const THEME_PRESETS = {
@@ -143,7 +144,8 @@ export function MusicPlayer({
   songColors,
   enableCustomLyrics = false,
   onEnableCustomLyricsChange,
-  onPlayingStateChange
+  onPlayingStateChange,
+  appState = 'ready'
 }: MusicPlayerProps) {
   const theme = ACCENT_THEMES[accentColor];
 
@@ -531,11 +533,8 @@ export function MusicPlayer({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.3, duration: 0.4 }}
-          onClick={() => {
-            setShowLyrics(false);
-            if (onBackToHome) onBackToHome();
-          }}
-          className="text-xl font-light text-white/30 hover:text-white/50 tracking-wider transition-colors cursor-pointer"
+          onClick={onBackToHome}
+          className="text-xl font-normal text-white/30 hover:text-white/50 tracking-wider transition-colors cursor-pointer"
         >
           Elva
         </motion.button>
@@ -841,7 +840,7 @@ export function MusicPlayer({
 
               {!isLargeScreen && (
                 <LyricsPanel
-                  showLyrics={showLyrics}
+                  showLyrics={showLyrics && appState === 'ready'}
                   lyrics={lyrics}
                   isLoadingLyrics={isLoadingLyrics}
                   isLyricsSynced={isLyricsSynced}
@@ -861,7 +860,7 @@ export function MusicPlayer({
 
           {/* Side-by-Side Lyrics Panel */}
           <AnimatePresence>
-            {showLyrics && isLargeScreen && (
+            {showLyrics && isLargeScreen && appState === 'ready' && (
               <motion.div
                 initial={{ opacity: 0, x: 180 }}
                 animate={{ opacity: 1, x: 284 }}
@@ -875,7 +874,7 @@ export function MusicPlayer({
                 }}
               >
                 <LyricsPanel
-                  showLyrics={showLyrics}
+                  showLyrics={showLyrics && appState === 'ready'}
                   lyrics={lyrics}
                   isLoadingLyrics={isLoadingLyrics}
                   isLyricsSynced={isLyricsSynced}

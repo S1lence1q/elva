@@ -150,7 +150,7 @@ export default function App() {
     }
   });
 
-  const isFirstVisit = useRef(!sessionStorage.getItem('elva_intro_seen')).current;
+  const [isFirstVisit, setIsFirstVisit] = useState(() => !sessionStorage.getItem('elva_intro_seen'));
   const hasSelectedArtistOnce = useRef(false);
 
   // 2. Background Colors Hook
@@ -545,13 +545,16 @@ export default function App() {
     const hasSeenIntro = sessionStorage.getItem('elva_intro_seen');
     if (hasSeenIntro) {
       setIsIntroActive(false);
+      setIsFirstVisit(false);
       setAppState('landing');
     } else {
       sessionStorage.setItem('elva_intro_seen', 'true');
       setIsIntroActive(true);
+      setIsFirstVisit(true);
       setAppState('landing');
       const timer = setTimeout(() => {
         setIsIntroActive(false);
+        setIsFirstVisit(false);
       }, 3200);
       return () => clearTimeout(timer);
     }
@@ -792,7 +795,7 @@ export default function App() {
               y: appState === 'ready' ? 0 : 40,
             }}
             transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
-            className="size-full absolute inset-0 z-20 pointer-events-auto"
+            className={`size-full absolute inset-0 z-20 ${appState === 'ready' ? 'pointer-events-auto' : 'pointer-events-none'}`}
             style={{ 
               pointerEvents: appState === 'ready' ? 'auto' : 'none',
               visibility: appState === 'ready' ? 'visible' : 'hidden'
@@ -801,6 +804,7 @@ export default function App() {
             <MusicPlayer
               songData={songData}
               queue={queue}
+              appState={appState}
               accentColor={accentColor}
               songColors={songColors}
               onAccentColorChange={setAccentColor}
