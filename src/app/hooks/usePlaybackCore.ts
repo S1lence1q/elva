@@ -50,7 +50,7 @@ export function usePlaybackCore({
   const lastToggleTimeRef = useRef(0);
   const isTransitioningRef = useRef(false);
   const isCrossfadingRef = useRef(false);
-  const progressTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const progressTimerRef = useRef<number | null>(null);
   const handleNextSongRef = useRef<() => Promise<void>>(async () => {});
   const currentTimeRef = useRef(currentTime);
   const durationRef = useRef(duration);
@@ -831,40 +831,58 @@ export function usePlaybackCore({
     };
   }, [songData.title, songData.artist, songData.artworkUrl, isPlaying, togglePlayPause, handlePreviousSong, handleSliderChange]);
 
-  // Progress update timer (250ms interval)
+  // Progress update loop using requestAnimationFrame for silky 60fps seek-bar movement.
+  // We throttle the actual state update and crossfade check to every ~250ms to avoid
+  // excessive React re-renders while still getting buttery-smooth playhead animation.
   useEffect(() => {
-    if (isPlaying) {
-      progressTimerRef.current = setInterval(() => {
-        let current = 0;
-        let dur = 0;
-        
-        const activeYT = activeEngineRef.current === 'A' ? ytPlayerRefA.current : ytPlayerRefB.current;
-        const activeAudio = activeEngineRef.current === 'A' ? audioRefA.current : audioRefB.current;
-        const activeIsYT = activeEngineRef.current === 'A' ? isYouTubeRefA.current : isYouTubeRefB.current;
-        
-        if (activeIsYT && activeYT?.getCurrentTime) {
-          try {
-            current = activeYT.getCurrentTime();
-            dur = activeYT.getDuration();
-          } catch {}
-        } else if (activeAudio) {
-          current = activeAudio.currentTime;
-          dur = activeAudio.duration || 0;
-        }
-        
-        setCurrentTime(current);
-        if (dur > 0) setDuration(dur);
-        
-        // Dynamic crossfade check
-        void checkCrossfade(current, dur);
-        
-      }, 250);
-    } else if (progressTimerRef.current) {
-      clearInterval(progressTimerRef.current);
+    if (!isPlaying) {
+      if (progressTimerRef.current !== null) {
+        cancelAnimationFrame(progressTimerRef.current);
+        progressTimerRef.current = null;
+      }
+      return;
     }
 
+    let lastCheckTime = 0;
+
+    const tick = (timestamp: number) => {
+      let current = 0;
+      let dur = 0;
+
+      const activeYT = activeEngineRef.current === 'A' ? ytPlayerRefA.current : ytPlayerRefB.current;
+      const activeAudio = activeEngineRef.current === 'A' ? audioRefA.current : audioRefB.current;
+      const activeIsYT = activeEngineRef.current === 'A' ? isYouTubeRefA.current : isYouTubeRefB.current;
+
+      if (activeIsYT && activeYT?.getCurrentTime) {
+        try {
+          current = activeYT.getCurrentTime();
+          dur = activeYT.getDuration();
+        } catch {}
+      } else if (activeAudio) {
+        current = activeAudio.currentTime;
+        dur = activeAudio.duration || 0;
+      }
+
+      // Update seek-bar every frame (smooth position)
+      setCurrentTime(current);
+      if (dur > 0) setDuration(dur);
+
+      // Only run the crossfade check every ~250ms to avoid CPU overhead
+      if (timestamp - lastCheckTime >= 250) {
+        lastCheckTime = timestamp;
+        void checkCrossfade(current, dur);
+      }
+
+      progressTimerRef.current = requestAnimationFrame(tick);
+    };
+
+    progressTimerRef.current = requestAnimationFrame(tick);
+
     return () => {
-      if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+      if (progressTimerRef.current !== null) {
+        cancelAnimationFrame(progressTimerRef.current);
+        progressTimerRef.current = null;
+      }
     };
   }, [isPlaying, checkCrossfade]);
 
@@ -898,7 +916,7 @@ export function usePlaybackCore({
       if (faderAnimationRefB.current) cancelAnimationFrame(faderAnimationRefB.current);
       if (fadeResolveRefA.current) fadeResolveRefA.current();
       if (fadeResolveRefB.current) fadeResolveRefB.current();
-      if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+      if (progressTimerRef.current !== null) cancelAnimationFrame(progressTimerRef.current);
       
       if (audioSourceRefA.current) {
         try { audioSourceRefA.current.disconnect(); } catch {}

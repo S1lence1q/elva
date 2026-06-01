@@ -14,6 +14,34 @@ import {
 } from '../utils/apiUtils';
 import { getDiscographyCache, setDiscographyCache } from '../utils/discographyCache';
 
+// Simple in-memory LRU search cache — max 30 entries, 5-minute TTL
+// Prevents repeated API hits when the user types the same query twice in a session.
+const SEARCH_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const SEARCH_CACHE_MAX = 30;
+const searchCache = new Map<string, { results: SearchResult[]; timestamp: number }>();
+
+function getCachedSearch(query: string): SearchResult[] | null {
+  const key = query.trim().toLowerCase();
+  const entry = searchCache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.timestamp > SEARCH_CACHE_TTL_MS) {
+    searchCache.delete(key);
+    return null;
+  }
+  return entry.results;
+}
+
+function setCachedSearch(query: string, results: SearchResult[]) {
+  const key = query.trim().toLowerCase();
+  if (searchCache.size >= SEARCH_CACHE_MAX) {
+    // Evict the oldest entry (Maps preserve insertion order)
+    const firstKey = searchCache.keys().next().value;
+    if (firstKey !== undefined) searchCache.delete(firstKey);
+  }
+  searchCache.set(key, { results, timestamp: Date.now() });
+}
+
+
 const SHORTCUT_ARTISTS: VerifiedArtist[] = [
   {
     name: 'KESI',
@@ -454,11 +482,20 @@ export function useSearchLogic({
     setArtistTracks([]);
     setVerifiedArtist(null);
 
+    // Check in-memory cache first — returns instantly for repeated queries within 5 minutes
+    const cached = getCachedSearch(query);
+    if (cached) {
+      setSearchResults(cached);
+      setLastSearchedQuery(query);
+      return;
+    }
+
     setIsSearching(true);
     const results = await executeSearchAPI(query);
     setIsSearching(false);
 
     if (results.length > 0) {
+      setCachedSearch(query, results);
       setSearchResults(results);
       setLastSearchedQuery(query);
     } else {

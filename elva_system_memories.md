@@ -12,9 +12,37 @@ Dette dokument er den urokkelige kilde til sandhed (Source of Truth) for Elvas k
 * **Krav:** Hele applikationens brugerflade skal være **100% på engelsk**. 
 * **Handling:** Eventuelle eksisterende danske ord (f.eks. *"Historik"*, *"Artister"*, *"Kunne ikke afspille sang"*, *"Søg efter kunstner eller sang"*, *"Nyligt afspillet"*) skal oversættes til engelsk for at opretholde en international, strømlinet og eksklusiv lytter-oplevelse.
 
-### Rule 2: 🧱 Modulopbygget Kode (Mange små filer!)
-* **Krav:** **Filer SKAL holdes små, fokuserede og opdelte!** Vi ønsker absolut ingen kæmpe filer på 2.000 linjer. 
-* **Handling:** Hvis du tilføjer en ny komponent, utility-funktion eller logik-blok, må du **aldrig** bare smække den ind i `App.tsx` eller `MusicPlayer.tsx`. Opret en ny, selvstændig og isoleret fil i `src/app/components/` eller `src/app/utils/` og importér den.
+### Rule 2: 🧱 Modulopbygget Kode — Filstørrelse & Struktur
+
+**Krav:** Filer SKAL holdes små, fokuserede og opdelte!
+
+**Forskning & begrundelse (Hvorfor dette gælder i Elva):**
+
+Der er tre separate grunde til at holde filer under en bestemt størrelse, og de peger alle i samme retning:
+
+**1. For mennesker (vedligeholdelse & læsbarhed):**
+Industristandarder fra React/TypeScript-fællesskabet 2024–2025 er klare:
+- **Under 150 linjer** = Ideelt. Let at forstå, teste og redigere i ét gennemlæsning.
+- **200–300 linjer** = Acceptabelt. Stærkt signal om at overveje opsplitning.
+- **Over 500 linjer** = "Bloated mega-component". For mange ansvarsområder. Svær at teste og ændre uden sideeffekter.
+- En stor fil er næsten altid et tegn på, at den gør *for mange ting* (bryder Single Responsibility Principle).
+
+**2. For AI-agenter (vibe coding & AI-assisteret kodning):**
+LLM-baserede agenter (som denne!) har et begrænset kontekstvindue. Jo større en fil er, jo mere af agentens budget bruges blot på at læse kontekst — og jo mere sandsynligt er det, at agenten laver fejl, misfortolker sammenhænge eller "glemmer" hvad der stod øverst i filen. Forskning viser:
+- Agenter præsterer markant bedre når filer er **single-responsibility moduler med klare interfaces**.
+- En agent kan læse og rette en 150-linjers fil med høj præcision. En 1.000-linjers fil tvinger agenten til at "gætte" sammenhæng den ikke kan se.
+- **Agent-venlig arkitektur:** Filer bør ideelt set kunne forstås ud fra deres interface alene, uden at læse hele implementationen.
+
+**3. For TypeScript-kompilering & IDE-respons:**
+Ekstremt store filer kan bremse TypeScripts language server, gøre autofuldførelse langsommere og øge build-tider. Vite er hurtig til bundling, men store filer med mange implicitte typer øger `tsc`-analysetiden.
+
+**Aktuelle problemer i Elva (til løsning):**
+- `App.tsx` (~1.120 linjer) — for stor. Bør splittes i en Settings Context + dedikerede sub-hooks.
+- `MusicPlayer.tsx` (~1.021 linjer) — for stor. UI-dele bør udtrækkes.
+- `Queue.tsx` (~68 KB) — for stor. Bør splittes i Queue, QueueSearch og QueueFavorites.
+- `ProfileHubView.tsx` (~61 KB) — for stor. Tab-indholdet bør være selvstændige komponenter.
+
+**Handling:** Hvis du tilføjer en ny komponent, utility-funktion eller logik-blok, må du **aldrig** bare smække den ind i `App.tsx` eller `MusicPlayer.tsx`. Opret en ny, selvstændig og isoleret fil i `src/app/components/` eller `src/app/utils/` og importér den. Brug React Context til delt state (settings, playback) frem for prop-drilling igennem 4 lag.
 
 ### Rule 3: 💎 Quality-First Designfilosofi ("Gør det ordentligt!")
 * **Krav:** **Vi laver tingene ordentligt, før vi tilføjer noget nyt.** Vi tilføjer aldrig funktioner, medmindre de giver 100% mening, tilføjer reel værdi og passer perfekt ind i den taktile, glassmorphic Scandinavian retro-papir æstetik.

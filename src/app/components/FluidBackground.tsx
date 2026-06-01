@@ -257,6 +257,7 @@ export const FluidBackground: React.FC<FluidBackgroundProps> = ({
 
     let animationFrameId: number;
     let localTime = Math.random() * 500; // Start at randomized time coordinate to keep shapes unique
+    let idleFrameCount = 0; // Counter for throttling renders when colors are stable
 
     // Resize canvas display buffer
     const resizeCanvas = () => {
@@ -278,12 +279,31 @@ export const FluidBackground: React.FC<FluidBackgroundProps> = ({
       // for a luxurious, slow-motion liquid paint blend that feels incredibly majestic and smooth.
       const duration = Math.max(0.01, durationRef.current * 1.6);
       const speed = 1.0 - Math.exp(-2.0 / (duration * 60.0));
+      
+      let maxDelta = 0;
       for (let i = 0; i < 4; i++) {
         for (let c = 0; c < 3; c++) {
           const targetVal = targetColorsRef.current[i][c];
-          let currentVal = currentColorsRef.current[i][c];
-          currentColorsRef.current[i][c] = currentVal + (targetVal - currentVal) * speed;
+          const currentVal = currentColorsRef.current[i][c];
+          const delta = targetVal - currentVal;
+          maxDelta = Math.max(maxDelta, Math.abs(delta));
+          currentColorsRef.current[i][c] = currentVal + delta * speed;
         }
+      }
+
+      // Idle throttling: when colors have converged, only redraw every 4th frame.
+      // The fluid animation still flows (localTime advances), but we skip GPU draw calls
+      // to save battery/CPU on laptops when the background is stable.
+      const isConverged = maxDelta < 0.0008;
+      if (isConverged) {
+        idleFrameCount++;
+        localTime += 0.012 * speedRef.current;
+        if (idleFrameCount % 4 !== 0) {
+          animationFrameId = requestAnimationFrame(render);
+          return;
+        }
+      } else {
+        idleFrameCount = 0;
       }
 
       // Update shader uniforms
