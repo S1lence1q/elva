@@ -146,13 +146,16 @@ export function usePlaybackCore({
     if (shouldFade) {
       await fadeVolume(0, 400);
     }
-    const currentIndex = queue.findIndex((item) => item.videoId === songData.videoId);
-    const nextIndex = currentIndex >= queue.length - 1 ? 0 : currentIndex + 1;
+    const currentIndex = queue.findIndex((item) => {
+      if (songData.videoId && item.videoId === songData.videoId) return true;
+      return item.title === songData.title && item.artist === songData.artist;
+    });
+    const nextIndex = currentIndex === -1 || currentIndex >= queue.length - 1 ? 0 : currentIndex + 1;
     const nextSong = queue[nextIndex];
     if (nextSong && onSelectFromQueue) {
       onSelectFromQueue(nextSong.id);
     }
-  }, [isPlaying, queue, songData.videoId, fadeVolume, setPlaying, onSelectFromQueue, faderRef, volumeRef]);
+  }, [isPlaying, queue, songData.videoId, songData.title, songData.artist, fadeVolume, setPlaying, onSelectFromQueue, faderRef, volumeRef]);
 
   useEffect(() => {
     handleNextSongRef.current = handleNextSong;
@@ -337,13 +340,16 @@ export function usePlaybackCore({
     if (shouldFade) {
       await fadeVolume(0, 400);
     }
-    const currentIndex = queue.findIndex((item) => item.videoId === songData.videoId);
+    const currentIndex = queue.findIndex((item) => {
+      if (songData.videoId && item.videoId === songData.videoId) return true;
+      return item.title === songData.title && item.artist === songData.artist;
+    });
     const prevIndex = currentIndex <= 0 ? queue.length - 1 : currentIndex - 1;
     const prevSong = queue[prevIndex];
     if (prevSong && onSelectFromQueue) {
       onSelectFromQueue(prevSong.id);
     }
-  }, [isPlaying, queue, songData.videoId, fadeVolume, skipTime, onSelectFromQueue]);
+  }, [isPlaying, queue, songData.videoId, songData.title, songData.artist, fadeVolume, skipTime, onSelectFromQueue]);
 
   const handleVolumeChange = useCallback(
     (value: number[]) => {

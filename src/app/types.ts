@@ -5,6 +5,7 @@ export interface SearchResult {
   thumbnail: string;
   videoId: string;
   channelId?: string;
+  audioUrl?: string;
 }
 
 export interface VerifiedArtist {

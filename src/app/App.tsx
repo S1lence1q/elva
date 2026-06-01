@@ -230,10 +230,11 @@ export default function App() {
   };
 
   const handleSelectSong = async (result: SearchResult) => {
-    let finalVideoId = result.videoId || resolvedVideoIds[result.id];
-    let finalArtwork = result.thumbnail;
+    const isLocal = !!(result.audioUrl?.startsWith('blob:') || result.id?.startsWith('local_'));
+    let finalVideoId = isLocal ? '' : (result.videoId || resolvedVideoIds[result.id]);
+    let finalArtwork = result.thumbnail || 'https://images.unsplash.com/photo-1676068368612-1c8b3e2afed0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxhbGJ1bSUyMGNvdmVyJTIwbXVzaWMlMjBhYnN0cmFjdCUyMGFydCUyMGNvbG9yZnVsfGVufDF8fHx8MTc3ODk2NjA3OHww&ixlib=rb-4.1.0&q=80&w=1080';
 
-    if (!finalVideoId) {
+    if (!isLocal && !finalVideoId) {
       setLoadingSongId(result.id);
       setAppState('processing');
       try {
@@ -248,8 +249,8 @@ export default function App() {
             return next;
           });
 
-          if (!finalArtwork) {
-            finalArtwork = resolved[0].thumbnail;
+          if (!result.thumbnail) {
+            finalArtwork = resolved[0].thumbnail || finalArtwork;
           }
         } else {
           toast.error("Could not play song", {
@@ -288,7 +289,7 @@ export default function App() {
         title: result.title,
         artist: result.artist,
         artworkUrl: finalArtwork,
-        audioUrl: `https://www.youtube.com/watch?v=${finalVideoId}`,
+        audioUrl: isLocal ? (result.audioUrl || '') : `https://www.youtube.com/watch?v=${finalVideoId}`,
         videoId: finalVideoId,
         channelId: result.channelId
       });
@@ -337,7 +338,7 @@ export default function App() {
           title: result.title,
           artist: result.artist,
           artworkUrl: finalArtwork,
-          audioUrl: `https://www.youtube.com/watch?v=${finalVideoId}`,
+          audioUrl: isLocal ? (result.audioUrl || '') : `https://www.youtube.com/watch?v=${finalVideoId}`,
           videoId: finalVideoId,
           channelId: result.channelId
         });
