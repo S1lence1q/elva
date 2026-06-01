@@ -267,6 +267,9 @@ export function MusicPlayer({
   const [imageBlur, setImageBlur] = useState(20);
   const [previousArtwork, setPreviousArtwork] = useState<string | null>(null);
   const [showPreviousArtwork, setShowPreviousArtwork] = useState(false);
+  // Tracks the URL currently visible on screen so we can snapshot it as the outgoing
+  // image when a new song loads — must be a ref to avoid stale closure issues.
+  const lastDisplayedArtworkRef = useRef<string | null>(songData.artworkUrl);
   const [dominantColors, setDominantColors] = useState(() => songColors || getDynamicFallbackColors(songData.title || '', songData.artist || ''));
   const [targetColors, setTargetColors] = useState(() => songColors || getDynamicFallbackColors(songData.title || '', songData.artist || ''));
   const extractedColors = songColors || getDynamicFallbackColors(songData.title || '', songData.artist || '');
@@ -357,11 +360,17 @@ export function MusicPlayer({
   }, [targetColors]);
 
   useEffect(() => {
-    if (songData.artworkUrl !== previousArtwork) {
-      // Capture outgoing artwork before updating
-      setPreviousArtwork(songData.artworkUrl);
+    const oldArtwork = lastDisplayedArtworkRef.current;
+
+    // Only crossfade if the artwork actually changed
+    if (oldArtwork && oldArtwork !== songData.artworkUrl) {
+      // Snapshot the OLD artwork as the outgoing layer before anything changes
+      setPreviousArtwork(oldArtwork);
       setShowPreviousArtwork(true);
     }
+
+    // Update ref to the incoming artwork so next song change knows what to fade from
+    lastDisplayedArtworkRef.current = songData.artworkUrl;
 
     setIsLoaded(false);
     setIsLoadingNewSong(true);
@@ -379,7 +388,6 @@ export function MusicPlayer({
       setTimeout(() => {
         setIsLoadingNewSong(false);
         setIsLoaded(true);
-        // Keep previous visible until new artwork has fully sharpened in
         setTimeout(() => setShowPreviousArtwork(false), 1000);
       }, 50);
     };
@@ -394,7 +402,6 @@ export function MusicPlayer({
         }
         return;
       }
-
       setTimeout(() => {
         setIsLoaded(true);
         setIsLoadingNewSong(false);
