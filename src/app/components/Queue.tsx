@@ -172,6 +172,7 @@ export function Queue({
   const [selectedArtist, setSelectedArtist] = useState<VerifiedArtist | null>(null);
   const [artistTracks, setArtistTracks] = useState<SearchResult[]>([]);
   const [isLoadingArtist, setIsLoadingArtist] = useState(false);
+  const [matchedArtist, setMatchedArtist] = useState<VerifiedArtist | null>(null);
 
   // Playlists details view inside My Space
   const [selectedQueuePlaylist, setSelectedQueuePlaylist] = useState<Playlist | null>(null);
@@ -287,6 +288,7 @@ export function Queue({
   useEffect(() => {
     setHasSearched(false);
     setSearchResults([]);
+    setMatchedArtist(null);
   }, [searchQuery]);
 
   const handleSearch = async () => {
@@ -302,23 +304,20 @@ export function Queue({
 
     setIsSearching(true);
     setHasSearched(true);
+    setMatchedArtist(null);
     try {
       if (onSearch) {
         const results = await onSearch(searchQuery.trim(), 20);
         setSearchResults(results);
 
         const matched = getArtistName(searchQuery.trim(), results);
-        if (matched && onFetchChannelUploads) {
-          setIsLoadingArtist(true);
-          setSelectedArtist({
+        if (matched) {
+          setMatchedArtist({
             name: matched.name,
             thumbnail: matched.thumbnail,
             channelId: matched.channelId,
             isTopic: true
           });
-          const uploads = await onFetchChannelUploads(matched.channelId || '');
-          setArtistTracks(uploads);
-          setIsLoadingArtist(false);
         }
       }
     } catch (error) {
@@ -326,7 +325,6 @@ export function Queue({
       toast.error('Search failed. Please try again.');
     } finally {
       setIsSearching(false);
-      setIsLoadingArtist(false);
     }
   };
 
@@ -854,6 +852,43 @@ export function Queue({
                   exit={{ opacity: 0, y: -15 }}
                   className="space-y-3 p-2 text-left"
                 >
+                  {matchedArtist && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.96 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.35 }}
+                      onClick={async () => {
+                        if (onFetchChannelUploads) {
+                          setIsLoadingArtist(true);
+                          const cachedImg = localStorage.getItem(`elva_artist_img_${matchedArtist.name.toLowerCase()}`) || matchedArtist.thumbnail;
+                          setSelectedArtist({
+                            ...matchedArtist,
+                            thumbnail: cachedImg
+                          });
+                          const uploads = await onFetchChannelUploads(matchedArtist.channelId || '');
+                          setArtistTracks(uploads);
+                          setIsLoadingArtist(false);
+                        }
+                      }}
+                      className="group w-full flex items-center justify-between p-3.5 rounded-2xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/10 hover:border-white/15 transition-all duration-300 shadow-md cursor-pointer mb-4"
+                    >
+                      <div className="flex items-center gap-3.5 min-w-0 flex-1 text-left">
+                        <div className="relative w-12 h-12 rounded-full overflow-hidden p-0.5 border border-white/10 group-hover:scale-105 transition-all duration-300 shadow-md shrink-0">
+                          <ArtistAvatar name={matchedArtist.name} fallbackThumbnail={matchedArtist.thumbnail} />
+                        </div>
+                        <div className="min-w-0 text-left">
+                          <span className={`inline-flex items-center text-[8px] font-bold ${theme.text} tracking-wider bg-white/5 px-1.5 py-0.5 rounded uppercase`}>
+                            Verified Artist
+                          </span>
+                          <h4 className="text-sm font-semibold text-white/90 truncate leading-snug mt-1 group-hover:text-white transition-colors">
+                            {matchedArtist.name}
+                          </h4>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-white/30 group-hover:text-white/60 group-hover:translate-x-0.5 transition-all shrink-0" />
+                    </motion.div>
+                  )}
+
                   {searchResults.map((song) => (
                     <div
                       key={song.id}
