@@ -23,6 +23,7 @@ import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useSearchLogic } from './hooks/useSearchLogic';
 import { LandingPage } from './components/LandingPage';
 import { Playlist } from './components/PlaylistDetailsView';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 type AppState = 'landing' | 'processing' | 'ready';
 
@@ -744,6 +745,7 @@ export default function App() {
 
       <AnimatePresence>
         {appState === 'landing' && (
+          <ErrorBoundary>
           <LandingPage
             isIntroActive={isIntroActive}
             scrollProgress={scrollProgress}
@@ -785,6 +787,7 @@ export default function App() {
             handleSearch={searchLogic.handleSearch}
             setArtistTracks={searchLogic.setArtistTracks}
           />
+          </ErrorBoundary>
         )}
 
         {appState === 'processing' && (
@@ -831,6 +834,7 @@ export default function App() {
               visibility: appState === 'ready' ? 'visible' : 'hidden'
             }}
           >
+            <ErrorBoundary>
             <MusicPlayer
               songData={songData}
               queue={queue}
@@ -900,6 +904,7 @@ export default function App() {
                 searchLogic.setSearchResults([]);
               }}
             />
+            </ErrorBoundary>
           </motion.div>
         )}
       </AnimatePresence>

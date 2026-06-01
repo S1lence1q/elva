@@ -358,13 +358,13 @@ export function MusicPlayer({
 
   useEffect(() => {
     if (songData.artworkUrl !== previousArtwork) {
+      // Capture outgoing artwork before updating
       setPreviousArtwork(songData.artworkUrl);
       setShowPreviousArtwork(true);
     }
 
     setIsLoaded(false);
     setIsLoadingNewSong(true);
-    setImageBlur(0);
 
     const img = new Image();
     img.crossOrigin = 'anonymous';
@@ -379,7 +379,8 @@ export function MusicPlayer({
       setTimeout(() => {
         setIsLoadingNewSong(false);
         setIsLoaded(true);
-        setTimeout(() => setShowPreviousArtwork(false), 800);
+        // Keep previous visible until new artwork has fully sharpened in
+        setTimeout(() => setShowPreviousArtwork(false), 1000);
       }, 50);
     };
 
@@ -397,7 +398,6 @@ export function MusicPlayer({
       setTimeout(() => {
         setIsLoaded(true);
         setIsLoadingNewSong(false);
-        setImageBlur(0);
       }, 400);
     };
   }, [songData.artworkUrl, songData.title, songData.artist]);
@@ -803,7 +803,9 @@ export function MusicPlayer({
               togglePlayPause();
             }}
           >
+            {/* Incoming artwork: starts blurred + slightly scaled, sharpens into focus */}
             <motion.img
+              key={songData.artworkUrl}
               src={songData.artworkUrl}
               alt="Album artwork"
               onError={(e) => {
@@ -816,22 +818,23 @@ export function MusicPlayer({
                 }
               }}
               className={`w-full h-full object-cover z-[1] ${songData.videoId ? 'scale-[1.35]' : ''}`}
-              style={{
-                filter: `blur(${imageBlur}px)`,
-              }}
-              initial={{ opacity: 0, scale: 1.02 }}
+              initial={{ opacity: 0, scale: 1.06, filter: 'blur(18px)' }}
               animate={{
                 opacity: isLoaded ? (isPlaying ? 1 : 0.8) : 0,
-                scale: 1,
+                scale: isLoaded ? (songData.videoId ? 1.35 : 1) : 1.06,
+                filter: isLoaded ? 'blur(0px)' : 'blur(18px)',
               }}
               transition={{
-                opacity: { duration: 0.8, ease: "easeInOut" },
-                scale: { duration: 0.8, ease: "easeInOut" },
+                opacity: { duration: 0.9, ease: 'easeOut' },
+                scale: { duration: 1.1, ease: [0.25, 0.46, 0.45, 0.94] },
+                filter: { duration: 1.0, ease: 'easeOut' },
               }}
             />
 
+            {/* Outgoing artwork: sits on top and fades out while new one sharpens beneath */}
             {showPreviousArtwork && previousArtwork && (
               <motion.img
+                key={`prev-${previousArtwork}`}
                 src={previousArtwork}
                 alt="Previous artwork"
                 onError={(e) => {
@@ -839,14 +842,12 @@ export function MusicPlayer({
                   const src = e.currentTarget.src;
                   if (src.includes('maxresdefault.jpg')) {
                     e.currentTarget.src = src.replace('maxresdefault.jpg', 'mqdefault.jpg');
-                  } else if (songData.videoId) {
-                    e.currentTarget.src = `https://img.youtube.com/vi/${songData.videoId}/mqdefault.jpg`;
                   }
                 }}
                 className={`absolute inset-0 w-full h-full object-cover z-[2] ${songData.videoId ? 'scale-[1.35]' : ''}`}
-                initial={{ opacity: 1 }}
-                animate={{ opacity: isLoaded ? 0 : 1 }}
-                transition={{ duration: 0.8, ease: "easeInOut" }}
+                initial={{ opacity: 1, filter: 'blur(0px)' }}
+                animate={{ opacity: isLoaded ? 0 : 1, filter: isLoaded ? 'blur(8px)' : 'blur(0px)' }}
+                transition={{ duration: 0.9, ease: 'easeInOut' }}
               />
             )}
 
