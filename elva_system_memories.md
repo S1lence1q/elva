@@ -83,6 +83,9 @@ Dette dokument er den urokkelige kilde til sandhed (Source of Truth) for Elvas k
   - **Customizable Transition Timing:** Triggermærket og fade-varigheden indlæses dynamisk fra `localStorage` under nøglen `elva_crossfade_duration`. Brugeren kan indstille denne flydende fra **0s til 12s** via en premium-slider under Control Center (**Audio Preferences**). Hvis indstillet to 0s, slås crossfaden helt fra og sangene skifter øjeblikkeligt ved track-end.
   - **Fader Safeguard:** Hvis en ny fade starter, afvikles den foregående faders Promise øjeblikkeligt via `fadeResolveRef` for at forhindre hængende asynkrone tråde.
   - **Stale DOM Recovery:** Detekterer proaktivt hvis en afspillers DOM iframe er blevet udskiftet eller fjernet af React under rendering, hvorefter den gamle instans destrueres og en ny opbygges flydende uden at afbryde appens flow.
+  - **Synkroniseret WebGL Farve-Crossfade (Visuel Overgang):** For at matche lyd-crossfadet visuelt, sender lydmotoren et `isCrossfade: true`-flag til `App.tsx` ved overgangens start. Appen indlæser øjeblikkeligt crossfade-varigheden (f.eks. 8s) og sender den til `<FluidBackground />` som `transitionDuration`. For at skabe en ekstremt luksuriøs og blød "liquid paint" sammensmeltning, skalerer baggrunden denne varighed med **1.6x** og anvender en blid eksponentiel dæmpning på `-2.0`:
+    $$\text{speed} = 1.0 - e^{-2.0 / (\text{duration} \cdot 1.6 \cdot 60.0)}$$
+    Dette gør, at farverne morfer utroligt langsomt og flydende under hele crossfade-vinduet og fortsætter blødt et par sekunder efter, at lyden har lagt sig. Ved almindelige manuelle sangskift nulstilles transitionstiden automatisk til standarden på `1.2s` for øjeblikkelig taktil respons.
 
 ### 🔍 8. Metadata Weighted Search Ranker
 * **Filer:** [apiUtils.ts](file:///Users/applemacbook/AntiGravity%20Shit/Elva.nosync/Elva/src/app/utils/apiUtils.ts) (`rankAndSortSearchResults`)
