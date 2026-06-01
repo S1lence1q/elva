@@ -620,6 +620,27 @@ export default function App() {
     if (song) handleSelectSong(song);
   };
 
+  const handleReorderQueue = (newIds: string[]) => {
+    const idMap = new Map(queue.map(item => [item.id, item]));
+    const reordered = newIds
+      .map(id => idMap.get(id))
+      .filter((item): item is SearchResult => !!item);
+    setQueue(reordered);
+  };
+
+  const handleQueueFileSelect = (file: File) => {
+    const fileResult: SearchResult = {
+      id: 'local_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9),
+      title: file.name.replace(/\.[^/.]+$/, ''),
+      artist: 'Local File',
+      thumbnail: 'https://images.unsplash.com/photo-1676068368612-1c8b3e2afed0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxhbGJ1bSUyMGNvdmVyJTIwbXVzaWMlMjBhYnN0cmFjdCUyMGFydCUyMGNvbG9yZnVsfGVufDF8fHx8MTc3ODk2NjA3OHww&ixlib=rb-4.1.0&q=80&w=1080',
+      audioUrl: URL.createObjectURL(file),
+      videoId: ''
+    };
+    setQueue([...queue, fileResult]);
+    showMiniHUD('Added file to queue', 'success');
+  };
+
   const theme = ACCENT_THEMES[accentColor];
 
   return (
@@ -782,6 +803,8 @@ export default function App() {
               onClearQueue={handleClearQueue}
               onSelectFromQueue={handleSelectFromQueue}
               onAddToQueue={handleAddToQueue}
+              onReorderQueue={handleReorderQueue}
+              onQueueFileSelect={handleQueueFileSelect}
               onSelectSong={handleSelectSong}
               favorites={favorites}
               onToggleFavorite={handleToggleFavorite}

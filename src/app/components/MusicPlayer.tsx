@@ -49,6 +49,8 @@ interface MusicPlayerProps {
   onSelectSong?: (song: SearchResult) => void;
   onFileSelect?: (file: File) => void;
   onUrlSubmit?: (url: string) => void;
+  onReorderQueue?: (newIds: string[]) => void;
+  onQueueFileSelect?: (file: File) => void;
   onBackToHome?: () => void;
   onSearch?: (query: string) => Promise<SearchResult[]>;
   onFetchChannelUploads?: (channelId: string, limit?: number) => Promise<SearchResult[]>;
@@ -112,6 +114,8 @@ export function MusicPlayer({
   onSelectSong, 
   onFileSelect, 
   onUrlSubmit, 
+  onReorderQueue,
+  onQueueFileSelect,
   onBackToHome, 
   onSearch,
   onFetchChannelUploads,
@@ -598,8 +602,9 @@ export function MusicPlayer({
                   }
                   if (onSelectSong) onSelectSong(song);
                 }}
-                onFileSelect={onFileSelect}
+                onFileSelect={onQueueFileSelect || onFileSelect}
                 onUrlSubmit={onUrlSubmit}
+                onReorder={onReorderQueue}
               />
             </div>
           )}

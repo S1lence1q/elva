@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Music, X, Search, Plus, Play, Upload, Loader2, Heart, ListMusic, Trash2, ArrowLeft, ChevronRight, Sparkles, User, History } from 'lucide-react';
+import { Music, X, Search, Plus, Play, Upload, Loader2, Heart, ListMusic, Trash2, ArrowLeft, ChevronRight, Sparkles, User, History, GripVertical } from 'lucide-react';
 import { toast } from 'sonner';
 import { AccentColor, ACCENT_THEMES } from './themeUtils';
 import { getPrimaryArtist } from '../utils/stringUtils';
@@ -56,6 +56,7 @@ interface QueueProps {
   onSelectSong?: (song: SearchResult) => void;
   onFileSelect?: (file: File) => void;
   onUrlSubmit?: (url: string) => void;
+  onReorder?: (newIds: string[]) => void;
 }
 
 const ArtistAvatar = ({ name, fallbackThumbnail }: { name: string, fallbackThumbnail: string }) => {
@@ -115,7 +116,8 @@ export function Queue({
   onAddToQueue,
   onSelectSong,
   onFileSelect,
-  onUrlSubmit
+  onUrlSubmit,
+  onReorder
 }: QueueProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
@@ -123,6 +125,43 @@ export function Queue({
   const [hasSearched, setHasSearched] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Drag and Drop States and Handlers
+  const [localItems, setLocalItems] = useState<QueueItem[]>(items);
+  const [activeDragIndex, setActiveDragIndex] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (activeDragIndex === null) {
+      setLocalItems(items);
+    }
+  }, [items, activeDragIndex]);
+
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    setActiveDragIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', index.toString());
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (activeDragIndex === null || activeDragIndex === index) return;
+
+    // Swap items in real-time locally
+    const newItems = [...localItems];
+    const draggedItem = newItems[activeDragIndex];
+    newItems.splice(activeDragIndex, 1);
+    newItems.splice(index, 0, draggedItem);
+
+    setActiveDragIndex(index);
+    setLocalItems(newItems);
+  };
+
+  const handleDragEnd = () => {
+    if (activeDragIndex !== null && onReorder) {
+      onReorder(localItems.map(item => item.id));
+    }
+    setActiveDragIndex(null);
+  };
 
   const theme = ACCENT_THEMES[accentColor];
 
@@ -902,28 +941,40 @@ export function Queue({
                   ) : (
                     <div className="flex flex-col gap-2.5">
                       <AnimatePresence mode="popLayout">
-                        {items.map((item, index) => {
+                        {localItems.map((item, index) => {
                           // 100% Robust matches utilizing videoId AND title + artist checks!
                           const isCurrent = 
                             (item.videoId && item.videoId === currentSongId) || 
                             (songData && item.title.toLowerCase() === songData.title.toLowerCase() && 
                              item.artist.toLowerCase() === songData.artist.toLowerCase());
+                          const isDraggingItem = index === activeDragIndex;
 
                           return (
                             <motion.div
                               key={`queue-item-${item.id}`}
+                              layout
+                              draggable
+                              onDragStart={(e) => handleDragStart(e, index)}
+                              onDragOver={(e) => handleDragOver(e, index)}
+                              onDragEnd={handleDragEnd}
                               initial={{ opacity: 0, y: 10 }}
                               animate={{ opacity: 1, y: 0 }}
                               exit={{ opacity: 0, scale: 0.95, height: 0, marginBottom: 0, padding: 0 }}
                               transition={{ duration: 0.22, delay: index * 0.01, ease: "easeOut" }}
                               onClick={() => onSelect(item.id)}
-                              className={`group w-full flex items-center justify-between p-3 rounded-2xl border transition-all duration-300 cursor-pointer ${
+                              className={`group w-full flex items-center justify-between p-3 rounded-2xl border transition-all duration-300 cursor-grab active:cursor-grabbing ${
+                                isDraggingItem ? 'opacity-30 border-dashed border-white/20 bg-white/5 scale-[0.98]' : ''
+                              } ${
                                 isCurrent
                                   ? `bg-white/[0.05] border-white/15 shadow-md shadow-black/35 ${theme.border}`
                                   : 'bg-white/[0.015] border-white/[0.03] hover:border-white/10 hover:bg-white/[0.04]'
                               }`}
                             >
-                              <div className="flex items-center gap-3.5 truncate mr-3 flex-1">
+                              <div className="flex items-center gap-2.5 truncate mr-3 flex-1">
+                                {/* Grip Handle Icon */}
+                                <div className="text-white/20 group-hover:text-white/40 transition-colors shrink-0">
+                                  <GripVertical className="w-4 h-4" />
+                                </div>
                                 {/* Option C: Large 64px cover sleeves */}
                                 <div className="relative w-16 h-16 rounded-2xl overflow-hidden shadow-lg shrink-0 border border-white/5 bg-white/5 z-10">
                                   <img
