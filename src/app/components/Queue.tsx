@@ -4,7 +4,7 @@ import { Music, X, Search, Plus, Play, Upload, Loader2, Heart, ListMusic, Trash2
 import { toast } from 'sonner';
 import { AccentColor, ACCENT_THEMES } from './themeUtils';
 import { getPrimaryArtist } from '../utils/stringUtils';
-import { getHandPickedImage } from '../utils/apiUtils';
+import { getHandPickedImage, resolveTopicChannelId } from '../utils/apiUtils';
 
 interface QueueItem {
   id: string;
@@ -567,20 +567,39 @@ export function Queue({
                 exit={{ opacity: 0, x: -20 }}
                 className="space-y-6 text-left"
               >
-                <div className="relative w-full h-56 overflow-hidden select-none shrink-0">
-                  <img src={selectedArtist.thumbnail} alt={selectedArtist.name} className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#09090b] via-[#09090b]/40 to-transparent" />
+                {/* Immersive Sidebar Artist Hero Banner */}
+                <div className="relative w-full rounded-3xl overflow-hidden border border-white/[0.08] bg-gradient-to-br from-[#121214]/85 via-[#0d0d0f]/50 to-black/30 backdrop-blur-2xl shadow-xl py-6 px-6 flex items-center gap-5 shrink-0 relative">
+                  {/* Ambient dynamic theme glow behind/inside the banner */}
+                  <div 
+                    className="absolute -top-20 -right-20 w-44 h-44 rounded-full blur-[45px] opacity-35 pointer-events-none"
+                    style={{
+                      background: 'radial-gradient(circle, var(--theme-primary) 0%, rgba(255,255,255,0) 70%)'
+                    }}
+                  />
                   
-                  <div className="absolute bottom-4 left-6 right-6">
-                    <span className={`inline-flex items-center gap-1 text-[9px] font-bold ${theme.text} tracking-wider bg-white/5 border border-white/5 px-2 py-0.5 rounded uppercase shrink-0`}>
-                      Verified Artist
-                    </span>
+                  {/* Large circular avatar with high-end border */}
+                  <div className="relative w-24 h-24 rounded-full overflow-hidden border-2 border-white/10 shadow-2xl transition-transform duration-500 hover:scale-105 shrink-0 z-10 bg-neutral-900">
+                    <img src={selectedArtist.thumbnail} alt={selectedArtist.name} className="w-full h-full object-cover scale-105" />
+                  </div>
+                  
+                  {/* Hero Info Text */}
+                  <div className="flex flex-col text-left relative z-10 min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className={`inline-flex items-center gap-1 text-[9px] font-bold ${theme.text} bg-white/5 border border-white/10 px-2 py-0.5 rounded uppercase tracking-wider`}>
+                        ✦ Verified Artist
+                      </span>
+                    </div>
+                    
                     <h2 
-                      className="text-2xl font-normal text-white mt-1.5 tracking-wide leading-tight"
+                      className="text-3xl font-normal text-white mt-2 tracking-wide leading-none truncate"
                       style={{ fontFamily: '"Kaobe", serif' }}
                     >
                       {selectedArtist.name}
                     </h2>
+                    
+                    <p className="text-[9px] text-white/40 font-bold tracking-[0.15em] uppercase mt-2.5">
+                      Official Releases • Danish Artist
+                    </p>
                   </div>
                 </div>
 
@@ -753,17 +772,43 @@ export function Queue({
                       {artistBubbles.map((artist, idx) => (
                         <div
                           key={`lib-art-${idx}`}
-                          onClick={async () => {
+                           onClick={async () => {
                             if (onFetchChannelUploads) {
                               setIsLoadingArtist(true);
+                              
+                              let channelId = artist.channelId;
+                              let resolved = await resolveTopicChannelId(artist.name);
+                              if (resolved) {
+                                channelId = resolved.channelId;
+                              }
+
                               const cachedImg = localStorage.getItem(`elva_artist_img_${artist.name.toLowerCase()}`) || artist.thumbnail;
                               setSelectedArtist({
                                 name: artist.name,
                                 thumbnail: cachedImg,
-                                channelId: artist.channelId,
+                                channelId: channelId,
                                 isTopic: true
                               });
-                              const uploads = await onFetchChannelUploads(artist.channelId || '');
+                              let uploads = await onFetchChannelUploads(channelId || '');
+
+                              // ROBUST FALLBACK FOR DISC DISCOVERY
+                              if (uploads.length === 0 && onSearch) {
+                                const nameLower = artist.name.trim().toLowerCase();
+                                const [raw1, raw2] = await Promise.all([
+                                  onSearch(artist.name, 50),
+                                  onSearch(`${artist.name} - Topic`, 10)
+                                ]);
+                                const seenIds = new Set<string>();
+                                for (const track of [...raw1, ...raw2]) {
+                                  if (!track.id || seenIds.has(track.id)) continue;
+                                  seenIds.add(track.id);
+                                  const uploaderLower = (track.artist || '').trim().toLowerCase();
+                                  if (uploaderLower === nameLower || uploaderLower === `${nameLower} - topic` || uploaderLower === `${nameLower}vevo`) {
+                                    uploads.push(track);
+                                  }
+                                }
+                              }
+
                               setArtistTracks(uploads);
                               setIsLoadingArtist(false);
                             }
@@ -852,40 +897,82 @@ export function Queue({
                   exit={{ opacity: 0, y: -15 }}
                   className="space-y-3 p-2 text-left"
                 >
-                  {matchedArtist && (
+                   {matchedArtist && (
                     <motion.div
                       initial={{ opacity: 0, scale: 0.96 }}
                       animate={{ opacity: 1, scale: 1 }}
-                      transition={{ duration: 0.35 }}
+                      transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
                       onClick={async () => {
                         if (onFetchChannelUploads) {
                           setIsLoadingArtist(true);
+                          
+                          let channelId = matchedArtist.channelId;
+                          let resolved = await resolveTopicChannelId(matchedArtist.name);
+                          if (resolved) {
+                            channelId = resolved.channelId;
+                          }
+
                           const cachedImg = localStorage.getItem(`elva_artist_img_${matchedArtist.name.toLowerCase()}`) || matchedArtist.thumbnail;
                           setSelectedArtist({
                             ...matchedArtist,
-                            thumbnail: cachedImg
+                            thumbnail: cachedImg,
+                            channelId: channelId
                           });
-                          const uploads = await onFetchChannelUploads(matchedArtist.channelId || '');
+                          let uploads = await onFetchChannelUploads(channelId || '');
+
+                          // ROBUST FALLBACK FOR DISC DISCOVERY
+                          if (uploads.length === 0 && onSearch) {
+                            const nameLower = matchedArtist.name.trim().toLowerCase();
+                            const [raw1, raw2] = await Promise.all([
+                              onSearch(matchedArtist.name, 50),
+                              onSearch(`${matchedArtist.name} - Topic`, 10)
+                            ]);
+                            const seenIds = new Set<string>();
+                            for (const track of [...raw1, ...raw2]) {
+                              if (!track.id || seenIds.has(track.id)) continue;
+                              seenIds.add(track.id);
+                              const uploaderLower = (track.artist || '').trim().toLowerCase();
+                              if (uploaderLower === nameLower || uploaderLower === `${nameLower} - topic` || uploaderLower === `${nameLower}vevo`) {
+                                uploads.push(track);
+                              }
+                            }
+                          }
+
                           setArtistTracks(uploads);
                           setIsLoadingArtist(false);
                         }
                       }}
-                      className="group w-full flex items-center justify-between p-3.5 rounded-2xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/10 hover:border-white/15 transition-all duration-300 shadow-md cursor-pointer mb-4"
+                      className="group w-full flex flex-col gap-5 p-6 rounded-3xl bg-gradient-to-br from-[#1c1c1f]/80 via-[#0e0e10]/60 to-black/40 border border-white/10 hover:border-white/20 hover:from-white/[0.04] hover:to-white/[0.01] transition-all duration-300 shadow-2xl cursor-pointer mb-6 relative overflow-hidden backdrop-blur-xl active:scale-[0.99]"
                     >
-                      <div className="flex items-center gap-3.5 min-w-0 flex-1 text-left">
-                        <div className="relative w-12 h-12 rounded-full overflow-hidden p-0.5 border border-white/10 group-hover:scale-105 transition-all duration-300 shadow-md shrink-0">
+                      {/* Ambient dynamic theme glow behind the avatar */}
+                      <div 
+                        className="absolute -top-10 -left-10 w-28 h-28 rounded-full blur-[35px] opacity-25 pointer-events-none transition-opacity duration-300"
+                        style={{
+                          background: 'radial-gradient(circle, var(--theme-primary) 0%, rgba(255,255,255,0) 70%)'
+                        }}
+                      />
+                      
+                      <div className="flex items-center gap-5 relative z-10">
+                        {/* Beautifully upscaled circular avatar */}
+                        <div className="relative w-20 h-20 rounded-full overflow-hidden p-0.5 border border-white/15 shadow-xl group-hover:scale-105 transition-all duration-300 shrink-0 bg-neutral-900">
                           <ArtistAvatar name={matchedArtist.name} fallbackThumbnail={matchedArtist.thumbnail} />
                         </div>
-                        <div className="min-w-0 text-left">
-                          <span className={`inline-flex items-center text-[8px] font-bold ${theme.text} tracking-wider bg-white/5 px-1.5 py-0.5 rounded uppercase`}>
-                            Verified Artist
+                        <div className="text-left min-w-0 flex-1">
+                          <span className={`inline-flex items-center gap-1 text-[9px] font-bold ${theme.text} tracking-wider bg-white/5 border border-white/5 px-2.5 py-0.5 rounded uppercase shrink-0`}>
+                            ✦ Verified Artist
                           </span>
-                          <h4 className="text-sm font-semibold text-white/90 truncate leading-snug mt-1 group-hover:text-white transition-colors">
+                          <h4 
+                            className="text-xl font-normal text-white mt-1.5 truncate tracking-wide leading-tight"
+                            style={{ fontFamily: '"Kaobe", serif' }}
+                          >
                             {matchedArtist.name}
                           </h4>
+                          <p className="text-[11px] text-white/40 mt-1 leading-normal font-semibold tracking-wide uppercase">
+                            Official Discography • View Profile
+                          </p>
                         </div>
+                        <ChevronRight className="w-5 h-5 text-white/20 group-hover:text-white/45 group-hover:translate-x-0.5 transition-all duration-300 shrink-0 self-center" />
                       </div>
-                      <ChevronRight className="w-4 h-4 text-white/30 group-hover:text-white/60 group-hover:translate-x-0.5 transition-all shrink-0" />
                     </motion.div>
                   )}
 
