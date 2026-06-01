@@ -91,6 +91,8 @@ export default function App() {
   const [colorsSongData, setColorsSongData] = useState<any>(null);
   const colorsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [songColors, setSongColors] = useState<{ primary: string; secondary: string; accent: string } | null>(null);
+  const [colorTransitionDuration, setColorTransitionDuration] = useState<number>(1.2);
+  const colorTransitionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const [loadingSongId, setLoadingSongId] = useState<string | null>(null);
 
@@ -231,7 +233,7 @@ export default function App() {
     }, 1200);
   };
 
-  const handleSelectSong = async (result: SearchResult) => {
+  const handleSelectSong = async (result: SearchResult, isCrossfade?: boolean) => {
     const isLocal = !!(result.audioUrl?.startsWith('blob:') || result.id?.startsWith('local_'));
     let finalVideoId = isLocal ? '' : (result.videoId || resolvedVideoIds[result.id]);
     let finalArtwork = result.thumbnail || 'https://images.unsplash.com/photo-1676068368612-1c8b3e2afed0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxhbGJ1bSUyMGNvdmVyJTIwbXVzaWMlMjBhYnN0cmFjdCUyMGFydCUyMGNvbG9yZnVsfGVufDF8fHx8MTc3ODk2NjA3OHww&ixlib=rb-4.1.0&q=80&w=1080';
@@ -278,6 +280,24 @@ export default function App() {
       videoId: finalVideoId,
       thumbnail: finalArtwork
     });
+
+    if (isCrossfade) {
+      const saved = localStorage.getItem('elva_crossfade_duration');
+      const crossfadeWindow = saved !== null ? parseFloat(saved) : 3.0;
+      setColorTransitionDuration(crossfadeWindow);
+
+      if (colorTransitionTimeoutRef.current) {
+        clearTimeout(colorTransitionTimeoutRef.current);
+      }
+      colorTransitionTimeoutRef.current = setTimeout(() => {
+        setColorTransitionDuration(1.2);
+      }, crossfadeWindow * 1000);
+    } else {
+      setColorTransitionDuration(1.2);
+      if (colorTransitionTimeoutRef.current) {
+        clearTimeout(colorTransitionTimeoutRef.current);
+      }
+    }
 
     const fallbacks = getDynamicFallbackColors(result.title, result.artist);
     setSongColors({
@@ -560,6 +580,15 @@ export default function App() {
     }
   }, []);
 
+  // Cleanup color transition timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (colorTransitionTimeoutRef.current) {
+        clearTimeout(colorTransitionTimeoutRef.current);
+      }
+    };
+  }, []);
+
   // Clear transition timer when playing new songs
   useEffect(() => {
     if (appState === 'ready' || appState === 'processing') {
@@ -621,9 +650,9 @@ export default function App() {
     showMiniHUD('Queue cleared', 'info');
   };
 
-  const handleSelectFromQueue = (id: string) => {
+  const handleSelectFromQueue = (id: string, isCrossfade?: boolean) => {
     const song = queue.find(item => item.id === id);
-    if (song) handleSelectSong(song);
+    if (song) handleSelectSong(song, isCrossfade);
   };
 
   const handleReorderQueue = (newIds: string[]) => {
@@ -692,6 +721,7 @@ export default function App() {
           color1={bgColors.c1} 
           color2={bgColors.c2} 
           color3={bgColors.c3} 
+          transitionDuration={colorTransitionDuration}
           speedMultiplier={
             (backgroundStyle === 'liquid' ? 1.4 : backgroundStyle === 'mesh' ? 0.8 : backgroundStyle === 'particles' ? 1.1 : 0.5) +
             Math.min(2.0, scrollVelocity * 15.0)

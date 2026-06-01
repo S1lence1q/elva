@@ -2,6 +2,7 @@ import type { MutableRefObject } from 'react';
 
 let globalAudioContext: AudioContext | null = null;
 let globalAnalyser: AnalyserNode | null = null;
+const activeSources = new WeakMap<HTMLAudioElement, MediaElementAudioSourceNode>();
 
 export function initAudioAnalyzer(
   audioElement: HTMLAudioElement,
@@ -9,8 +10,6 @@ export function initAudioAnalyzer(
   analyserRef: MutableRefObject<AnalyserNode | null>,
   audioContextRef: MutableRefObject<AudioContext | null>
 ): void {
-  if (analyserRef.current) return;
-
   try {
     const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     if (!AudioContextClass) return;
@@ -23,19 +22,18 @@ export function initAudioAnalyzer(
     if (!globalAnalyser) {
       globalAnalyser = ctx.createAnalyser();
       globalAnalyser.fftSize = 256;
+      globalAnalyser.connect(ctx.destination);
     }
     const analyser = globalAnalyser;
 
-    if (!audioSourceRef.current) {
-      audioSourceRef.current = ctx.createMediaElementSource(audioElement);
+    let source = activeSources.get(audioElement);
+    if (!source) {
+      source = ctx.createMediaElementSource(audioElement);
+      activeSources.set(audioElement, source);
+      source.connect(analyser);
     }
-    const source = audioSourceRef.current;
 
-    source.disconnect();
-    source.connect(analyser);
-    analyser.disconnect();
-    analyser.connect(ctx.destination);
-
+    audioSourceRef.current = source;
     analyserRef.current = analyser;
     audioContextRef.current = ctx;
   } catch (err) {

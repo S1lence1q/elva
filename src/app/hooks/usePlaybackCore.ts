@@ -1,15 +1,13 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { toast } from 'sonner';
 import { useFadeVolume } from './useFadeVolume';
-import { useAudioPlayer } from './useAudioPlayer';
-import { useYouTubePlayer } from './useYouTubePlayer';
 import { initAudioAnalyzer, suspendGlobalAudioContext } from '../utils/audioAnalyzer';
 import type { PlaybackSongData, PlaybackQueueItem } from '../types/playback';
 
 interface UsePlaybackCoreOptions {
   songData: PlaybackSongData;
   queue: PlaybackQueueItem[];
-  onSelectFromQueue?: (id: string) => void;
+  onSelectFromQueue?: (id: string, isCrossfade?: boolean) => void;
   onPlayingStateChange?: (playing: boolean) => void;
 }
 
@@ -19,6 +17,7 @@ export function usePlaybackCore({
   onSelectFromQueue,
   onPlayingStateChange,
 }: UsePlaybackCoreOptions) {
+  // 1. Core States
   const [isPlaying, setIsPlaying] = useState(true);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -30,122 +29,360 @@ export function usePlaybackCore({
     const saved = localStorage.getItem('elva_player_premute_volume');
     return saved !== null ? parseInt(saved, 10) : 70;
   });
+  const [activeEngine, setActiveEngine] = useState<'A' | 'B'>('A');
 
-  useEffect(() => {
-    localStorage.setItem('elva_player_volume', String(volume));
-    if (volume > 0) {
-      localStorage.setItem('elva_player_premute_volume', String(volume));
-    }
-  }, [volume]);
+  // 2. Playback System Refs
+  const audioRefA = useRef<HTMLAudioElement>(null);
+  const audioRefB = useRef<HTMLAudioElement>(null);
+  const ytPlayerRefA = useRef<any>(null);
+  const ytPlayerRefB = useRef<any>(null);
+  const isYouTubeRefA = useRef(false);
+  const isYouTubeRefB = useRef(false);
+  
+  const audioSourceRefA = useRef<MediaElementAudioSourceNode | null>(null);
+  const audioSourceRefB = useRef<MediaElementAudioSourceNode | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
 
-  useEffect(() => {
-    onPlayingStateChange?.(isPlaying);
-  }, [isPlaying, onPlayingStateChange]);
-
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const ytPlayerRef = useRef<YT.Player | null>(null);
-  const progressTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const activeEngineRef = useRef<'A' | 'B'>('A');
   const isPlayingRef = useRef(isPlaying);
+  const lastIsPlayingRef = useRef(isPlaying);
   const lastToggleTimeRef = useRef(0);
   const isTransitioningRef = useRef(false);
+  const isCrossfadingRef = useRef(false);
+  const progressTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const handleNextSongRef = useRef<() => Promise<void>>(async () => {});
+  const currentTimeRef = useRef(currentTime);
+  const durationRef = useRef(duration);
+  const volumeRef = useRef(volume);
 
-  const setPlaying = useCallback((value: boolean) => {
-    isPlayingRef.current = value;
-    setIsPlaying(value);
-  }, []);
+  const isTogglingPlayPauseRef = useRef(false);
+  const lastLoadedSongRef = useRef<string | null>(null);
+
+  // Sync state variables to refs instantly to prevent async closure lag
+  useEffect(() => {
+    activeEngineRef.current = activeEngine;
+  }, [activeEngine]);
 
   useEffect(() => {
     isPlayingRef.current = isPlaying;
   }, [isPlaying]);
 
-  const volumeRef = useRef(volume);
   useEffect(() => {
     volumeRef.current = volume;
   }, [volume]);
 
-  const handleNextSongRef = useRef<() => Promise<void>>(async () => {});
-  const currentTimeRef = useRef(currentTime);
-  const durationRef = useRef(duration);
   useEffect(() => {
     currentTimeRef.current = currentTime;
   }, [currentTime]);
+  
   useEffect(() => {
     durationRef.current = duration;
   }, [duration]);
 
-  const { fadeVolume, faderRef, faderAnimationRef, fadeResolveRef, isFadingOutRef } = useFadeVolume({
+  // 3. Dual Volume Faders
+  const { 
+    fadeVolume: fadeVolumeA, 
+    faderRef: faderRefA, 
+    faderAnimationRef: faderAnimationRefA, 
+    fadeResolveRef: fadeResolveRefA, 
+    isFadingOutRef: isFadingOutRefA 
+  } = useFadeVolume({
     volumeRef,
-    ytPlayerRef,
-    audioRef,
-    videoId: songData.videoId,
+    ytPlayerRef: ytPlayerRefA,
+    audioRef: audioRefA,
+    isYouTubeRef: isYouTubeRefA
   });
 
-  const isTogglingPlayPauseRef = useRef(false);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const audioSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
+  const { 
+    fadeVolume: fadeVolumeB, 
+    faderRef: faderRefB, 
+    faderAnimationRef: faderAnimationRefB, 
+    fadeResolveRef: fadeResolveRefB, 
+    isFadingOutRef: isFadingOutRefB 
+  } = useFadeVolume({
+    volumeRef,
+    ytPlayerRef: ytPlayerRefB,
+    audioRef: audioRefB,
+    isYouTubeRef: isYouTubeRefB
+  });
 
-  const initAnalyzer = useCallback(() => {
-    if (!audioRef.current) return;
-    initAudioAnalyzer(audioRef.current, audioSourceRef, analyserRef, audioContextRef);
+  // 4. State Modification Setters
+  const setPlaying = useCallback((value: boolean) => {
+    isPlayingRef.current = value;
+    setIsPlaying(value);
   }, []);
 
-  const fadeVolumeRef = useRef(fadeVolume);
-  const initAnalyzerRef = useRef(initAnalyzer);
-  useEffect(() => {
-    fadeVolumeRef.current = fadeVolume;
-  }, [fadeVolume]);
-  useEffect(() => {
-    initAnalyzerRef.current = initAnalyzer;
-  }, [initAnalyzer]);
+  // 5. Playback Engine Core Operations
+  const initAnalyzer = useCallback((element: HTMLAudioElement, sourceRef: React.MutableRefObject<MediaElementAudioSourceNode | null>) => {
+    initAudioAnalyzer(element, sourceRef, analyserRef, audioContextRef);
+  }, []);
 
-  const isYouTubeMode = !!songData.videoId;
+  const stopAllPlayback = useCallback(() => {
+    if (audioRefA.current) {
+      try {
+        audioRefA.current.pause();
+        audioRefA.current.src = '';
+      } catch {}
+    }
+    if (audioRefB.current) {
+      try {
+        audioRefB.current.pause();
+        audioRefB.current.src = '';
+      } catch {}
+    }
+    if (ytPlayerRefA.current && typeof ytPlayerRefA.current.pauseVideo === 'function') {
+      try { ytPlayerRefA.current.pauseVideo(); } catch {}
+    }
+    if (ytPlayerRefB.current && typeof ytPlayerRefB.current.pauseVideo === 'function') {
+      try { ytPlayerRefB.current.pauseVideo(); } catch {}
+    }
+  }, []);
+
+  // Abort any active background crossfade
+  const abortActiveCrossfade = useCallback(() => {
+    if (isCrossfadingRef.current) {
+      isCrossfadingRef.current = false;
+      
+      const inactiveEngine = activeEngineRef.current === 'A' ? 'B' : 'A';
+      const oldAudio = inactiveEngine === 'A' ? audioRefA.current : audioRefB.current;
+      const oldYT = inactiveEngine === 'A' ? ytPlayerRefA.current : ytPlayerRefB.current;
+      
+      if (oldAudio) {
+        try {
+          oldAudio.pause();
+          oldAudio.src = '';
+        } catch {}
+      }
+      if (oldYT?.pauseVideo) {
+        try { oldYT.pauseVideo(); } catch {}
+      }
+    }
+  }, []);
+
+  // YouTube State Change callback mapping
+  const handleYTStateChange = useCallback((engineId: 'A' | 'B', e: any) => {
+    if (engineId !== activeEngineRef.current) return;
+    
+    const isEngineA = engineId === 'A';
+    const activeFader = isEngineA ? faderRefA : faderRefB;
+    const activeFadeVolume = isEngineA ? fadeVolumeA : fadeVolumeB;
+
+    if (e.data === window.YT.PlayerState.ENDED) {
+      if (isCrossfadingRef.current) return; // ignore ended event during active crossfade
+      void handleNextSong();
+    } else if (e.data === window.YT.PlayerState.PLAYING) {
+      setPlaying(true);
+      isTransitioningRef.current = false;
+      setDuration(e.target.getDuration());
+      if (activeFader.current < 0.1) {
+        void activeFadeVolume(1, 800);
+      }
+    } else if (e.data === window.YT.PlayerState.PAUSED) {
+      if (!isTransitioningRef.current && !isCrossfadingRef.current) {
+        setPlaying(false);
+      }
+    }
+  }, [setPlaying, fadeVolumeA, fadeVolumeB, faderRefA, faderRefB]);
+
+  // Safe and robust get-or-initialize YouTube Player
+  const getOrInitYTPlayer = useCallback((engineId: 'A' | 'B'): Promise<any> => {
+    return new Promise((resolve) => {
+      const isEngineA = engineId === 'A';
+      const playerRef = isEngineA ? ytPlayerRefA : ytPlayerRefB;
+      const containerId = isEngineA ? 'yt-player-container-A' : 'yt-player-container-B';
+      const isYouTubeRef = isEngineA ? isYouTubeRefA : isYouTubeRefB;
+
+      // Check if player exists and its iframe is still alive in the DOM
+      if (
+        playerRef.current &&
+        typeof playerRef.current.loadVideoById === 'function' &&
+        playerRef.current.getIframe() &&
+        document.body.contains(playerRef.current.getIframe())
+      ) {
+        resolve(playerRef.current);
+        return;
+      }
+
+      // If the player exists but is stale (e.g. its iframe was removed/re-rendered by React), destroy it
+      if (playerRef.current) {
+        try {
+          if (typeof playerRef.current.destroy === 'function') {
+            playerRef.current.destroy();
+          }
+        } catch (err) {
+          console.warn("Failed to destroy stale YouTube player:", err);
+        }
+        playerRef.current = null;
+      }
+
+      let attempts = 0;
+      const checkAndInit = () => {
+        // Double check in case it initialized in a concurrent call
+        if (
+          playerRef.current &&
+          typeof playerRef.current.loadVideoById === 'function' &&
+          playerRef.current.getIframe() &&
+          document.body.contains(playerRef.current.getIframe())
+        ) {
+          resolve(playerRef.current);
+          return;
+        }
+
+        const container = document.getElementById(containerId);
+        if (!container) {
+          resolve(null);
+          return;
+        }
+
+        // Wait until window.YT and window.YT.Player are fully loaded
+        if (!window.YT || typeof window.YT.Player !== 'function') {
+          attempts++;
+          if (attempts > 100) { // 10 seconds timeout
+            console.warn("YouTube API failed to load in 10 seconds");
+            resolve(null);
+            return;
+          }
+          setTimeout(checkAndInit, 100);
+          return;
+        }
+
+        try {
+          playerRef.current = new window.YT.Player(containerId, {
+            height: '0',
+            width: '0',
+            playerVars: { autoplay: 0, controls: 0, disablekb: 1 },
+            events: {
+              onReady: (e: any) => {
+                if (activeEngineRef.current === engineId && isYouTubeRef.current) {
+                  setDuration(e.target.getDuration());
+                }
+                resolve(e.target);
+              },
+              onStateChange: (e: any) => {
+                handleYTStateChange(engineId, e);
+              }
+            }
+          });
+        } catch (err) {
+          console.warn("Failed to construct YouTube player instance:", err);
+          resolve(null);
+        }
+      };
+
+      checkAndInit();
+    });
+  }, [handleYTStateChange]);
+
+  const loadSongIntoEngine = useCallback(async (engineId: 'A' | 'B', song: PlaybackSongData, playImmediately: boolean) => {
+    const isYT = !!song.videoId;
+    const isEngineA = engineId === 'A';
+    
+    const audioEl = isEngineA ? audioRefA.current : audioRefB.current;
+    const isYouTubeRef = isEngineA ? isYouTubeRefA : isYouTubeRefB;
+    const fader = isEngineA ? faderRefA : faderRefB;
+    const fadeVolumeFn = isEngineA ? fadeVolumeA : fadeVolumeB;
+    const sourceRef = isEngineA ? audioSourceRefA : audioSourceRefB;
+    
+    isYouTubeRef.current = isYT;
+    
+    if (isYT) {
+      if (audioEl) {
+        try {
+          audioEl.pause();
+          audioEl.src = '';
+        } catch {}
+      }
+      
+      // On-demand YouTube instantiation guaranteed
+      const ytPlayer = await getOrInitYTPlayer(engineId);
+      
+      if (ytPlayer && typeof ytPlayer.loadVideoById === 'function') {
+        fader.current = 0;
+        try { ytPlayer.setVolume(0); } catch {}
+        
+        if (playImmediately) {
+          try {
+            ytPlayer.loadVideoById(song.videoId);
+            ytPlayer.playVideo();
+            void fadeVolumeFn(1, 800);
+          } catch {}
+        } else {
+          try {
+            ytPlayer.cueVideoById(song.videoId);
+            ytPlayer.setVolume(0);
+            isTransitioningRef.current = false;
+          } catch {}
+        }
+      }
+    } else if (song.audioUrl) {
+      // Pause YouTube players only if they have already been initialized
+      const ytPlayerActive = isEngineA ? ytPlayerRefA.current : ytPlayerRefB.current;
+      const ytPlayerInactive = isEngineA ? ytPlayerRefB.current : ytPlayerRefA.current;
+      
+      if (ytPlayerActive && typeof ytPlayerActive.pauseVideo === 'function') {
+        try { ytPlayerActive.pauseVideo(); } catch {}
+      }
+      if (ytPlayerInactive && typeof ytPlayerInactive.pauseVideo === 'function') {
+        try { ytPlayerInactive.pauseVideo(); } catch {}
+      }
+      
+      if (audioEl) {
+        audioEl.src = song.audioUrl;
+        fader.current = 0;
+        audioEl.volume = 0;
+        
+        initAnalyzer(audioEl, sourceRef);
+        
+        if (audioContextRef.current?.state === 'suspended') {
+          void audioContextRef.current.resume();
+        }
+        
+        if (playImmediately) {
+          audioEl.play()
+            .then(() => {
+              void fadeVolumeFn(1, 800);
+              isTransitioningRef.current = false;
+            })
+            .catch((err) => {
+              console.error(err);
+              isTransitioningRef.current = false;
+            });
+        } else {
+          try {
+            audioEl.load();
+            audioEl.volume = 0;
+            isTransitioningRef.current = false;
+          } catch {}
+        }
+      }
+    }
+  }, [initAnalyzer, fadeVolumeA, fadeVolumeB, faderRefA, faderRefB, getOrInitYTPlayer]);
 
   const handleNextSong = useCallback(async () => {
-    const dur = durationRef.current;
-    const time = currentTimeRef.current;
-    const nearEnd = dur > 0 && time >= dur - 0.8;
-    const shouldFade = isPlaying && !nearEnd;
+    // Abort crossfade since user takes manual skip control
+    abortActiveCrossfade();
+
+    const activeFadeVolume = activeEngineRef.current === 'A' ? fadeVolumeA : fadeVolumeB;
 
     if (queue.length === 0) {
-      if (shouldFade) {
-        await fadeVolume(0, 400);
+      if (isPlaying) {
+        void activeFadeVolume(0, 400);
       }
       setPlaying(false);
       setCurrentTime(0);
-      if (songData.videoId && ytPlayerRef.current?.seekTo) {
-        try {
-          ytPlayerRef.current.seekTo(0, true);
-          ytPlayerRef.current.pauseVideo();
-        } catch {
-          /* ignore */
-        }
-      }
-      if (audioRef.current) {
-        audioRef.current.currentTime = 0;
-        audioRef.current.pause();
-      }
-      faderRef.current = 1;
-      const activeVol = volumeRef.current;
-      if (songData.videoId && ytPlayerRef.current?.setVolume) {
-        try {
-          ytPlayerRef.current.setVolume(activeVol);
-        } catch {
-          /* ignore */
-        }
-      }
-      if (audioRef.current) {
-        audioRef.current.volume = activeVol / 100;
-      }
+      stopAllPlayback();
+      
       toast.info('Queue is empty', {
         description: 'Add more songs to keep the music playing!',
       });
       return;
     }
 
-    if (shouldFade) {
-      await fadeVolume(0, 400);
+    if (isPlaying) {
+      void activeFadeVolume(0, 400);
     }
+    
     const currentIndex = queue.findIndex((item) => {
       if (songData.videoId && item.videoId === songData.videoId) return true;
       return item.title === songData.title && item.artist === songData.artist;
@@ -155,83 +392,57 @@ export function usePlaybackCore({
     if (nextSong && onSelectFromQueue) {
       onSelectFromQueue(nextSong.id);
     }
-  }, [isPlaying, queue, songData.videoId, songData.title, songData.artist, fadeVolume, setPlaying, onSelectFromQueue, faderRef, volumeRef]);
+  }, [isPlaying, queue, songData, fadeVolumeA, fadeVolumeB, setPlaying, onSelectFromQueue, stopAllPlayback, abortActiveCrossfade]);
+
+  const handlePreviousSong = useCallback(async () => {
+    abortActiveCrossfade();
+
+    const activeYT = activeEngineRef.current === 'A' ? ytPlayerRefA.current : ytPlayerRefB.current;
+    const activeAudio = activeEngineRef.current === 'A' ? audioRefA.current : audioRefB.current;
+    const activeIsYT = activeEngineRef.current === 'A' ? isYouTubeRefA.current : isYouTubeRefB.current;
+
+    // 1. Standard Behavior: If song has played for more than 3 seconds, restart it from 0:00
+    if (currentTimeRef.current > 3.0) {
+      setCurrentTime(0);
+      if (activeIsYT && activeYT?.seekTo) {
+        try { activeYT.seekTo(0, true); } catch {}
+      } else if (activeAudio) {
+        activeAudio.currentTime = 0;
+      }
+      return;
+    }
+
+    // 2. Otherwise, if there are no songs in the queue, also restart it from 0:00
+    if (queue.length === 0) {
+      setCurrentTime(0);
+      if (activeIsYT && activeYT?.seekTo) {
+        try { activeYT.seekTo(0, true); } catch {}
+      } else if (activeAudio) {
+        activeAudio.currentTime = 0;
+      }
+      return;
+    }
+
+    const activeFadeVolume = activeEngineRef.current === 'A' ? fadeVolumeA : fadeVolumeB;
+    if (isPlaying) {
+      void activeFadeVolume(0, 400);
+    }
+    
+    const currentIndex = queue.findIndex((item) => {
+      if (songData.videoId && item.videoId === songData.videoId) return true;
+      return item.title === songData.title && item.artist === songData.artist;
+    });
+    
+    const prevIndex = currentIndex <= 0 ? queue.length - 1 : currentIndex - 1;
+    const prevSong = queue[prevIndex];
+    if (prevSong && onSelectFromQueue) {
+      onSelectFromQueue(prevSong.id);
+    }
+  }, [isPlaying, queue, songData, fadeVolumeA, fadeVolumeB, onSelectFromQueue, abortActiveCrossfade]);
 
   useEffect(() => {
     handleNextSongRef.current = handleNextSong;
   }, [handleNextSong]);
-
-  useAudioPlayer({
-    audioUrl: songData.audioUrl,
-    isYouTubeMode,
-    isPlaying,
-    setPlaying,
-    setDuration,
-    fadeVolume,
-    faderRef,
-    handleNextSong: () => {
-      void handleNextSong();
-    },
-    initAudioAnalyzer: initAnalyzer,
-    audioRef,
-    isTransitioningRef,
-    audioContextRef,
-  });
-
-  useYouTubePlayer({
-    videoId: songData.videoId,
-    isYouTubeMode,
-    isPlaying,
-    isPlayingRef,
-    setPlaying,
-    setDuration,
-    fadeVolume,
-    faderRef,
-    handleNextSongRef,
-    isTransitioningRef,
-    ytPlayerRef,
-    faderAnimationRef,
-    audioRef,
-  });
-
-  const skipTime = useCallback(
-    (seconds: number) => {
-      const newTime = Math.max(0, Math.min(duration, currentTime + seconds));
-      setCurrentTime(newTime);
-      if (songData.videoId && ytPlayerRef.current?.seekTo) {
-        ytPlayerRef.current.seekTo(newTime, true);
-      } else if (audioRef.current) {
-        audioRef.current.currentTime = newTime;
-      }
-    },
-    [duration, currentTime, songData.videoId]
-  );
-
-  const seekToAbsoluteTime = useCallback(
-    (time: number) => {
-      const newTime = Math.max(0, Math.min(duration || 9999, time));
-      setCurrentTime(newTime);
-      if (songData.videoId && ytPlayerRef.current?.seekTo) {
-        ytPlayerRef.current.seekTo(newTime, true);
-      } else if (audioRef.current) {
-        audioRef.current.currentTime = newTime;
-      }
-    },
-    [duration, songData.videoId]
-  );
-
-  const handleSliderChange = useCallback(
-    (value: number[]) => {
-      const newTime = value[0];
-      setCurrentTime(newTime);
-      if (songData.videoId && ytPlayerRef.current?.seekTo) {
-        ytPlayerRef.current.seekTo(newTime, true);
-      } else if (audioRef.current) {
-        audioRef.current.currentTime = newTime;
-      }
-    },
-    [songData.videoId]
-  );
 
   const togglePlayPause = useCallback(async () => {
     const now = Date.now();
@@ -241,141 +452,128 @@ export function usePlaybackCore({
     lastToggleTimeRef.current = now;
     isTogglingPlayPauseRef.current = true;
 
+    // Abort crossfade on manual pause/play actions
+    abortActiveCrossfade();
+
+    const activeYT = activeEngineRef.current === 'A' ? ytPlayerRefA.current : ytPlayerRefB.current;
+    const activeAudio = activeEngineRef.current === 'A' ? audioRefA.current : audioRefB.current;
+    const activeIsYT = activeEngineRef.current === 'A' ? isYouTubeRefA.current : isYouTubeRefB.current;
+    const activeFadeVolume = activeEngineRef.current === 'A' ? fadeVolumeA : fadeVolumeB;
+    const activeFader = activeEngineRef.current === 'A' ? faderRefA : faderRefB;
+
     try {
       const nextPlaying = !isPlaying;
-      if (currentTime >= duration && duration > 0) {
-        setCurrentTime(0);
-        if (songData.videoId && ytPlayerRef.current) ytPlayerRef.current.seekTo(0);
-        if (audioRef.current) audioRef.current.currentTime = 0;
-      }
-
       if (nextPlaying) {
-        setPlaying(true);
-        faderRef.current = 0;
-        if (songData.videoId && ytPlayerRef.current?.setVolume) {
+        if (activeIsYT && activeYT?.playVideo) {
+          activeFader.current = 0;
           try {
-            ytPlayerRef.current.setVolume(0);
-          } catch {
-            /* ignore */
-          }
-        }
-        if (audioRef.current) {
-          audioRef.current.volume = 0;
-        }
-
-        if (songData.videoId && ytPlayerRef.current?.playVideo) {
-          try {
-            ytPlayerRef.current.playVideo();
-          } catch {
-            /* ignore */
-          }
-        } else if (audioRef.current) {
-          initAnalyzer();
+            activeYT.setVolume(0);
+            activeYT.playVideo();
+          } catch {}
+          void activeFadeVolume(1, 400);
+        } else if (activeAudio) {
+          activeFader.current = 0;
+          activeAudio.volume = 0;
           if (audioContextRef.current?.state === 'suspended') {
             void audioContextRef.current.resume();
           }
-          audioRef.current.play().catch(console.error);
+          activeAudio.play()
+            .then(() => {
+              void activeFadeVolume(1, 400);
+            })
+            .catch(console.error);
         }
-
-        await fadeVolume(1, 400);
+        setPlaying(true);
       } else {
-        isFadingOutRef.current = true;
-        setPlaying(false);
-
-        await fadeVolume(0, 300);
-
-        if (!isPlayingRef.current) {
-          if (songData.videoId && ytPlayerRef.current?.pauseVideo) {
-            try {
-              ytPlayerRef.current.pauseVideo();
-            } catch {
-              /* ignore */
-            }
-          } else if (audioRef.current) {
-            audioRef.current.pause();
-          }
+        if (activeIsYT && activeYT?.pauseVideo) {
+          try { activeYT.pauseVideo(); } catch {}
+        } else if (activeAudio) {
+          activeAudio.pause();
         }
-        isFadingOutRef.current = false;
+        setPlaying(false);
       }
+    } catch (e) {
+      console.warn("Play/pause failed:", e);
     } finally {
       isTogglingPlayPauseRef.current = false;
     }
-  }, [
-    isPlaying,
-    currentTime,
-    duration,
-    songData.videoId,
-    setPlaying,
-    fadeVolume,
-    initAnalyzer,
-    faderRef,
-    isFadingOutRef,
-  ]);
-
-  const handlePreviousSong = useCallback(async () => {
-    const shouldFade = isPlaying;
-    const time = currentTimeRef.current;
-
-    if (queue.length === 0) {
-      if (shouldFade) {
-        await fadeVolume(0, 400);
-      }
-      skipTime(-time);
-      if (shouldFade) {
-        await fadeVolume(1, 400);
-      }
-      return;
-    }
-    if (time > 3) {
-      if (shouldFade) {
-        await fadeVolume(0, 400);
-      }
-      skipTime(-time);
-      if (shouldFade) {
-        await fadeVolume(1, 400);
-      }
-      return;
-    }
-
-    if (shouldFade) {
-      await fadeVolume(0, 400);
-    }
-    const currentIndex = queue.findIndex((item) => {
-      if (songData.videoId && item.videoId === songData.videoId) return true;
-      return item.title === songData.title && item.artist === songData.artist;
-    });
-    const prevIndex = currentIndex <= 0 ? queue.length - 1 : currentIndex - 1;
-    const prevSong = queue[prevIndex];
-    if (prevSong && onSelectFromQueue) {
-      onSelectFromQueue(prevSong.id);
-    }
-  }, [isPlaying, queue, songData.videoId, songData.title, songData.artist, fadeVolume, skipTime, onSelectFromQueue]);
+  }, [isPlaying, setPlaying, fadeVolumeA, fadeVolumeB, faderRefA, faderRefB, abortActiveCrossfade]);
 
   const handleVolumeChange = useCallback(
-    (value: number[]) => {
-      const newVol = value[0];
+    (newVol: number) => {
       setVolume(newVol);
-
-      if (faderAnimationRef.current) {
-        cancelAnimationFrame(faderAnimationRef.current);
-        faderAnimationRef.current = null;
+      
+      const activeYT = activeEngineRef.current === 'A' ? ytPlayerRefA.current : ytPlayerRefB.current;
+      const activeAudio = activeEngineRef.current === 'A' ? audioRefA.current : audioRefB.current;
+      const activeIsYT = activeEngineRef.current === 'A' ? isYouTubeRefA.current : isYouTubeRefB.current;
+      const activeFader = activeEngineRef.current === 'A' ? faderRefA : faderRefB;
+      
+      const targetVol = Math.round(newVol * activeFader.current);
+      
+      if (activeIsYT && activeYT?.setVolume) {
+        try { activeYT.setVolume(targetVol); } catch {}
       }
-      if (fadeResolveRef.current) {
-        fadeResolveRef.current();
-        fadeResolveRef.current = null;
-      }
-      faderRef.current = 1;
-
-      if (songData.videoId && ytPlayerRef.current?.setVolume) {
-        ytPlayerRef.current.setVolume(newVol);
-      }
-      if (audioRef.current) {
-        audioRef.current.volume = newVol / 100;
+      if (activeAudio) {
+        activeAudio.volume = targetVol / 100;
       }
 
       window.dispatchEvent(new CustomEvent('elva-volume-change', { detail: { volume: newVol } }));
     },
-    [songData.videoId, faderAnimationRef, fadeResolveRef, faderRef]
+    [faderRefA, faderRefB]
+  );
+
+  const skipTime = useCallback(
+    (seconds: number) => {
+      const newTime = Math.max(0, Math.min(duration, currentTime + seconds));
+      setCurrentTime(newTime);
+      
+      const activeYT = activeEngineRef.current === 'A' ? ytPlayerRefA.current : ytPlayerRefB.current;
+      const activeAudio = activeEngineRef.current === 'A' ? audioRefA.current : audioRefB.current;
+      const activeIsYT = activeEngineRef.current === 'A' ? isYouTubeRefA.current : isYouTubeRefB.current;
+      
+      if (activeIsYT && activeYT?.seekTo) {
+        try { activeYT.seekTo(newTime, true); } catch {}
+      } else if (activeAudio) {
+        activeAudio.currentTime = newTime;
+      }
+    },
+    [duration, currentTime]
+  );
+
+  const seekToAbsoluteTime = useCallback(
+    (time: number) => {
+      const newTime = Math.max(0, Math.min(duration || 9999, time));
+      setCurrentTime(newTime);
+      
+      const activeYT = activeEngineRef.current === 'A' ? ytPlayerRefA.current : ytPlayerRefB.current;
+      const activeAudio = activeEngineRef.current === 'A' ? audioRefA.current : audioRefB.current;
+      const activeIsYT = activeEngineRef.current === 'A' ? isYouTubeRefA.current : isYouTubeRefB.current;
+      
+      if (activeIsYT && activeYT?.seekTo) {
+        try { activeYT.seekTo(newTime, true); } catch {}
+      } else if (activeAudio) {
+        activeAudio.currentTime = newTime;
+      }
+    },
+    [duration]
+  );
+
+  const handleSliderChange = useCallback(
+    (value: number[]) => {
+      const newTime = value[0];
+      setCurrentTime(newTime);
+      
+      const activeYT = activeEngineRef.current === 'A' ? ytPlayerRefA.current : ytPlayerRefB.current;
+      const activeAudio = activeEngineRef.current === 'A' ? audioRefA.current : audioRefB.current;
+      const activeIsYT = activeEngineRef.current === 'A' ? isYouTubeRefA.current : isYouTubeRefB.current;
+      
+      if (activeIsYT && activeYT?.seekTo) {
+        try { activeYT.seekTo(newTime, true); } catch {}
+      } else if (activeAudio) {
+        activeAudio.currentTime = newTime;
+      }
+    },
+    []
   );
 
   const formatTime = useCallback((seconds: number) => {
@@ -392,46 +590,203 @@ export function usePlaybackCore({
     });
   }, []);
 
-  // Sync isPlaying to underlying players — only when isPlaying/video changes (not every progress tick)
+  // 6. Natural Song End Crossfading Check
+  const checkCrossfade = useCallback(async (current: number, dur: number) => {
+    if (isCrossfadingRef.current || dur <= 0 || queue.length === 0) return;
+    
+    // Read crossfade duration dynamically from localStorage (default to 3 seconds)
+    const saved = localStorage.getItem('elva_crossfade_duration');
+    const crossfadeWindow = saved !== null ? parseFloat(saved) : 3.0;
+    
+    if (crossfadeWindow <= 0) return; // Crossfade disabled
+    
+    if (current >= dur - crossfadeWindow) {
+      isCrossfadingRef.current = true;
+      
+      const currentIndex = queue.findIndex((item) => {
+        if (songData.videoId && item.videoId === songData.videoId) return true;
+        return item.title === songData.title && item.artist === songData.artist;
+      });
+      const nextIndex = currentIndex === -1 || currentIndex >= queue.length - 1 ? 0 : currentIndex + 1;
+      const nextSong = queue[nextIndex];
+      
+      if (!nextSong) {
+        isCrossfadingRef.current = false;
+        return;
+      }
+      
+      const nextEngine = activeEngineRef.current === 'A' ? 'B' : 'A';
+      const resolvedSong: PlaybackSongData = {
+        title: nextSong.title,
+        artist: nextSong.artist,
+        artworkUrl: nextSong.thumbnail,
+        videoId: nextSong.videoId,
+        audioUrl: nextSong.audioUrl
+      };
+      
+      // 1. Update guard ref to prevent manual load loop
+      const nextSongKey = resolvedSong.videoId || resolvedSong.audioUrl;
+      if (nextSongKey) {
+        lastLoadedSongRef.current = nextSongKey;
+      }
+      
+      // 2. Propagate selected song state up to React parent immediately to begin visual/color transitions
+      if (onSelectFromQueue) {
+        onSelectFromQueue(nextSong.id, true);
+      }
+      
+      // 3. Play next song at volume 0 on inactive engine
+      await loadSongIntoEngine(nextEngine, resolvedSong, true);
+      
+      const activeFadeOut = activeEngineRef.current === 'A' ? fadeVolumeA : fadeVolumeB;
+      const inactiveFadeIn = activeEngineRef.current === 'A' ? fadeVolumeB : fadeVolumeA;
+      
+      // 4. Perform crossfade simultaneously over the configured duration
+      const fadeDurationMs = Math.max(200, Math.round(crossfadeWindow * 1000 - 200));
+      await Promise.all([
+        activeFadeOut(0, fadeDurationMs),
+        inactiveFadeIn(1, fadeDurationMs)
+      ]);
+      
+      // 5. Cleanup old active player
+      const oldAudio = activeEngineRef.current === 'A' ? audioRefA.current : audioRefB.current;
+      const oldYT = activeEngineRef.current === 'A' ? ytPlayerRefA.current : ytPlayerRefB.current;
+      
+      if (oldAudio) {
+        try {
+          oldAudio.pause();
+          oldAudio.src = '';
+        } catch {}
+      }
+      if (oldYT?.pauseVideo) {
+        try { oldYT.pauseVideo(); } catch {}
+      }
+      
+      // 6. Flip active engine at the end of the crossfade
+      setActiveEngine(nextEngine);
+      
+      isCrossfadingRef.current = false;
+    }
+  }, [queue, songData, loadSongIntoEngine, onSelectFromQueue, fadeVolumeA, fadeVolumeB]);
+
+  // ==========================================
+  // 7. EFFECTS GROUP (Grouped at the bottom)
+  // ==========================================
+
+  // Sync volume to localStorage
   useEffect(() => {
-    if (isTogglingPlayPauseRef.current || isTransitioningRef.current || isFadingOutRef.current) {
+    localStorage.setItem('elva_player_volume', String(volume));
+    if (volume > 0) {
+      localStorage.setItem('elva_player_premute_volume', String(volume));
+    }
+  }, [volume]);
+
+  // Dispatch global volume change events
+  useEffect(() => {
+    onPlayingStateChange?.(isPlaying);
+  }, [isPlaying, onPlayingStateChange]);
+
+  // Load YouTube API script & initialize if already ready
+  useEffect(() => {
+    const handleAPIReady = () => {
+      setTimeout(() => {
+        void getOrInitYTPlayer('A');
+        void getOrInitYTPlayer('B');
+      }, 500);
+    };
+
+    if (!window.YT) {
+      const tag = document.createElement('script');
+      tag.src = "https://www.youtube.com/iframe_api";
+      const firstScriptTag = document.getElementsByTagName('script')[0];
+      firstScriptTag?.parentNode?.insertBefore(tag, firstScriptTag);
+      window.onYouTubeIframeAPIReady = handleAPIReady;
+    } else {
+      handleAPIReady();
+    }
+  }, [getOrInitYTPlayer]);
+
+  // Active Player isPlaying Synchronization (Guarded by lastIsPlayingRef)
+  useEffect(() => {
+    if (lastIsPlayingRef.current === isPlaying) {
+      return;
+    }
+    lastIsPlayingRef.current = isPlaying;
+
+    if (isTogglingPlayPauseRef.current || isTransitioningRef.current || isCrossfadingRef.current) {
       return;
     }
 
-    if (songData.videoId && ytPlayerRef.current?.playVideo) {
+    const activeYT = activeEngine === 'A' ? ytPlayerRefA.current : ytPlayerRefB.current;
+    const activeAudio = activeEngine === 'A' ? audioRefA.current : audioRefB.current;
+    const activeIsYT = activeEngine === 'A' ? isYouTubeRefA.current : isYouTubeRefB.current;
+    const activeFadeVolume = activeEngine === 'A' ? fadeVolumeA : fadeVolumeB;
+    const activeFader = activeEngine === 'A' ? faderRefA : faderRefB;
+
+    if (activeIsYT && activeYT?.playVideo) {
       if (isPlaying) {
-        faderRef.current = 0;
+        activeFader.current = 0;
         try {
-          ytPlayerRef.current.setVolume(0);
-        } catch {
-          /* ignore */
-        }
-        ytPlayerRef.current.playVideo();
-        void fadeVolumeRef.current(1, 400);
+          activeYT.setVolume(0);
+          activeYT.playVideo();
+        } catch {}
+        void activeFadeVolume(1, 400);
       } else {
-        ytPlayerRef.current.pauseVideo();
+        try { activeYT.pauseVideo(); } catch {}
       }
-    } else if (audioRef.current) {
+    } else if (activeAudio) {
       if (isPlaying) {
-        faderRef.current = 0;
-        audioRef.current.volume = 0;
-        initAnalyzerRef.current();
+        activeFader.current = 0;
+        activeAudio.volume = 0;
         if (audioContextRef.current?.state === 'suspended') {
           void audioContextRef.current.resume();
         }
-        audioRef.current
-          .play()
+        activeAudio.play()
           .then(() => {
-            void fadeVolumeRef.current(1, 400);
+            void activeFadeVolume(1, 400);
           })
           .catch(console.error);
       } else {
-        audioRef.current.pause();
+        activeAudio.pause();
       }
     }
-  }, [isPlaying, songData.videoId]);
+  }, [isPlaying, activeEngine, fadeVolumeA, fadeVolumeB, faderRefA, faderRefB]);
 
-  // Media Session API
+  // Manual Load Effect (Abort active crossfade and load new song)
+  useEffect(() => {
+    const songKey = songData.videoId || songData.audioUrl;
+    if (songKey && songKey !== lastLoadedSongRef.current) {
+      lastLoadedSongRef.current = songKey;
+      isTransitioningRef.current = true;
+      
+      // Reset playhead timeline and duration instantly
+      setCurrentTime(0);
+      setDuration(0);
+      setPlaying(true);
+      
+      // Abort crossfade since user triggered a manual load
+      abortActiveCrossfade();
+      
+      // Stop other engine completely
+      const inactiveEngine = activeEngine === 'A' ? 'B' : 'A';
+      const oldAudio = inactiveEngine === 'A' ? audioRefA.current : audioRefB.current;
+      const oldYT = inactiveEngine === 'A' ? ytPlayerRefA.current : ytPlayerRefB.current;
+      if (oldAudio) {
+        try {
+          oldAudio.pause();
+          oldAudio.src = '';
+        } catch {}
+      }
+      if (oldYT?.pauseVideo) {
+        try { oldYT.pauseVideo(); } catch {}
+      }
+
+      // Load active engine and force playImmediately to true
+      void loadSongIntoEngine(activeEngine, songData, true);
+    }
+  }, [songData, activeEngine, loadSongIntoEngine, abortActiveCrossfade, setPlaying]);
+
+  // Media Session API registration
   useEffect(() => {
     if (!('mediaSession' in navigator)) return;
 
@@ -474,19 +829,35 @@ export function usePlaybackCore({
       navigator.mediaSession.setActionHandler('nexttrack', null);
       navigator.mediaSession.setActionHandler('seekto', null);
     };
-  }, [songData.title, songData.artist, songData.artworkUrl, isPlaying, songData.videoId, togglePlayPause, handlePreviousSong, handleSliderChange]);
+  }, [songData.title, songData.artist, songData.artworkUrl, isPlaying, togglePlayPause, handlePreviousSong, handleSliderChange]);
 
-  // Progress timer — 250ms UI updates (50ms caused excessive re-renders)
+  // Progress update timer (250ms interval)
   useEffect(() => {
     if (isPlaying) {
       progressTimerRef.current = setInterval(() => {
-        if (songData.videoId && ytPlayerRef.current?.getCurrentTime) {
-          setCurrentTime(ytPlayerRef.current.getCurrentTime());
-          const dur = ytPlayerRef.current.getDuration();
-          if (dur > 0) setDuration(dur);
-        } else if (audioRef.current) {
-          setCurrentTime(audioRef.current.currentTime);
+        let current = 0;
+        let dur = 0;
+        
+        const activeYT = activeEngineRef.current === 'A' ? ytPlayerRefA.current : ytPlayerRefB.current;
+        const activeAudio = activeEngineRef.current === 'A' ? audioRefA.current : audioRefB.current;
+        const activeIsYT = activeEngineRef.current === 'A' ? isYouTubeRefA.current : isYouTubeRefB.current;
+        
+        if (activeIsYT && activeYT?.getCurrentTime) {
+          try {
+            current = activeYT.getCurrentTime();
+            dur = activeYT.getDuration();
+          } catch {}
+        } else if (activeAudio) {
+          current = activeAudio.currentTime;
+          dur = activeAudio.duration || 0;
         }
+        
+        setCurrentTime(current);
+        if (dur > 0) setDuration(dur);
+        
+        // Dynamic crossfade check
+        void checkCrossfade(current, dur);
+        
       }, 250);
     } else if (progressTimerRef.current) {
       clearInterval(progressTimerRef.current);
@@ -495,9 +866,9 @@ export function usePlaybackCore({
     return () => {
       if (progressTimerRef.current) clearInterval(progressTimerRef.current);
     };
-  }, [isPlaying, songData.videoId]);
+  }, [isPlaying, checkCrossfade]);
 
-  // Global playback events (mini player on landing)
+  // Global event receivers
   useEffect(() => {
     const handleTogglePlayEvent = () => {
       void togglePlayPause();
@@ -520,32 +891,24 @@ export function usePlaybackCore({
     };
   }, [togglePlayPause, handleNextSong, handlePreviousSong]);
 
-  // Teardown
+  // Cleanup active animations on unmount
   useEffect(() => {
     return () => {
-      if (faderAnimationRef.current) {
-        cancelAnimationFrame(faderAnimationRef.current);
+      if (faderAnimationRefA.current) cancelAnimationFrame(faderAnimationRefA.current);
+      if (faderAnimationRefB.current) cancelAnimationFrame(faderAnimationRefB.current);
+      if (fadeResolveRefA.current) fadeResolveRefA.current();
+      if (fadeResolveRefB.current) fadeResolveRefB.current();
+      if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+      
+      if (audioSourceRefA.current) {
+        try { audioSourceRefA.current.disconnect(); } catch {}
       }
-      if (fadeResolveRef.current) {
-        fadeResolveRef.current();
-        fadeResolveRef.current = null;
+      if (audioSourceRefB.current) {
+        try { audioSourceRefB.current.disconnect(); } catch {}
       }
-      if (progressTimerRef.current) {
-        clearInterval(progressTimerRef.current);
-      }
-
-      if (audioSourceRef.current) {
-        try {
-          audioSourceRef.current.disconnect();
-        } catch {
-          /* ignore */
-        }
-        audioSourceRef.current = null;
-      }
-
       suspendGlobalAudioContext();
     };
-  }, [faderAnimationRef, fadeResolveRef]);
+  }, [faderAnimationRefA, faderAnimationRefB, fadeResolveRefA, fadeResolveRefB]);
 
   return {
     isPlaying,
@@ -556,8 +919,10 @@ export function usePlaybackCore({
     volume,
     preMuteVolume,
     setPreMuteVolume,
-    audioRef,
-    fadeVolume,
+    audioRefA,
+    audioRefB,
+    activeEngine,
+    fadeVolume: activeEngine === 'A' ? fadeVolumeA : fadeVolumeB,
     togglePlayPause,
     handleNextSong,
     handlePreviousSong,
@@ -568,19 +933,6 @@ export function usePlaybackCore({
     formatTime,
     waveformData,
     setPlaying,
+    analyserRef
   };
-}
-
-// Minimal YT.Player typing for refs
-declare namespace YT {
-  interface Player {
-    playVideo(): void;
-    pauseVideo(): void;
-    seekTo(seconds: number, allowSeekAhead: boolean): void;
-    setVolume(volume: number): void;
-    getCurrentTime(): number;
-    getDuration(): number;
-    loadVideoById(videoId: string): void;
-    destroy(): void;
-  }
 }

@@ -7,6 +7,7 @@ interface FluidBackgroundProps {
   color4?: string;
   className?: string;
   speedMultiplier?: number;
+  transitionDuration?: number;
 }
 
 // Robust helper to parse arbitrary hex, rgb/rgba, or hsl/hsla strings into [R, G, B] normalized floats (0.0 to 1.0)
@@ -141,16 +142,22 @@ export const FluidBackground: React.FC<FluidBackgroundProps> = ({
   color3,
   color4 = '#0f172a', // beautiful deep slate backing color
   className = '',
-  speedMultiplier = 1.0
+  speedMultiplier = 1.0,
+  transitionDuration = 1.2
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   
   const speedRef = useRef(speedMultiplier);
+  const durationRef = useRef(transitionDuration);
 
   // Sync speedMultiplier changes to a mutable ref to prevent WebGL program re-compilation
   useEffect(() => {
     speedRef.current = speedMultiplier;
   }, [speedMultiplier]);
+
+  useEffect(() => {
+    durationRef.current = transitionDuration;
+  }, [transitionDuration]);
 
   // Keep track of target colors
   const targetColorsRef = useRef<[number, number, number][]>([
@@ -267,7 +274,10 @@ export const FluidBackground: React.FC<FluidBackgroundProps> = ({
       resizeCanvas();
 
       // Smoothly LERP colors in memory (R, G, B) to prevent sudden jumps
-      const speed = 0.045; // Premium slow, fluid blend morph speed matching the 1.2s transitions
+      // Multiplied duration by 1.6x and used a gentler exponent (-2.0 instead of -3.0) 
+      // for a luxurious, slow-motion liquid paint blend that feels incredibly majestic and smooth.
+      const duration = Math.max(0.01, durationRef.current * 1.6);
+      const speed = 1.0 - Math.exp(-2.0 / (duration * 60.0));
       for (let i = 0; i < 4; i++) {
         for (let c = 0; c < 3; c++) {
           const targetVal = targetColorsRef.current[i][c];

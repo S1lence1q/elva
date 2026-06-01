@@ -4,14 +4,14 @@ interface FadeVolumeOptions {
   volumeRef: React.MutableRefObject<number>;
   ytPlayerRef: React.MutableRefObject<any>;
   audioRef: React.MutableRefObject<HTMLAudioElement | null>;
-  videoId?: string;
+  isYouTubeRef: React.MutableRefObject<boolean>;
 }
 
 export function useFadeVolume({
   volumeRef,
   ytPlayerRef,
   audioRef,
-  videoId
+  isYouTubeRef
 }: FadeVolumeOptions) {
   const faderRef = useRef(1); // multiplier 0 to 1
   const faderAnimationRef = useRef<number | null>(null);
@@ -37,21 +37,20 @@ export function useFadeVolume({
         const elapsed = now - startTime;
         const progress = Math.min(elapsed / duration, 1);
         
-        // Ease-out quad for fading in, ease-in quad for fading out
+        // Equal-Power Trigonometric Crossfade Curves (Constant perceived loudness)
         const isFadingIn = target > startValue;
         const ease = isFadingIn 
-          ? progress * (2 - progress) // Ease-out
-          : progress * progress;       // Ease-in
+          ? Math.sin(progress * Math.PI / 2)       // Sine curve for smooth gain rise
+          : 1 - Math.cos(progress * Math.PI / 2);  // Cosine curve for smooth gain drop
         faderRef.current = startValue + (target - startValue) * ease;
 
         // Apply faded volume to active player
         const activeVol = Math.round(volumeRef.current * faderRef.current);
-        if (videoId && ytPlayerRef.current && ytPlayerRef.current.setVolume) {
+        if (isYouTubeRef.current && ytPlayerRef.current && ytPlayerRef.current.setVolume) {
           try {
             ytPlayerRef.current.setVolume(activeVol);
           } catch (e) {}
-        }
-        if (audioRef.current) {
+        } else if (audioRef.current) {
           audioRef.current.volume = activeVol / 100;
         }
 
@@ -67,7 +66,7 @@ export function useFadeVolume({
 
       faderAnimationRef.current = requestAnimationFrame(run);
     });
-  }, [videoId, volumeRef, ytPlayerRef, audioRef]);
+  }, [volumeRef, ytPlayerRef, audioRef, isYouTubeRef]);
 
   return {
     fadeVolume,

@@ -75,13 +75,14 @@ Dette dokument er den urokkelige kilde til sandhed (Source of Truth) for Elvas k
   * På store skærme (`isLargeScreen`) klappes eller vendes albumcoveret ikke. I stedet glider en boxless, gennemsigtig tekstbjælke ind fra højre, mens albumcoveret glider til venstre (`x: -284px` via GPU). 
   * **Interactive Lyric Scrubbing (Aktiv):** Sangteksterne er fuldt klikbare! Når en bruger klikker på en specifik tekstlinje i `LyricsPanel.tsx`, kaldes `seekToAbsoluteTime` som spoler sangens playhead direkte til det pågældende sekund.
 
-### 🎚️ 7. Volume Fader & Audio Transition Hook (`fadeVolume`)
-* **Filer:** [MusicPlayer.tsx](file:///Users/applemacbook/AntiGravity%20Shit/Elva.nosync/Elva/src/app/components/MusicPlayer.tsx) (linje 293-332, `fadeVolume` funktion)
+### 🎚️ 7. A/B Dual-Engine Crossfade & Equal-Power Volume Fader
+* **Filer:** [usePlaybackCore.ts](file:///Users/applemacbook/AntiGravity%20Shit/Elva.nosync/Elva/src/app/hooks/usePlaybackCore.ts), [useFadeVolume.ts](file:///Users/applemacbook/AntiGravity%20Shit/Elva.nosync/Elva/src/app/hooks/useFadeVolume.ts), [MusicPlayer.tsx](file:///Users/applemacbook/AntiGravity%20Shit/Elva.nosync/Elva/src/app/components/MusicPlayer.tsx)
 * **Hvordan det virker:**
-  - En volume fader-motor (`fadeVolume(target, duration)`) bruger `requestAnimationFrame` til at interpolere afspillerens lydstyrke blødt fra `0` til `1` (og omvendt) over 300ms-400ms.
-  - **Fader Safeguard:** Hvis en ny fade starter, afvikles (resolves) den foregående faders Promise øjeblikkeligt via `fadeResolveRef` for at forhindre hængende asynkrone tråde.
-  - **State Decoupling:** En `isFadingOutRef` sikrer, at afspillerens `useEffect` state-synkronisering ikke pauses før faderen har nået `0` volumen. Alle play/pause-veje (inklusive tastaturgenveje og macOS MediaSession/AirPods) er dirigeret gennem `togglePlayPause()` for at drage fordel af fades.
-  - **Gapless Transitions:** Forsinkelsen springes over ved automatisk sangskift eller pausede tracks for at undgå akavede tavse pauser.
+  - **A/B Dual-Engine Orchestrator:** Afspilningen administreres af to uafhængige afspiller-sæt (Engine A og Engine B) for både lokale filer (`audioRefA`/`B`) og YouTube streams (`ytPlayerRefA`/`B`). Dette muliggør parallel indlæsning og afspilning.
+  - **Constant-Power Equal-Power Fade:** Lydstyrken reguleres af en trigonometrisk (sinus/cosinus) konstant-energi-kurve ($\text{In} = \sin(\text{progress} \cdot \pi/2)$ og $\text{Out} = 1 - \cos(\text{progress} \cdot \pi/2)$). Dette forhindrer det perceivede "volumen-dyk" ved midpoint (50%) under overgange.
+  - **Customizable Transition Timing:** Triggermærket og fade-varigheden indlæses dynamisk fra `localStorage` under nøglen `elva_crossfade_duration`. Brugeren kan indstille denne flydende fra **0s til 12s** via en premium-slider under Control Center (**Audio Preferences**). Hvis indstillet to 0s, slås crossfaden helt fra og sangene skifter øjeblikkeligt ved track-end.
+  - **Fader Safeguard:** Hvis en ny fade starter, afvikles den foregående faders Promise øjeblikkeligt via `fadeResolveRef` for at forhindre hængende asynkrone tråde.
+  - **Stale DOM Recovery:** Detekterer proaktivt hvis en afspillers DOM iframe er blevet udskiftet eller fjernet af React under rendering, hvorefter den gamle instans destrueres og en ny opbygges flydende uden at afbryde appens flow.
 
 ### 🔍 8. Metadata Weighted Search Ranker
 * **Filer:** [apiUtils.ts](file:///Users/applemacbook/AntiGravity%20Shit/Elva.nosync/Elva/src/app/utils/apiUtils.ts) (`rankAndSortSearchResults`)
@@ -174,10 +175,10 @@ Disse hooks er udtrukket for at holde `App.tsx` og `MusicPlayer.tsx` fokuserede 
 | `useBackgroundColors.ts` | Beregner og interpolerer WebGL-baggrundsfarverne baseret på scroll-position og sang-farver |
 | `useKeyboardShortcuts.ts` | Globale keyboard shortcuts (mellemrum, piletaster, osv.) — event-driven, kobles på `window` |
 | `useSearchLogic.ts` | Søge-state, debounce, YouTube API kald og resultat-håndtering |
-| `useFadeVolume.ts` | `requestAnimationFrame`-baseret volume fader (`fadeVolume(target, duration)`). Promise-baseret med safeguard mod hængende async tråde via `fadeResolveRef`. |
-| `useAudioPlayer.ts` | HTML5 `<audio>` player livscyklus: src-load, play/pause synkronisering, `onended` → næste sang, Web Audio API analyzer init |
-| `useYouTubePlayer.ts` | YouTube IFrame API livscyklus: `YT.Player` oprettelse, event callbacks (`onStateChange`), destroy on unmount for memory leak prevention |
-| `usePlaybackCore.ts` | Core afspilnings-livscyklus og stats/volume synkronisering til HTML5 og YouTube Iframe spillere |
+| `useFadeVolume.ts` | Trigonometrisk Equal-Power (sinus/cosinus) volume fader, der garanterer en konstant samlet perceived loudness under overgange. |
+| `useAudioPlayer.ts` | *[Forældet/Subsumeret]* Erstattet af Dual-Engine arkitekturen i `usePlaybackCore.ts` |
+| `useYouTubePlayer.ts` | *[Forældet/Subsumeret]* Erstattet af Dual-Engine arkitekturen i `usePlaybackCore.ts` |
+| `usePlaybackCore.ts` | Core Dual-Engine (A/B) afspilnings-livscyklus med asynkron pre-loading, automatisk equal-power crossfading og localStorage-baseret timing. |
 | `useLyrics.ts` | LRC parsing og dynamisk synkronisering/søgning af sangtekster |
 | `usePlayStats.ts` | Sporing af afspilningshistorik, nyligt afspillede og ugentlig lyttetid |
 

@@ -44,7 +44,7 @@ interface MusicPlayerProps {
   queue?: QueueItem[];
   onRemoveFromQueue?: (id: string) => void;
   onClearQueue?: () => void;
-  onSelectFromQueue?: (id: string) => void;
+  onSelectFromQueue?: (id: string, isCrossfade?: boolean) => void;
   onAddToQueue?: (song: SearchResult) => void;
   onSelectSong?: (song: SearchResult) => void;
   onFileSelect?: (file: File) => void;
@@ -172,7 +172,9 @@ export function MusicPlayer({
     volume,
     preMuteVolume,
     setPreMuteVolume,
-    audioRef,
+    audioRefA,
+    audioRefB,
+    activeEngine,
     fadeVolume,
     togglePlayPause,
     handleNextSong,
@@ -184,9 +186,17 @@ export function MusicPlayer({
     formatTime,
     waveformData,
     setPlaying,
+    analyserRef
   } = usePlaybackCore({
     songData,
-    queue: queue.map((item) => ({ id: item.id, videoId: item.videoId })),
+    queue: queue.map((item) => ({ 
+      id: item.id, 
+      videoId: item.videoId, 
+      audioUrl: item.audioUrl, 
+      title: item.title, 
+      artist: item.artist, 
+      thumbnail: item.thumbnail 
+    })),
     onSelectFromQueue,
     onPlayingStateChange,
   });
@@ -615,21 +625,30 @@ export function MusicPlayer({
 
       {/* Hidden Media Players */}
       <div className="w-0 h-0 overflow-hidden absolute pointer-events-none" style={{ opacity: 0 }}>
-        <div id="yt-player-container" />
+        <div key="container-A-parent">
+          <div id="yt-player-container-A" key="yt-player-container-A" />
+        </div>
+        <div key="container-B-parent">
+          <div id="yt-player-container-B" key="yt-player-container-B" />
+        </div>
       </div>
       <audio 
-        ref={audioRef} 
-        onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
-        onEnded={handleNextSong}
-        onPlay={() => {
-          if (!isPlayingRef.current) {
-            setPlaying(true);
-          }
+        ref={audioRefA} 
+        onLoadedMetadata={(e) => {
+          if (activeEngine === 'A') setDuration(e.currentTarget.duration);
         }}
-        onPause={() => {
-          if (isPlayingRef.current) {
-            setPlaying(false);
-          }
+        onEnded={() => {
+          if (activeEngine === 'A') handleNextSong();
+        }}
+        className="hidden" 
+      />
+      <audio 
+        ref={audioRefB} 
+        onLoadedMetadata={(e) => {
+          if (activeEngine === 'B') setDuration(e.currentTarget.duration);
+        }}
+        onEnded={() => {
+          if (activeEngine === 'B') handleNextSong();
         }}
         className="hidden" 
       />
@@ -746,7 +765,6 @@ export function MusicPlayer({
               filter: 'blur(30px)',
             }}
           />
-
           <div className="absolute -inset-1 rounded-3xl bg-gradient-to-br from-white/10 via-transparent to-white/5 opacity-60 pointer-events-none" />
 
           {/* Album artwork card */}
@@ -759,11 +777,29 @@ export function MusicPlayer({
               isolation: 'isolate'
             }}
             onPointerDown={(e) => {
+              const target = e.target as HTMLElement;
+              if (
+                target.closest('button') || 
+                target.closest('input') || 
+                target.closest('[role="slider"]') || 
+                target.closest('.group\\/slider')
+              ) {
+                return;
+              }
               if (e.button === 0) {
                 togglePlayPause();
               }
             }}
-            onClick={() => {
+            onClick={(e) => {
+              const target = e.target as HTMLElement;
+              if (
+                target.closest('button') || 
+                target.closest('input') || 
+                target.closest('[role="slider"]') || 
+                target.closest('.group\\/slider')
+              ) {
+                return;
+              }
               togglePlayPause();
             }}
           >

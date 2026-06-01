@@ -89,6 +89,15 @@ export function SettingsModal({
   onEnableCustomLyricsChange
 }: SettingsModalProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [crossfade, setCrossfade] = useState<number>(() => {
+    const saved = localStorage.getItem('elva_crossfade_duration');
+    return saved !== null ? parseFloat(saved) : 3.0;
+  });
+
+  const handleCrossfadeChange = (val: number) => {
+    setCrossfade(val);
+    localStorage.setItem('elva_crossfade_duration', String(val));
+  };
   
   // Close with Escape or Cmd/Ctrl+,
   useEffect(() => {
@@ -274,6 +283,40 @@ export function SettingsModal({
               description="Automatically hide controls during inactivity for complete peace"
               accentColor={accentColor}
             />
+          </div>
+
+          {/* Audio Preferences group */}
+          <div className="space-y-3">
+            <h3 className="text-xs font-semibold text-white/45 uppercase tracking-[0.12em] px-1">Audio Preferences</h3>
+            <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/8 hover:bg-white/[0.06] hover:border-white/12 transition-all duration-300 flex flex-col gap-3 text-left">
+              <div className="flex items-center justify-between select-none">
+                <span className="text-sm font-light text-white/90">Crossfade Duration</span>
+                <span className={`text-xs font-semibold ${theme.text}`}>
+                  {crossfade === 0 ? 'Off' : `${crossfade}s`}
+                </span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-[10px] text-white/30 w-5 select-none">Off</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="12"
+                  step="1"
+                  value={crossfade}
+                  onChange={(e) => handleCrossfadeChange(parseFloat(e.target.value))}
+                  className="flex-1 h-[4px] rounded-lg appearance-none bg-white/10 outline-none cursor-pointer accent-white"
+                  style={{
+                    background: `linear-gradient(to right, var(--theme-primary) 0%, var(--theme-primary) ${(crossfade / 12) * 100}%, rgba(255,255,255,0.15) ${(crossfade / 12) * 100}%, rgba(255,255,255,0.15) 100%)`
+                  }}
+                />
+                <span className="text-[10px] text-white/30 w-6 text-right select-none">12s</span>
+              </div>
+              <span className="text-[11px] text-white/40 font-light leading-normal select-none">
+                {crossfade === 0 
+                  ? 'Gapless switching with immediate transition at track end.' 
+                  : `Next track blends in smoothly ${crossfade} seconds before the current one ends.`}
+              </span>
+            </div>
           </div>
 
           {/* Collapsible Advanced Customization Section */}
