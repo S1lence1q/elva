@@ -718,7 +718,6 @@ export function usePlaybackCore({
       }
 
       setActiveEngine(nextEngine);
-      setCurrentTime(0);
     } catch (err) {
       console.error('Crossfade failed:', err);
     } finally {
