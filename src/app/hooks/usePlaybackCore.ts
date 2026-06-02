@@ -631,6 +631,8 @@ export function usePlaybackCore({
     if (!nextSongKey || (activeKey && nextSongKey === activeKey)) return;
 
     isCrossfadingRef.current = true;
+    setCurrentTime(0);
+    setDuration(0);
 
     try {
       const nextEngine = activeEngineRef.current === 'A' ? 'B' : 'A';
@@ -905,9 +907,13 @@ export function usePlaybackCore({
         let current = 0;
         let dur = 0;
 
-        const activeYT = activeEngineRef.current === 'A' ? ytPlayerRefA.current : ytPlayerRefB.current;
-        const activeAudio = activeEngineRef.current === 'A' ? audioRefA.current : audioRefB.current;
-        const activeIsYT = activeEngineRef.current === 'A' ? isYouTubeRefA.current : isYouTubeRefB.current;
+        const displayEngine = isCrossfadingRef.current 
+          ? (activeEngineRef.current === 'A' ? 'B' : 'A')
+          : activeEngineRef.current;
+
+        const activeYT = displayEngine === 'A' ? ytPlayerRefA.current : ytPlayerRefB.current;
+        const activeAudio = displayEngine === 'A' ? audioRefA.current : audioRefB.current;
+        const activeIsYT = displayEngine === 'A' ? isYouTubeRefA.current : isYouTubeRefB.current;
 
         if (activeIsYT && activeYT?.getCurrentTime) {
           try {
@@ -920,7 +926,9 @@ export function usePlaybackCore({
         }
 
         setCurrentTime(current);
-        if (dur > 0) setDuration(dur);
+        if (dur > 0 || isCrossfadingRef.current) {
+          setDuration(dur);
+        }
         void checkCrossfade(current, dur);
       }, 250);
     } else {
