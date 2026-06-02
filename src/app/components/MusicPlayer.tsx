@@ -268,9 +268,17 @@ export function MusicPlayer({
   const [imageBlur, setImageBlur] = useState(20);
   const [previousArtwork, setPreviousArtwork] = useState<string | null>(null);
   const [showPreviousArtwork, setShowPreviousArtwork] = useState(false);
-  // Tracks the URL currently visible on screen so we can snapshot it as the outgoing
-  // image when a new song loads — must be a ref to avoid stale closure issues.
-  const lastDisplayedArtworkRef = useRef<string | null>(songData.artworkUrl);
+  const [currentArtwork, setCurrentArtwork] = useState(songData.artworkUrl);
+
+  if (songData.artworkUrl !== currentArtwork) {
+    if (currentArtwork && currentArtwork !== songData.artworkUrl) {
+      setPreviousArtwork(currentArtwork);
+      setShowPreviousArtwork(true);
+    }
+    setIsLoaded(false);
+    setIsLoadingNewSong(true);
+    setCurrentArtwork(songData.artworkUrl);
+  }
   const [dominantColors, setDominantColors] = useState(() => songColors || getDynamicFallbackColors(songData.title || '', songData.artist || ''));
   const [targetColors, setTargetColors] = useState(() => songColors || getDynamicFallbackColors(songData.title || '', songData.artist || ''));
   const extractedColors = songColors || getDynamicFallbackColors(songData.title || '', songData.artist || '');
@@ -361,21 +369,6 @@ export function MusicPlayer({
   }, [targetColors]);
 
   useEffect(() => {
-    const oldArtwork = lastDisplayedArtworkRef.current;
-
-    // Only crossfade if the artwork actually changed
-    if (oldArtwork && oldArtwork !== songData.artworkUrl) {
-      // Snapshot the OLD artwork as the outgoing layer before anything changes
-      setPreviousArtwork(oldArtwork);
-      setShowPreviousArtwork(true);
-    }
-
-    // Update ref to the incoming artwork so next song change knows what to fade from
-    lastDisplayedArtworkRef.current = songData.artworkUrl;
-
-    setIsLoaded(false);
-    setIsLoadingNewSong(true);
-
     const img = new Image();
     img.crossOrigin = 'anonymous';
 
@@ -778,7 +771,7 @@ export function MusicPlayer({
 
           {/* Album artwork card */}
           <div
-            className="relative rounded-3xl overflow-hidden transition-all duration-500 w-full h-full cursor-pointer"
+            className="relative rounded-3xl overflow-hidden transition-all duration-500 w-full h-full cursor-pointer bg-neutral-950"
             style={{
               boxShadow: isPlaying 
                 ? '0 30px 60px rgba(0,0,0,0.75), 0 10px 30px var(--theme-primary-fade), 0 5px 15px var(--theme-secondary-fade)'
