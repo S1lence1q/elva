@@ -7,7 +7,12 @@ import { ELVA_STORAGE_KEYS, readJsonStorage } from '../utils/elvaStorage';
 import type { QueueItem, Playlist, SearchResult, VerifiedArtist } from './queue/types';
 import { useQueueLocalData } from './queue/useQueueLocalData';
 import { useQueueDragReorder } from './queue/useQueueDragReorder';
-import { getArtistMatchFromResults, fetchArtistDiscography, getCachedArtistThumbnail } from './queue/queueArtistUtils';
+import {
+  getArtistMatchFromResults,
+  loadArtistDiscographyTracks,
+  getCachedArtistThumbnail,
+  peekCachedDiscography,
+} from './queue/queueArtistUtils';
 import { QueueSearchBar } from './queue/QueueSearchBar';
 import { QueueUpNext } from './queue/QueueUpNext';
 import { QueueQuickAdd } from './queue/QueueQuickAdd';
@@ -35,6 +40,7 @@ interface QueueProps {
   onFileSelect?: (file: File) => void;
   onUrlSubmit?: (url: string) => void;
   onReorder?: (newIds: string[]) => void;
+  onShuffleQueue?: () => void;
 }
 
 export function Queue({
@@ -54,6 +60,7 @@ export function Queue({
   onFileSelect,
   onUrlSubmit,
   onReorder,
+  onShuffleQueue,
 }: QueueProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
@@ -98,16 +105,23 @@ export function Queue({
   }, [searchQuery]);
 
   const openArtistProfile = async (artist: VerifiedArtist) => {
-    if (!onFetchChannelUploads) return;
+    const thumbnail = getCachedArtistThumbnail(artist.name, artist.thumbnail);
+    setSelectedArtist({ ...artist, thumbnail, isTopic: true });
+
+    const cachedTracks = peekCachedDiscography(artist.name);
+    if (cachedTracks) {
+      setArtistTracks(cachedTracks);
+      setIsLoadingArtist(false);
+      return;
+    }
+
+    setArtistTracks([]);
     setIsLoadingArtist(true);
     try {
-      const thumbnail = getCachedArtistThumbnail(artist.name, artist.thumbnail);
-      const uploads = await fetchArtistDiscography(
-        { name: artist.name, channelId: artist.channelId },
-        onFetchChannelUploads,
-        onSearch
-      );
-      setSelectedArtist({ ...artist, thumbnail, isTopic: true });
+      const uploads = await loadArtistDiscographyTracks({
+        name: artist.name,
+        channelId: artist.channelId,
+      });
       setArtistTracks(uploads);
     } finally {
       setIsLoadingArtist(false);
@@ -301,7 +315,7 @@ export function Queue({
                 className="flex flex-col items-center justify-center py-24 text-center select-none"
               >
                 <Loader2 className="w-8 h-8 text-white/40 animate-spin mb-3" />
-                <p className="text-xs text-white/40 font-medium tracking-wide">Loading releases...</p>
+                <p className="text-xs text-white/40 font-medium tracking-wide">Loading tracks...</p>
               </motion.div>
             ) : selectedArtist ? (
               <QueueArtistSubview
@@ -364,6 +378,7 @@ export function Queue({
                   onSelect={onSelect}
                   onRemove={onRemove}
                   onClearQueue={onClearQueue}
+                  onShuffleQueue={onShuffleQueue}
                   onDragStart={handleDragStart}
                   onDragOver={handleDragOver}
                   onDragEnd={handleDragEnd}

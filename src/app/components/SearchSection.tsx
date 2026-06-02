@@ -2,10 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Search, ChevronRight, Plus, Music } from 'lucide-react';
 import { SearchResult, VerifiedArtist } from '../types';
+import { ARTIST_PROFILE_BADGE, ARTIST_SEARCH_CARD_HINT } from '../constants/artistUi';
 import { ThemeColors } from './themeUtils';
 import { shouldShowArtistCard } from '../utils/apiUtils';
 import { LandingRecents } from './LandingRecents';
 import { SongRowOptions } from './SongRowOptions';
+import { fadeIn, listItemEnter } from '../utils/motionPresets';
 
 interface SearchSectionProps {
   searchQuery: string;
@@ -189,13 +191,11 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
                   const isFocused = focusedResultIndex === 0;
                   return (
                     <motion.div
-                       initial={{ opacity: 0, scale: 0.98 }}
-                       animate={{ opacity: 1, scale: 1 }}
-                       transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                       {...fadeIn}
                        onClick={() => handleViewArtistProfile(artist)}
-                       className={`relative overflow-hidden p-6 rounded-3xl bg-gradient-to-br from-[#121214]/65 via-[#0d0d0e]/40 to-black/20 border transition-all duration-300 mb-6 flex items-center justify-between gap-6 group shadow-lg cursor-pointer active:scale-[0.99] backdrop-blur-xl w-full ${
+                       className={`relative overflow-hidden p-6 rounded-3xl bg-gradient-to-br from-[#121214]/65 via-[#0d0d0e]/40 to-black/20 border transition-colors duration-300 mb-6 flex items-center justify-between gap-6 group shadow-lg cursor-pointer backdrop-blur-xl w-full ${
                          isFocused
-                           ? 'border-white/25 bg-white/[0.04] scale-[1.01]'
+                           ? 'border-white/25 bg-white/[0.04]'
                            : 'border-white/[0.06] hover:border-white/15 hover:from-white/[0.03] hover:to-white/[0.01]'
                        }`}
                      >
@@ -207,10 +207,15 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
                          <div className="flex flex-col text-left">
                            <div className="flex items-center gap-1.5">
                              <span className="text-[10px] md:text-xs font-bold text-zinc-300 tracking-wider bg-zinc-800/40 border border-zinc-700/40 px-2.5 py-0.5 rounded-md uppercase">
-                               ✦ Verified Artist
+                               ✦ {ARTIST_PROFILE_BADGE}
                              </span>
                            </div>
                            <h4 className="text-base md:text-xl font-black text-white mt-1.5 group-hover:text-zinc-100 transition-colors tracking-tight leading-tight">{artist.name}</h4>
+                           {!artist.disambiguation && !artist.country && !(artist.tags && artist.tags.length > 0) && (
+                             <p className="text-[11px] md:text-xs text-white/50 font-semibold mt-1 uppercase tracking-wide">
+                               {ARTIST_SEARCH_CARD_HINT}
+                             </p>
+                           )}
                            {artist.disambiguation && (
                              <p className="text-[11px] md:text-xs text-white/60 font-semibold mt-1 leading-snug">
                                {artist.disambiguation} {artist.country && `(${artist.country})`}
@@ -249,23 +254,15 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
                 return (
                   <motion.div
                     key={result.id}
-                    initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    whileHover={{ scale: 1.015 }}
-                    whileTap={{ scale: 0.96 }}
+                    {...listItemEnter(index)}
                     onClick={() => {
                       if (!loadingSongId) handleSelectSong(result);
                     }}
-                    transition={{
-                      delay: index * 0.08,
-                      duration: 0.4,
-                      ease: [0.16, 1, 0.3, 1]
-                    }}
-                    className={`group relative w-full flex items-center gap-4 p-3.5 rounded-2xl border transition-all duration-300 backdrop-blur-xl cursor-pointer ${
+                    className={`group relative w-full flex items-center gap-4 p-3.5 rounded-2xl border transition-colors duration-200 backdrop-blur-xl cursor-pointer ${
                       loadingSongId === result.id
                         ? `${theme.borderActive} ${theme.bgActive}`
                         : isFocused
-                        ? 'bg-white/[0.06] border-white/20 shadow-md scale-[1.015]'
+                        ? 'bg-white/[0.06] border-white/20 shadow-md'
                         : 'bg-white/[0.02] border-white/[0.06] hover:bg-white/[0.06] hover:border-white/15'
                     }`}
                   >

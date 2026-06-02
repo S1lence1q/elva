@@ -2,8 +2,10 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { ArrowLeft, Play, Plus, Music, Heart } from 'lucide-react';
 import { SearchResult, VerifiedArtist } from '../types';
+import { ARTIST_PROFILE_BADGE, ARTIST_TRACKS_SECTION_LABEL } from '../constants/artistUi';
 import { ThemeColors } from './themeUtils';
 import { SongRowOptions } from './SongRowOptions';
+import { listItemEnter, panelEnter } from '../utils/motionPresets';
 
 interface ArtistProfileViewProps {
   selectedArtist: VerifiedArtist;
@@ -51,10 +53,7 @@ export const ArtistProfileView: React.FC<ArtistProfileViewProps> = ({
   return (
     <motion.div
       key="immersive-artist-view"
-      initial={{ opacity: 0, scale: 0.95, y: 24, filter: 'blur(8px)' }}
-      animate={{ opacity: 1, scale: 1, y: 0, filter: 'blur(0px)' }}
-      exit={{ opacity: 0, scale: 0.95, y: 24, filter: 'blur(8px)' }}
-      transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+      {...panelEnter}
       className="w-full max-w-5xl px-4 flex flex-col h-[calc(100vh-80px)] overflow-y-auto scrollbar-none z-10"
     >
       {/* Navigation bar above the layout */}
@@ -103,7 +102,7 @@ export const ArtistProfileView: React.FC<ArtistProfileViewProps> = ({
         <div className="flex flex-col text-center md:text-left relative z-10">
           <div className="flex items-center justify-center md:justify-start gap-2">
             <span className="flex items-center gap-1 text-[9px] font-bold text-white/50 bg-white/5 border border-white/10 px-2.5 py-0.5 rounded-md uppercase tracking-wider">
-              ✦ Verified Artist
+              ✦ {ARTIST_PROFILE_BADGE}
             </span>
           </div>
           
@@ -135,7 +134,7 @@ export const ArtistProfileView: React.FC<ArtistProfileViewProps> = ({
         <div className="w-full flex flex-col relative">
 
           <div className="flex items-center justify-between pb-3 border-b border-white/5 shrink-0 z-10 relative">
-            <span className="text-[10px] text-white/40 font-bold uppercase tracking-wider">Official Releases</span>
+            <span className="text-[10px] text-white/40 font-bold uppercase tracking-wider">{ARTIST_TRACKS_SECTION_LABEL}</span>
             <span className="text-[10px] text-white/30 font-medium uppercase tracking-wider bg-white/5 border border-white/5 px-2.5 py-0.5 rounded-md">
               {artistTracks.length} tracks
             </span>
@@ -172,9 +171,7 @@ export const ArtistProfileView: React.FC<ArtistProfileViewProps> = ({
                   return (
                     <motion.div
                       key={`artist-track-${track.id}`}
-                      initial={{ opacity: 0, y: 5 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.02, ease: "easeOut" }}
+                      {...listItemEnter(index)}
                       className={`group w-full flex items-center gap-4 py-4 px-3 border-b border-white/5 last:border-b-0 bg-transparent transition-colors duration-200 hover:bg-white/[0.02] cursor-pointer ${
                         isLoading ? 'bg-white/[0.03]' : isFocused ? 'bg-white/[0.04]' : ''
                       }`}

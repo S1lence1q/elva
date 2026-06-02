@@ -98,7 +98,9 @@ export function useKeyboardShortcuts({
         setShowShortcutMap(false);
       } else if (e.key === ',' && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
-        setShowSettings(prev => !prev);
+        if (appState === 'landing') {
+          setShowSettings(prev => !prev);
+        }
       }
     };
 

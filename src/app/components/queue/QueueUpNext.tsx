@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import type { AccentColor } from '../themeUtils';
 import { ACCENT_THEMES } from '../themeUtils';
 import type { QueueItem } from './types';
+import { listItemEnter } from '../../utils/motionPresets';
 
 interface QueueUpNextProps {
   items: QueueItem[];
@@ -15,6 +16,7 @@ interface QueueUpNextProps {
   onSelect: (id: string) => void;
   onRemove: (id: string) => void;
   onClearQueue?: () => void;
+  onShuffleQueue?: () => void;
   onDragStart: (e: React.DragEvent, index: number) => void;
   onDragOver: (e: React.DragEvent, index: number) => void;
   onDragEnd: () => void;
@@ -30,6 +32,7 @@ export function QueueUpNext({
   onSelect,
   onRemove,
   onClearQueue,
+  onShuffleQueue,
   onDragStart,
   onDragOver,
   onDragEnd,
@@ -41,19 +44,32 @@ export function QueueUpNext({
       <div className="flex items-center justify-between select-none">
         <h3 className="text-[10px] uppercase tracking-[0.25em] font-bold text-white/40">Up Next</h3>
         {items.length > 0 && (
-          <button
-            onClick={() => {
-              if (onClearQueue) {
-                onClearQueue();
-              } else {
-                items.forEach((it) => onRemove(it.id));
-                toast.info('Queue cleared');
-              }
-            }}
-            className="text-[9px] uppercase tracking-widest text-red-400 hover:text-red-300 font-bold transition-colors cursor-pointer"
-          >
-            Clear Queue
-          </button>
+          <div className="flex items-center gap-3">
+            {onShuffleQueue && (
+              <>
+                <button
+                  onClick={onShuffleQueue}
+                  className="text-[9px] uppercase tracking-widest text-emerald-400 hover:text-emerald-300 font-bold transition-colors cursor-pointer"
+                >
+                  Shuffle Queue
+                </button>
+                <span className="text-white/10 text-[9px] font-light">|</span>
+              </>
+            )}
+            <button
+              onClick={() => {
+                if (onClearQueue) {
+                  onClearQueue();
+                } else {
+                  items.forEach((it) => onRemove(it.id));
+                  toast.info('Queue cleared');
+                }
+              }}
+              className="text-[9px] uppercase tracking-widest text-red-400 hover:text-red-300 font-bold transition-colors cursor-pointer"
+            >
+              Clear Queue
+            </button>
+          </div>
         )}
       </div>
 
@@ -62,9 +78,9 @@ export function QueueUpNext({
           {items.length === 0 ? (
             <motion.div
               key="queue-empty-placeholder"
-              initial={{ opacity: 0, y: 5 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
               className="flex items-center gap-3.5 p-3 rounded-2xl border border-white/[0.04] bg-white/[0.005] select-none text-left min-h-[88px]"
             >
@@ -95,10 +111,9 @@ export function QueueUpNext({
                   onDragStart={(e) => onDragStart(e, index)}
                   onDragOver={(e) => onDragOver(e, index)}
                   onDragEnd={onDragEnd}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95, height: 0, marginBottom: 0, padding: 0 }}
-                  transition={{ duration: 0.22, delay: index * 0.01, ease: 'easeOut' }}
+                  {...listItemEnter(index)}
+                  exit={{ opacity: 0, height: 0, marginBottom: 0, padding: 0 }}
+                  transition={{ duration: 0.2 }}
                   onClick={() => onSelect(item.id)}
                   className={`group w-full flex items-center justify-between p-3 rounded-2xl border transition-all duration-300 cursor-grab active:cursor-grabbing ${
                     isDraggingItem ? 'opacity-30 border-dashed border-white/20 bg-white/5 scale-[0.98]' : ''

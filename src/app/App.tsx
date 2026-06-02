@@ -15,6 +15,7 @@ import { SearchResult, VerifiedArtist } from './types';
 import { getDynamicFallbackColors, extractColorsFromImage } from './utils/playerColorUtils';
 import { executeSearchAPI, executeChannelUploadsAPI } from './utils/apiUtils';
 import { parseLocalMetadata } from './utils/metadataParser';
+import { getPlaybackSongKey } from './utils/playbackSongKey';
 
 // Import newly extracted hooks and components
 import { useScrollTracking } from './hooks/useScrollTracking';
@@ -155,6 +156,7 @@ export default function App() {
 
   const [isFirstVisit, setIsFirstVisit] = useState(() => !sessionStorage.getItem('elva_intro_seen'));
   const hasSelectedArtistOnce = useRef(false);
+  const latestSelectedSongIdRef = useRef<string | null>(null);
 
   // 2. Background Colors Hook
   const bgColors = useBackgroundColors(songColors, appState, colorsSongData, scrollProgress);
@@ -234,10 +236,76 @@ export default function App() {
     }, 1200);
   };
 
+  const ensureTrackInQueue = (track: SearchResult) => {
+    setQueue((prev) => {
+      const key = getPlaybackSongKey(track);
+      const exists = prev.some(
+        (item) => item.id === track.id || (key !== null && getPlaybackSongKey(item) === key)
+      );
+      if (exists) return prev;
+      return [...prev, track];
+    });
+  };
+
   const handleSelectSong = async (result: SearchResult, isCrossfade?: boolean) => {
+    latestSelectedSongIdRef.current = result.id;
     const isLocal = !!(result.audioUrl?.startsWith('blob:') || result.id?.startsWith('local_'));
+    const latestId = latestSelectedSongIdRef.current;
     let finalVideoId = isLocal ? '' : (result.videoId || resolvedVideoIds[result.id]);
     let finalArtwork = result.thumbnail || 'https://images.unsplash.com/photo-1676068368612-1c8b3e2afed0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxhbGJ1bSUyMGNvdmVyJTIwbXVzaWMlMjBhYnN0cmFjdCUyMGFydCUyMGNvbG9yZnVsfGVufDF8fHx8MTc3ODk2NjA3OHww&ixlib=rb-4.1.0&q=80&w=1080';
+
+    // Crossfade path: metadata/colors only — playback stays on dual-engine crossfader
+    if (isCrossfade && appState === 'ready') {
+      if (!isLocal && !finalVideoId) {
+        console.warn('Crossfade skipped: missing videoId for', result.title);
+        return;
+      }
+
+      const saved = localStorage.getItem('elva_crossfade_duration');
+      const crossfadeWindow = saved !== null ? parseFloat(saved) : 3.0;
+      setColorTransitionDuration(crossfadeWindow);
+      if (colorTransitionTimeoutRef.current) {
+        clearTimeout(colorTransitionTimeoutRef.current);
+      }
+      colorTransitionTimeoutRef.current = setTimeout(() => {
+        setColorTransitionDuration(1.2);
+      }, crossfadeWindow * 1000);
+
+      const fallbacks = getDynamicFallbackColors(result.title, result.artist);
+      setSongColors({
+        primary: fallbacks.primary,
+        secondary: fallbacks.secondary,
+        accent: fallbacks.accent,
+      });
+
+      setSongData({
+        title: result.title,
+        artist: result.artist,
+        artworkUrl: finalArtwork,
+        audioUrl: isLocal ? (result.audioUrl || '') : `https://www.youtube.com/watch?v=${finalVideoId}`,
+        videoId: finalVideoId,
+        channelId: result.channelId,
+      });
+
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      if (
+        finalArtwork &&
+        (finalArtwork.includes('ytimg.com') ||
+          finalArtwork.includes('youtube.com') ||
+          finalArtwork.startsWith('http'))
+      ) {
+        img.src = `https://images.weserv.nl/?url=${encodeURIComponent(finalArtwork)}`;
+      } else {
+        img.src = finalArtwork;
+      }
+      img.onload = () => {
+        if (latestSelectedSongIdRef.current !== latestId) return;
+        const extracted = extractColorsFromImage(img, result.title, result.artist);
+        setSongColors(extracted);
+      };
+      return;
+    }
 
     if (!isLocal && !finalVideoId) {
       setLoadingSongId(result.id);
@@ -245,6 +313,7 @@ export default function App() {
       try {
         const query = `${result.artist} ${result.title} audio`;
         const resolved = await executeSearchAPI(query, 5);
+        if (latestSelectedSongIdRef.current !== latestId) return;
         if (resolved && resolved.length > 0) {
           finalVideoId = resolved[0].videoId;
           
@@ -276,11 +345,14 @@ export default function App() {
       }
     }
 
-    saveRecentlyPlayed({
+    const queueTrack: SearchResult = {
       ...result,
       videoId: finalVideoId,
-      thumbnail: finalArtwork
-    });
+      thumbnail: finalArtwork,
+    };
+
+    saveRecentlyPlayed(queueTrack);
+    ensureTrackInQueue(queueTrack);
 
     if (isCrossfade) {
       const saved = localStorage.getItem('elva_crossfade_duration');
@@ -325,6 +397,7 @@ export default function App() {
         img.src = finalArtwork;
       }
       img.onload = () => {
+        if (latestSelectedSongIdRef.current !== latestId) return;
         const extracted = extractColorsFromImage(img, result.title, result.artist);
         setSongColors(extracted);
       };
@@ -350,6 +423,7 @@ export default function App() {
     }
 
     const proceedToReady = () => {
+      if (latestSelectedSongIdRef.current !== latestId) return;
       const extracted = extractColorsFromImage(img, result.title, result.artist);
       setSongColors(extracted);
 
@@ -357,6 +431,7 @@ export default function App() {
       const remainingTime = Math.max(0, minDisplayTime - elapsedTime);
 
       setTimeout(() => {
+        if (latestSelectedSongIdRef.current !== latestId) return;
         setSongData({
           title: result.title,
           artist: result.artist,
@@ -377,6 +452,24 @@ export default function App() {
     img.onerror = proceedToReady;
   };
 
+  const handleAddToQueue = (result: SearchResult) => {
+    const key = getPlaybackSongKey(result);
+    let added = false;
+    setQueue((prev) => {
+      const exists = prev.some(
+        (item) => item.id === result.id || (key !== null && getPlaybackSongKey(item) === key)
+      );
+      if (exists) return prev;
+      added = true;
+      return [...prev, result];
+    });
+    if (added) {
+      showMiniHUD('Added to queue', 'success');
+    } else {
+      toast.error('Already in queue', { description: result.title });
+    }
+  };
+
   // 3. Search and Artist Profiles Logic Hook
   const searchLogic = useSearchLogic({
     setAppState,
@@ -385,6 +478,7 @@ export default function App() {
     setQueue,
     saveRecentlyPlayed,
     handleSelectSong,
+    handleAddToQueue,
     appState,
     songData,
     tourType,
@@ -614,21 +708,11 @@ export default function App() {
     }
   }, [songData]);
 
-  const handleAddToQueue = (result: SearchResult) => {
-    if (queue.some(item => item.id === result.id)) {
-      toast.error('Already in queue', {
-        description: result.title,
-      });
-      return;
-    }
-    setQueue([...queue, result]);
-    showMiniHUD('Added to queue', 'success');
-  };
-
   const handlePlayNext = (result: SearchResult) => {
     const cleanedQueue = queue.filter(item => item.id !== result.id);
-    const currentIndex = songData 
-      ? cleanedQueue.findIndex(item => item.id === (songData.videoId || songData.audioUrl))
+    const activeKey = songData ? getPlaybackSongKey(songData) : null;
+    const currentIndex = activeKey
+      ? cleanedQueue.findIndex((item) => getPlaybackSongKey(item) === activeKey)
       : -1;
     
     const newQueue = [...cleanedQueue];
@@ -662,6 +746,34 @@ export default function App() {
       .map(id => idMap.get(id))
       .filter((item): item is SearchResult => !!item);
     setQueue(reordered);
+  };
+
+  const handleShuffleQueue = () => {
+    if (queue.length <= 1) {
+      showMiniHUD('Not enough songs to shuffle', 'info');
+      return;
+    }
+
+    const activeKey = songData ? getPlaybackSongKey(songData) : null;
+    const currentSong = activeKey ? queue.find(item => getPlaybackSongKey(item) === activeKey) : null;
+    
+    const remaining = queue.filter(item => {
+      if (!currentSong) return true;
+      return item.id !== currentSong.id;
+    });
+
+    const shuffled = [...remaining];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+
+    const finalQueue = currentSong ? [currentSong, ...shuffled] : shuffled;
+    setQueue(finalQueue);
+    showMiniHUD('Queue shuffled');
+
+    // Trigger the controlled slot machine artwork cycling!
+    window.dispatchEvent(new CustomEvent('elva-artwork-spin', { detail: { queue: finalQueue } }));
   };
 
   const handleQueueFileSelect = async (file: File) => {
@@ -844,6 +956,7 @@ export default function App() {
               onAccentColorChange={setAccentColor}
               onRemoveFromQueue={handleRemoveFromQueue}
               onClearQueue={handleClearQueue}
+              onShuffleQueue={handleShuffleQueue}
               onSelectFromQueue={handleSelectFromQueue}
               onAddToQueue={handleAddToQueue}
               onReorderQueue={handleReorderQueue}
@@ -900,6 +1013,7 @@ export default function App() {
                   clearTimeout(backToHomeTimeoutRef.current);
                 }
                 setAppState('landing');
+                setShowSettings(false);
                 searchLogic.setSearchQuery('');
                 searchLogic.setSearchResults([]);
               }}

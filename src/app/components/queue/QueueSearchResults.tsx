@@ -3,8 +3,10 @@ import { Loader2, ChevronRight } from 'lucide-react';
 import type { AccentColor } from '../themeUtils';
 import { ACCENT_THEMES } from '../themeUtils';
 import type { SearchResult, VerifiedArtist } from './types';
+import { ARTIST_SEARCH_CARD_HINT } from '../../constants/artistUi';
 import { ArtistAvatar } from './ArtistAvatar';
 import { QueueSongRow } from './QueueSongRow';
+import { fadeIn, listItemEnter } from '../../utils/motionPresets';
 
 interface QueueSearchResultsProps {
   isSearching: boolean;
@@ -59,16 +61,12 @@ export function QueueSearchResults({
   return (
     <motion.div
       key="search-results"
-      initial={{ opacity: 0, y: 15 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -15 }}
+      {...fadeIn}
       className="space-y-3 p-2 text-left"
     >
       {matchedArtist && (
         <motion.div
-          initial={{ opacity: 0, scale: 0.96 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+          {...fadeIn}
           onClick={() => onOpenArtist(matchedArtist)}
           className="group w-full flex flex-col gap-5 p-6 rounded-3xl bg-gradient-to-br from-[#1c1c1f]/80 via-[#0e0e10]/60 to-black/40 border border-white/10 hover:border-white/20 hover:from-white/[0.04] hover:to-white/[0.01] transition-all duration-300 shadow-2xl cursor-pointer mb-6 relative overflow-hidden backdrop-blur-xl active:scale-[0.99]"
         >
@@ -83,19 +81,14 @@ export function QueueSearchResults({
               <ArtistAvatar name={matchedArtist.name} fallbackThumbnail={matchedArtist.thumbnail} />
             </div>
             <div className="text-left min-w-0 flex-1">
-              <span
-                className={`inline-flex items-center gap-1 text-[9px] font-bold ${theme.text} tracking-wider bg-white/5 border border-white/5 px-2.5 py-0.5 rounded uppercase shrink-0`}
-              >
-                ✦ Verified Artist
-              </span>
               <h4
-                className="text-xl font-normal text-white mt-1.5 truncate tracking-wide leading-tight"
+                className="text-xl font-normal text-white truncate tracking-wide leading-tight"
                 style={{ fontFamily: '"Kaobe", serif' }}
               >
                 {matchedArtist.name}
               </h4>
               <p className="text-[11px] text-white/40 mt-1 leading-normal font-semibold tracking-wide uppercase">
-                Official Discography • View Profile
+                {ARTIST_SEARCH_CARD_HINT}
               </p>
             </div>
             <ChevronRight className="w-5 h-5 text-white/20 group-hover:text-white/45 group-hover:translate-x-0.5 transition-all duration-300 shrink-0 self-center" />
@@ -103,13 +96,14 @@ export function QueueSearchResults({
         </motion.div>
       )}
 
-      {searchResults.map((song) => (
-        <QueueSongRow
-          key={song.id}
-          song={song}
-          onPlay={() => onPlaySong(song)}
-          onAddToQueue={onAddToQueue}
-        />
+      {searchResults.map((song, index) => (
+        <motion.div key={song.id} {...listItemEnter(index)}>
+          <QueueSongRow
+            song={song}
+            onPlay={() => onPlaySong(song)}
+            onAddToQueue={onAddToQueue}
+          />
+        </motion.div>
       ))}
     </motion.div>
   );

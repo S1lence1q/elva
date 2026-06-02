@@ -189,9 +189,19 @@ Industristandarder fra React/TypeScript-fællesskabet 2024–2026 er klare:
     - **Flad dæmpning på kun 8%** (`bg-black/8`): Sikrer optimal kontrast for hvid tekst (som sangtekster) uden at mærke eller dæmpe de lysende farver.
   - **Persistens på Landing Page:** Masken forbliver **aktiv på landing page**, så længe en sang spiller i baggrunden. Dette eliminerer ethvert lysstyrke- eller farveskift, når du skifter frem og tilbage mellem landing page og den fulde afspiller – baggrundslysstyrken forbliver 100% identisk og ubrudt!
 
+### 🖼️ 16. Double-Image Artwork Crossfader, Stacking Context & Settings Sync
+* **Filer:** [ArtworkCard.tsx](file:///Users/applemacbook/AntiGravity%20Shit/Elva.nosync/Elva/src/app/components/musicplayer/ArtworkCard.tsx), [PlayerControls.tsx](file:///Users/applemacbook/AntiGravity%20Shit/Elva.nosync/Elva/src/app/components/PlayerControls.tsx), [App.tsx](file:///Users/applemacbook/AntiGravity%20Shit/Elva.nosync/Elva/src/app/App.tsx), [useKeyboardShortcuts.ts](file:///Users/applemacbook/AntiGravity%20Shit/Elva.nosync/Elva/src/app/hooks/useKeyboardShortcuts.ts)
+* **Hvordan det virker:**
+  - **Double-Image Render Stack:** For at undgå hvide blink under indlæsning af nye billeder bruges to billednoder i `ArtworkCard.tsx`: Et baggrundsbillede `<img>` for den forrige sang og et forgrundsbillede `<motion.img>` for den nye sang.
+  - **Dynamisk Transition & Sort Blink Eliminering:** Det bageste billede har sin transition styret dynamisk: `showPreviousArtwork ? 'none' : 'opacity 0.5s ease-out'`. Når skiftet starter, gøres billedet øjeblikkeligt 100% synligt (`opacity: 1`, `transition: 'none'`), hvilket eliminerer det sorte blink (da begge billeder ikke længere er gennemsigtige på samme tid). Når det nye billede er indlæst, fader baggrunden blødt ud.
+  - **Flimmerfrit Billedskift (`key`):** Baggrundsbilledet er udstyret med `key={previousArtwork}`. Dette tvinger React to genoprette elementet i stedet for at genbruge det, hvilket eliminerer browserens standardadfærd med at flimre det forrige-forrige cover under indlæsning af det nye `src`.
+  - **Z-Index & Stacking Context (Controls Overlap):** Forgrundsbilledet er sat to `z-10`, og `PlayerControls` wrapperen er sat to `z-20` (med `isolation: 'isolate'` på forælderen). Dette løser CSS stacking context fejl, så kontrolpanelet fader ind fejlfrit (uden forsinkelse), og den mørke skygge-gradient altid tegnes oven på albumcoveret for optimal kontrast.
+  - **Timeout Ref Cleanup:** Indlæsnings- og udtoningstimere styres af `loadTimeoutRef` og `hidePrevTimeoutRef` via `useRef`, som nulstilles proaktivt ved hvert sangskift for at forhindre hængende overgange under hurtigt sangskift (rapid skip).
+  - **Settings Modal Synkronisering:** For at forhindre at indstillings-modaler overlapper eller åbnes automatisk under skift tilbage til landing page, deaktiveres den globale `Cmd+,` keyboard shortcut (i `useKeyboardShortcuts.ts`), når app-tilstanden er `'ready'` (da afspilleren har sin egen lokale settings instans). Derudover kaldes `setShowSettings(false)` proaktivt i `onBackToHome` callback'en i `App.tsx`.
+
 ---
 
-## 📁 16. Modulopbygget Kodebase
+## 📁 17. Modulopbygget Kodebase
 
 ### `src/app/utils/` — Utilities
 1. `playerColorUtils.ts` — HSL/RGB konvertering, downsampled 32x32 scanning og fallbacks.

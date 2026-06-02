@@ -8,11 +8,13 @@ import {
   getHandPickedImage,
   executeSearchAPI,
   resolveTopicChannelId,
-  fetchAllChannelUploads,
   fetchWithTimeout,
-  fetchVideoDetails
+  resolveUrlToSearchResult
 } from '../utils/apiUtils';
-import { getDiscographyCache, setDiscographyCache } from '../utils/discographyCache';
+import {
+  peekCachedDiscography,
+  loadArtistDiscographyWithCache,
+} from '../utils/artistDiscographyLoader';
 
 // Simple in-memory LRU search cache — max 30 entries, 5-minute TTL
 // Prevents repeated API hits when the user types the same query twice in a session.
@@ -80,6 +82,7 @@ interface SearchLogicOptions {
   setQueue: React.Dispatch<React.SetStateAction<SearchResult[]>>;
   saveRecentlyPlayed: (song: SearchResult) => void;
   handleSelectSong: (song: SearchResult) => void;
+  handleAddToQueue: (song: SearchResult) => void;
   appState: 'landing' | 'processing' | 'ready';
   songData: any;
   tourType: 'landing' | 'player' | null;
@@ -94,6 +97,7 @@ export function useSearchLogic({
   setQueue,
   saveRecentlyPlayed,
   handleSelectSong,
+  handleAddToQueue,
   appState,
   songData,
   tourType,
@@ -277,40 +281,52 @@ export function useSearchLogic({
 
     const nameLower = artist.name.trim().toLowerCase();
     const handPickedUrl = getHandPickedImage(artist.name);
-    let cachedDeezerImg = handPickedUrl || localStorage.getItem(`elva_artist_img_${nameLower}`);
 
-    // Fetch Deezer image in background if not cached
-    if (!cachedDeezerImg) {
+    // Show artist immediately
+    const initialArtist = {
+      ...artist,
+      thumbnail: handPickedUrl || artist.thumbnail,
+    };
+    setSelectedArtist(initialArtist);
+    setIsLoadingArtist(true);
+
+    // Cache hit — instant discography, no API wait
+    const cachedTracks = peekCachedDiscography(artist.name);
+    if (cachedTracks) {
+      setArtistTracks(cachedTracks);
+      setIsLoadingArtist(false);
+    } else {
+      setArtistTracks([]);
+    }
+
+    // Deezer avatar in parallel (never blocks track list)
+    const deezerImgPromise = (async () => {
+      const existing = handPickedUrl || localStorage.getItem(`elva_artist_img_${nameLower}`);
+      if (existing) return existing;
       try {
         const deezerRes = await fetchWithTimeout(
           `https://corsproxy.io/?https://api.deezer.com/search/artist?q=${encodeURIComponent(artist.name.trim())}`,
           {},
-          2500
+          2000
         );
-        if (deezerRes.ok) {
-          const deezerData = await deezerRes.json();
-          const deezerArtist = (deezerData.data || []).find((a: any) =>
-            a.name.toLowerCase() === nameLower
-          ) || deezerData.data?.[0];
-          if (deezerArtist && (deezerArtist.picture_big || deezerArtist.picture_medium)) {
-            cachedDeezerImg = deezerArtist.picture_big || deezerArtist.picture_medium;
-            localStorage.setItem(`elva_artist_img_${nameLower}`, cachedDeezerImg!);
-            window.dispatchEvent(new CustomEvent('elva-artist-image-loaded', { detail: { name: artist.name, url: cachedDeezerImg } }));
-          }
+        if (!deezerRes.ok) return null;
+        const deezerData = await deezerRes.json();
+        const deezerArtist =
+          (deezerData.data || []).find((a: any) => a.name.toLowerCase() === nameLower) ||
+          deezerData.data?.[0];
+        const url = deezerArtist?.picture_big || deezerArtist?.picture_medium;
+        if (url) {
+          localStorage.setItem(`elva_artist_img_${nameLower}`, url);
+          window.dispatchEvent(
+            new CustomEvent('elva-artist-image-loaded', { detail: { name: artist.name, url } })
+          );
+          return url;
         }
-      } catch (de) {
-        console.warn('Deezer image fetch failed:', de);
+      } catch {
+        // optional enrichment
       }
-    }
-
-    // Show artist immediately with skeleton tracks
-    const initialArtist = {
-      ...artist,
-      thumbnail: handPickedUrl || (isPlaceholderOrEmpty(artist.thumbnail) ? (cachedDeezerImg || artist.thumbnail) : artist.thumbnail)
-    };
-    setSelectedArtist(initialArtist);
-    setArtistTracks([]);
-    setIsLoadingArtist(true);
+      return null;
+    })();
 
     // Save to recent artists
     setRecentArtists(prev => {
@@ -321,96 +337,34 @@ export function useSearchLogic({
     });
 
     try {
-      // ── Step 1: Find the official channel (Topic → VEVO → official name match) ──
-      // We already have a channelId if this artist came from a search result.
-      // But even then, we try to upgrade it to the Topic channel for cleaner results.
-      let resolvedChannelId = artist.channelId;
-      let resolvedType: 'topic' | 'vevo' | 'official' | 'provided' = resolvedChannelId ? 'provided' : 'provided';
-
-      const topicResult = await resolveTopicChannelId(artist.name);
-
-      if (topicResult) {
-        // Topic/VEVO channel takes priority — always cleaner than a generic channel
-        resolvedChannelId = topicResult.channelId;
-        resolvedType = topicResult.type;
-      }
-
-      // Update artist state with resolved channelId and isTopic flag
-      const isTopic = resolvedType === 'topic';
-      if (resolvedChannelId && resolvedChannelId !== artist.channelId) {
-        const updatedArtist = { ...initialArtist, channelId: resolvedChannelId, isTopic };
-        setSelectedArtist(updatedArtist);
-        setRecentArtists(prev => {
-          const filtered = prev.filter(a => a.name.toLowerCase() !== nameLower);
-          const hp = getHandPickedImage(artist.name);
-          const updated = [{ ...updatedArtist, thumbnail: hp || updatedArtist.thumbnail }, ...filtered].slice(0, 4);
-          try { localStorage.setItem('elva_recent_artists', JSON.stringify(updated)); } catch {}
-          return updated;
-        });
-      }
-
-      // ── Step 2: Check cache before hitting any API ──
-      const cached = getDiscographyCache(artist.name);
-      if (cached) {
-        setArtistTracks(cached.tracks);
-        // Skip straight to the end — MusicBrainz background enrichment still runs below
-        return;
-      }
-
-
-      // ── Step 3: Fetch complete discography from the official channel ──
-      let tracks: SearchResult[] = [];
-
-      if (resolvedChannelId) {
-        tracks = await fetchAllChannelUploads(resolvedChannelId, 150);
-      }
-
-      // ── Step 4: Strict fallback if no official channel found or uploads empty ──
-      // Only include tracks where the uploader channel title EXACTLY matches the artist name.
-      // No loose matching, no name-in-title heuristics.
-      if (tracks.length === 0) {
-        const [raw1, raw2] = await Promise.all([
-          executeSearchAPI(artist.name, 50),
-          executeSearchAPI(`${artist.name} - Topic`, 10)
+      if (!cachedTracks) {
+        const [tracks, deezerImg] = await Promise.all([
+          loadArtistDiscographyWithCache(artist.name, 120, artist.channelId),
+          deezerImgPromise,
         ]);
-        const seenIds = new Set<string>();
-        for (const track of [...raw1, ...raw2]) {
-          if (!track.id || seenIds.has(track.id)) continue;
-          seenIds.add(track.id);
-          const uploaderLower = (track.artist || '').trim().toLowerCase();
-          // Exact match only: channel must be the artist, their Topic channel, or their VEVO
-          const isExactArtist = uploaderLower === nameLower;
-          const isTopicChannel = uploaderLower === `${nameLower} - topic`;
-          const isVevo = uploaderLower === `${nameLower}vevo`;
-          if (isExactArtist || isTopicChannel || isVevo) {
-            tracks.push(track);
-          }
+
+        if (deezerImg && isPlaceholderOrEmpty(artist.thumbnail)) {
+          setSelectedArtist((prev) => (prev ? { ...prev, thumbnail: deezerImg } : prev));
+        }
+
+        setArtistTracks(tracks);
+        if (tracks.length === 0) {
+          toast.error('No releases found', {
+            description: `Could not load tracks for ${artist.name}. Try searching for a specific song.`,
+          });
+        }
+      } else if (deezerImgPromise) {
+        const deezerImg = await deezerImgPromise;
+        if (deezerImg && isPlaceholderOrEmpty(artist.thumbnail)) {
+          setSelectedArtist((prev) => (prev ? { ...prev, thumbnail: deezerImg } : prev));
         }
       }
-
-      // ── Step 5: Deduplicate by videoId ──
-      const seen = new Set<string>();
-      tracks = tracks.filter(t => {
-        if (!t.videoId || seen.has(t.videoId)) return false;
-        seen.add(t.videoId);
-        return true;
-      });
-
-      // ── Step 6: Save to cache ──
-      if (tracks.length > 0) {
-        setDiscographyCache(
-          artist.name,
-          tracks,
-          resolvedChannelId || '',
-          (topicResult?.type ?? 'provided') as 'topic' | 'vevo' | 'official' | 'provided'
-        );
-      }
-
-      setArtistTracks(tracks);
-
     } catch (error) {
       console.error('Failed to load artist profile:', error);
-      toast.error(`Could not fetch releases for ${artist.name}`);
+      toast.error('Could not load artist', {
+        description: `Something went wrong while fetching releases for ${artist.name}.`,
+      });
+      setArtistTracks([]);
     } finally {
       setIsLoadingArtist(false);
     }
@@ -499,57 +453,39 @@ export function useSearchLogic({
       setSearchResults(results);
       setLastSearchedQuery(query);
     } else {
-      toast.error('Search failed', { 
-        description: 'Could not fetch results from YouTube. Try using an API key or pasting a link directly.' 
+      toast.error('Search failed', {
+        description: 'No music results found right now. Try a song title, or paste a YouTube link directly.',
       });
     }
   };
 
   const handleUrlSubmit = async (url: string) => {
-    setAppState('processing');
-
-    const ytMatch = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i);
-    const videoId = ytMatch ? ytMatch[1] : null;
+    const alreadyPlaying = appState === 'ready' && !!songData;
 
     let targetSong: SearchResult;
-
-    if (videoId) {
-      const details = await fetchVideoDetails(videoId);
-      targetSong = {
-        id: videoId,
-        title: details.title,
-        artist: details.artist,
-        thumbnail: details.artworkUrl,
-        videoId: videoId
-      };
-    } else {
-      const title = url.split('/').pop()?.split('?')[0] || 'Streaming Song';
-      targetSong = {
-        id: url,
-        title: decodeURIComponent(title),
-        artist: 'Web Stream',
-        thumbnail: 'https://images.unsplash.com/photo-1676068368612-1c8b3e2afed0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxhbGJ1bSUyMGNvdmVyJTIwbXVzaWMlMjBhYnN0cmFjdCUyMGFydCUyMGNvbG9yZnVsfGVufDF8fHx8MTc3ODk2NjA3OHww&ixlib=rb-4.1.0&q=80&w=1080',
-        videoId: ''
-      };
+    try {
+      targetSong = await resolveUrlToSearchResult(url);
+    } catch (error) {
+      console.error('Failed to resolve pasted URL:', error);
+      toast.error('Could not load link', {
+        description: 'Check the URL and try again.',
+      });
+      return;
     }
 
-    setSongData({
-      title: targetSong.title,
-      artist: targetSong.artist,
-      artworkUrl: targetSong.thumbnail,
-      audioUrl: targetSong.videoId ? `https://www.youtube.com/watch?v=${targetSong.id}` : url,
-      videoId: targetSong.videoId || undefined,
-      channelId: targetSong.channelId
-    });
+    if (alreadyPlaying) {
+      handleAddToQueue(targetSong);
+      return;
+    }
 
-    setQueue(prevQueue => {
-      if (prevQueue.some(item => item.id === targetSong.id)) {
+    setQueue((prevQueue) => {
+      if (prevQueue.some((item) => item.id === targetSong.id)) {
         return prevQueue;
       }
       return [...prevQueue, targetSong];
     });
 
-    setAppState('ready');
+    handleSelectSong(targetSong);
   };
 
   return {

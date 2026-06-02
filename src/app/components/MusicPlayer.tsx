@@ -1,19 +1,8 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
-
-declare global {
-  interface Window {
-    YT: any;
-    onYouTubeIframeAPIReady: () => void;
-  }
-}
-
-import { motion, useMotionValue, useSpring, useTransform, AnimatePresence } from 'motion/react';
-import { List, Plus, Settings } from 'lucide-react';
-import { toast } from 'sonner';
+import { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Queue } from './Queue';
 import { SettingsModal } from './SettingsModal';
 import { LyricsPanel } from './LyricsPanel';
-import { PlayerControls } from './PlayerControls';
 import { AccentColor, ACCENT_THEMES } from './themeUtils';
 import { getDynamicFallbackColors } from '../utils/playerColorUtils';
 import { loadCustomLyrics } from '../utils/lyricsUtils';
@@ -23,6 +12,15 @@ import { SearchResult } from '../types';
 import { usePlaybackCore } from '../hooks/usePlaybackCore';
 import { useLyrics } from '../hooks/useLyrics';
 import { usePlayStats } from '../hooks/usePlayStats';
+import { ArtworkCard } from './musicplayer/ArtworkCard';
+import { BottomBarControls } from './musicplayer/BottomBarControls';
+
+declare global {
+  interface Window {
+    YT: any;
+    onYouTubeIframeAPIReady: () => void;
+  }
+}
 
 interface QueueItem {
   id: string;
@@ -44,6 +42,7 @@ interface MusicPlayerProps {
   queue?: QueueItem[];
   onRemoveFromQueue?: (id: string) => void;
   onClearQueue?: () => void;
+  onShuffleQueue?: () => void;
   onSelectFromQueue?: (id: string, isCrossfade?: boolean) => void;
   onAddToQueue?: (song: SearchResult) => void;
   onSelectSong?: (song: SearchResult) => void;
@@ -110,6 +109,7 @@ export function MusicPlayer({
   queue = [], 
   onRemoveFromQueue, 
   onClearQueue,
+  onShuffleQueue,
   onSelectFromQueue, 
   onAddToQueue, 
   onSelectSong, 
@@ -149,20 +149,6 @@ export function MusicPlayer({
 }: MusicPlayerProps) {
   const theme = ACCENT_THEMES[accentColor];
 
-  const accentBgs: Record<AccentColor, string> = {
-    emerald: 'bg-emerald-500',
-    sand: 'bg-amber-500',
-    wine: 'bg-rose-500',
-    navy: 'bg-slate-500'
-  };
-
-  const accentBgs400: Record<AccentColor, string> = {
-    emerald: 'bg-emerald-400',
-    sand: 'bg-amber-400',
-    wine: 'bg-rose-400',
-    navy: 'bg-slate-400'
-  };
-
   const {
     isPlaying,
     isPlayingRef,
@@ -185,7 +171,6 @@ export function MusicPlayer({
     seekToAbsoluteTime,
     formatTime,
     waveformData,
-    setPlaying,
     analyserRef,
     isCrossfadingRef
   } = usePlaybackCore({
@@ -193,7 +178,7 @@ export function MusicPlayer({
     queue: queue.map((item) => ({ 
       id: item.id, 
       videoId: item.videoId, 
-      audioUrl: item.audioUrl, 
+      audioUrl: item.audioUrl || '', 
       title: item.title, 
       artist: item.artist, 
       thumbnail: item.thumbnail 
@@ -218,7 +203,6 @@ export function MusicPlayer({
 
   const [showQueue, setShowQueue] = useState(false);
   const [focusSearchInQueue, setFocusSearchInQueue] = useState(false);
-  const [isArtworkHovered, setIsArtworkHovered] = useState(false);
   const [isLargeScreen, setIsLargeScreen] = useState(false);
 
   useEffect(() => {
@@ -262,23 +246,15 @@ export function MusicPlayer({
   };
 
   const [showSettings, setShowSettings] = useState(false);
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [isLoadingNewSong, setIsLoadingNewSong] = useState(false);
   const [showSettingsHint, setShowSettingsHint] = useState(false);
-  const [imageBlur, setImageBlur] = useState(20);
-  const [previousArtwork, setPreviousArtwork] = useState<string | null>(null);
-  const [showPreviousArtwork, setShowPreviousArtwork] = useState(false);
-  const [currentArtwork, setCurrentArtwork] = useState(songData.artworkUrl);
 
-  if (songData.artworkUrl !== currentArtwork) {
-    if (currentArtwork && currentArtwork !== songData.artworkUrl) {
-      setPreviousArtwork(currentArtwork);
-      setShowPreviousArtwork(true);
+  // Auto-close local settings when player is backgrounded to prevent visual leaks
+  useEffect(() => {
+    if (appState !== 'ready') {
+      setShowSettings(false);
     }
-    setIsLoaded(false);
-    setIsLoadingNewSong(true);
-    setCurrentArtwork(songData.artworkUrl);
-  }
+  }, [appState]);
+
   const [dominantColors, setDominantColors] = useState(() => songColors || getDynamicFallbackColors(songData.title || '', songData.artist || ''));
   const [targetColors, setTargetColors] = useState(() => songColors || getDynamicFallbackColors(songData.title || '', songData.artist || ''));
   const extractedColors = songColors || getDynamicFallbackColors(songData.title || '', songData.artist || '');
@@ -291,26 +267,9 @@ export function MusicPlayer({
     }
   }, [themePreset, extractedColors]);
 
-  const optimizedParticles = useMemo(() => {
-    return Array.from({ length: 30 }).map((_, i) => ({
-      id: i,
-      xStart: Math.random() * 100,
-      yStart: Math.random() * 100,
-      xValues: [
-        `${Math.random() * 100}%`,
-        `${Math.random() * 100}%`,
-        `${Math.random() * 100}%`,
-      ],
-      yValues: [
-        `${Math.random() * 100}%`,
-        `${Math.random() * 100}%`,
-        `${Math.random() * 100}%`,
-      ],
-      scaleMax: Math.random() * 0.8 + 0.2,
-      duration: Math.random() * 20 + 15,
-      delay: i * 0.2,
-    }));
-  }, []);
+  useEffect(() => {
+    setDominantColors(targetColors);
+  }, [targetColors]);
 
   // Zen Mode Idle Tracker
   const [isUserIdle, setIsUserIdle] = useState(false);
@@ -345,14 +304,6 @@ export function MusicPlayer({
     };
   }, [zenMode]);
 
-  const artworkRef = useRef<HTMLDivElement>(null);
-  const stableCenterRef = useRef({ x: 0, y: 0 });
-  const mouseX = useMotionValue(0);
-  const mouseY = useMotionValue(0);
-
-  const rotateX = useSpring(useTransform(mouseY, [-300, 300], [2, -2]), { stiffness: 150, damping: 20 });
-  const rotateY = useSpring(useTransform(mouseX, [-300, 300], [-2, 2]), { stiffness: 150, damping: 20 });
-
   useEffect(() => {
     const hasSeenHint = localStorage.getItem('elva_settings_hint_seen');
     if (!hasSeenHint) {
@@ -363,85 +314,6 @@ export function MusicPlayer({
       }, 2000);
     }
   }, []);
-
-  useEffect(() => {
-    setDominantColors(targetColors);
-  }, [targetColors]);
-
-  useEffect(() => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-
-    if (songData.artworkUrl && (songData.artworkUrl.includes('ytimg.com') || songData.artworkUrl.includes('youtube.com') || songData.artworkUrl.startsWith('http'))) {
-      img.src = `https://images.weserv.nl/?url=${encodeURIComponent(songData.artworkUrl)}`;
-    } else {
-      img.src = songData.artworkUrl;
-    }
-
-    img.onload = () => {
-      setTimeout(() => {
-        setIsLoadingNewSong(false);
-        setIsLoaded(true);
-        setTimeout(() => setShowPreviousArtwork(false), 1000);
-      }, 50);
-    };
-
-    img.onerror = () => {
-      if (img.src.includes('maxresdefault.jpg')) {
-        const fallbackUrl = songData.artworkUrl.replace('maxresdefault.jpg', 'hqdefault.jpg');
-        if (fallbackUrl && (fallbackUrl.includes('ytimg.com') || fallbackUrl.includes('youtube.com') || fallbackUrl.startsWith('http'))) {
-          img.src = `https://images.weserv.nl/?url=${encodeURIComponent(fallbackUrl)}`;
-        } else {
-          img.src = fallbackUrl;
-        }
-        return;
-      }
-      setTimeout(() => {
-        setIsLoaded(true);
-        setIsLoadingNewSong(false);
-      }, 400);
-    };
-  }, [songData.artworkUrl, songData.title, songData.artist]);
-
-  const handleMouseEnter = () => {
-    setIsArtworkHovered(true);
-    if (!artworkRef.current) return;
-    const rect = artworkRef.current.getBoundingClientRect();
-    stableCenterRef.current = {
-      x: rect.left + rect.width / 2,
-      y: rect.top + rect.height / 2
-    };
-  };
-
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!stableCenterRef.current.x) {
-      handleMouseEnter();
-    }
-    mouseX.set(e.clientX - stableCenterRef.current.x);
-    mouseY.set(e.clientY - stableCenterRef.current.y);
-  };
-
-  const handleMouseLeave = (e: React.MouseEvent) => {
-    if (artworkRef.current && typeof e?.clientX === 'number' && typeof e?.clientY === 'number') {
-      const rect = artworkRef.current.getBoundingClientRect();
-      const x = e.clientX;
-      const y = e.clientY;
-      
-      if (
-        x >= rect.left && 
-        x <= rect.right && 
-        y >= rect.top && 
-        y <= rect.bottom
-      ) {
-        return;
-      }
-    }
-
-    setIsArtworkHovered(false);
-    mouseX.set(0);
-    mouseY.set(0);
-    stableCenterRef.current = { x: 0, y: 0 };
-  };
 
   // Keyboard controls
   useEffect(() => {
@@ -486,7 +358,9 @@ export function MusicPlayer({
         setShowLyrics((prev) => !prev);
       } else if (e.code === 'Comma' && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
-        setShowSettings(prev => !prev);
+        if (appState === 'ready') {
+          setShowSettings(prev => !prev);
+        }
       }
     };
 
@@ -501,6 +375,7 @@ export function MusicPlayer({
     setPreMuteVolume,
     setShowLyrics,
     setShowSettings,
+    appState,
   ]);
 
   return (
@@ -519,7 +394,6 @@ export function MusicPlayer({
         '--theme-secondary-shadow-idle': dominantColors.secondary.replace('0.5', '0.15'),
       } as React.CSSProperties}
     >
-
       {/* Settings hint - only shown once */}
       <AnimatePresence>
         {showSettingsHint && (
@@ -599,6 +473,7 @@ export function MusicPlayer({
                 accentColor={accentColor}
                 onRemove={onRemoveFromQueue || (() => {})}
                 onClearQueue={onClearQueue}
+                onShuffleQueue={onShuffleQueue}
                 onSelect={async (id) => {
                   if (isPlayingRef.current) {
                     await fadeVolume(0, 400);
@@ -669,218 +544,40 @@ export function MusicPlayer({
         style={{ maxWidth: 1152 }}
       >
         <div className={isLargeScreen ? 'relative w-full h-[550px] flex items-center justify-center' : 'flex flex-col items-center justify-center w-full'}>
-          {/* Stacked Artwork Card */}
-          <motion.div 
-            animate={{
-              x: showLyrics && isLargeScreen ? -284 : 0,
-            }}
-            transition={{ type: 'spring', stiffness: 180, damping: 25 }}
-            className="flex flex-col items-center w-[520px] shrink-0 group/artwork"
-            style={{
-              position: isLargeScreen ? 'absolute' : 'relative',
-              left: isLargeScreen ? 'calc(50% - 260px)' : 'auto',
-              top: isLargeScreen ? 0 : 'auto',
-              width: 520,
-              height: 520,
-            }}
-          >
-            <div
-              id="artwork-card"
-              ref={artworkRef}
-              className="relative cursor-pointer w-[520px] h-[520px]"
-              style={{ perspective: 1200 }}
-            >
-              <motion.div
-                className="w-full h-full relative"
-                animate={{ rotateY: showLyrics && !isLargeScreen ? 180 : 0 }}
-                transition={{ rotateY: { duration: 1.4, ease: [0.16, 1, 0.3, 1] } }}
-                style={{ transformStyle: 'preserve-3d' }}
-              >
-            <motion.div
-              onMouseEnter={handleMouseEnter}
-              onMouseMove={handleMouseMove}
-              onMouseLeave={handleMouseLeave}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{
-                opacity: 1,
-                y: [0, -4, 0],
-                scale: 1,
-              }}
-              className="w-full h-full relative"
-              style={{
-                rotateX: enable3DTilt && !showLyrics ? rotateX : 0,
-                rotateY: enable3DTilt && !showLyrics ? rotateY : 0,
-                transformStyle: 'preserve-3d',
-                willChange: 'transform',
-              }}
-              transition={{
-                opacity: { duration: 0.4 },
-                y: { duration: 8, repeat: Infinity, ease: "easeInOut", delay: 0.3 },
-                scale: { type: "spring", stiffness: 140, damping: 22 }
-              }}
-            >
-              {/* FRONT FACE */}
-              <div 
-                className={`absolute inset-0 w-full h-full ${showLyrics && !isLargeScreen ? 'pointer-events-none' : ''}`} 
-                style={{ 
-                  backfaceVisibility: 'hidden',
-                  visibility: showLyrics && !isLargeScreen ? 'hidden' : 'visible'
-                }}
-              >
-          <div
-            className="absolute inset-0 rounded-3xl bg-white/[0.02] shadow-[0_20px_60px_rgba(0,0,0,0.5)]"
-            style={{
-              transform: 'translateY(32px) scale(0.96)',
-              backfaceVisibility: 'hidden'
-            }}
-          />
-          <div
-            className="absolute inset-0 rounded-3xl bg-white/[0.03] shadow-[0_20px_60px_rgba(0,0,0,0.5)]"
-            style={{
-              transform: 'translateY(16px) scale(0.98)',
-              backfaceVisibility: 'hidden'
-            }}
+          {/* Extracted 3D Artwork Card */}
+          <ArtworkCard
+            songData={songData}
+            currentTime={currentTime}
+            duration={duration}
+            isPlaying={isPlaying}
+            waveformData={waveformData}
+            tourType={tourType}
+            currentStep={currentStep}
+            handleSliderChange={handleSliderChange}
+            handlePreviousSong={handlePreviousSong}
+            handleNextSong={handleNextSong}
+            togglePlayPause={togglePlayPause}
+            formatTime={formatTime}
+            favorites={favorites}
+            onToggleFavorite={onToggleFavorite}
+            handleAddToPlaylist={handleAddToPlaylist}
+            onViewArtist={onViewArtist}
+            showLyrics={showLyrics}
+            setShowLyrics={setShowLyrics}
+            lyrics={lyrics}
+            isLoadingLyrics={isLoadingLyrics}
+            isLyricsSynced={isLyricsSynced}
+            currentLyricIndex={currentLyricIndex}
+            seekToAbsoluteTime={seekToAbsoluteTime}
+            setIsLyricsModalOpen={setIsLyricsModalOpen}
+            enableCustomLyrics={enableCustomLyrics}
+            enable3DTilt={enable3DTilt}
+            isLargeScreen={isLargeScreen}
+            appState={appState}
+            accentColor={accentColor}
           />
 
-          {/* Ambient glow layers */}
-          <div
-            className="absolute -inset-16 rounded-full pointer-events-none transition-opacity duration-1000"
-            style={{
-              opacity: isLoaded ? 0.25 : 0,
-              background: 'radial-gradient(circle, var(--theme-primary) 0%, transparent 70%)',
-              filter: 'blur(45px)',
-            }}
-          />
-          <div
-            className="absolute -inset-12 rounded-full pointer-events-none transition-opacity duration-1000"
-            style={{
-              opacity: isLoaded ? 0.2 : 0,
-              background: 'radial-gradient(circle, var(--theme-secondary) 0%, transparent 70%)',
-              filter: 'blur(35px)',
-            }}
-          />
-          <div
-            className="absolute -inset-8 rounded-3xl pointer-events-none transition-opacity duration-1000"
-            style={{
-              opacity: 0.3,
-              background: 'radial-gradient(circle, var(--theme-accent) 0%, transparent 70%)',
-              filter: 'blur(30px)',
-            }}
-          />
-          <div className="absolute -inset-1 rounded-3xl bg-gradient-to-br from-white/10 via-transparent to-white/5 opacity-60 pointer-events-none" />
-
-          {/* Album artwork card */}
-          <div
-            className="relative rounded-3xl overflow-hidden transition-all duration-500 w-full h-full cursor-pointer bg-neutral-950"
-            style={{
-              boxShadow: isPlaying 
-                ? '0 30px 60px rgba(0,0,0,0.75), 0 10px 30px var(--theme-primary-fade), 0 5px 15px var(--theme-secondary-fade)'
-                : '0 15px 35px rgba(0,0,0,0.5), 0 5px 15px var(--theme-primary-fade)',
-              isolation: 'isolate',
-              backgroundImage: previousArtwork ? `url("${previousArtwork}")` : 'none',
-              backgroundSize: 'cover',
-              backgroundPosition: 'center'
-            }}
-            onPointerDown={(e) => {
-              const target = e.target as HTMLElement;
-              if (
-                target.closest('button') || 
-                target.closest('input') || 
-                target.closest('[role="slider"]') || 
-                target.closest('.group\\/slider')
-              ) {
-                return;
-              }
-              if (e.button === 0) {
-                togglePlayPause();
-              }
-            }}
-            onClick={(e) => {
-              const target = e.target as HTMLElement;
-              if (
-                target.closest('button') || 
-                target.closest('input') || 
-                target.closest('[role="slider"]') || 
-                target.closest('.group\\/slider')
-              ) {
-                return;
-              }
-              togglePlayPause();
-            }}
-          >
-            {/* Incoming artwork: fades in while sharpening from blur — no scale change */}
-            <motion.img
-              key={songData.artworkUrl}
-              src={songData.artworkUrl}
-              alt="Album artwork"
-              onError={(e) => {
-                e.currentTarget.onerror = null;
-                const src = e.currentTarget.src;
-                if (src.includes('maxresdefault.jpg')) {
-                  e.currentTarget.src = src.replace('maxresdefault.jpg', 'mqdefault.jpg');
-                } else if (songData.videoId) {
-                  e.currentTarget.src = `https://img.youtube.com/vi/${songData.videoId}/mqdefault.jpg`;
-                }
-              }}
-              className={`w-full h-full object-cover z-[1] ${songData.videoId ? 'scale-[1.35]' : ''}`}
-              initial={{ opacity: 0, filter: 'blur(16px)' }}
-              animate={{
-                opacity: isLoaded ? (isPlaying ? 1 : 0.8) : 0,
-                filter: isLoaded ? 'blur(0px)' : 'blur(16px)',
-              }}
-              transition={{
-                opacity: { duration: 0.85, ease: 'easeOut' },
-                filter: { duration: 0.95, ease: 'easeOut' },
-              }}
-            />
-
-
-
-            <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-white/5 pointer-events-none" />
-
-            <PlayerControls
-              songData={songData}
-              currentTime={currentTime}
-              duration={duration}
-              isPlaying={isPlaying}
-              waveformData={waveformData}
-              isArtworkHovered={isArtworkHovered}
-              tourType={tourType}
-              currentStep={currentStep}
-              handleSliderChange={handleSliderChange}
-              handlePreviousSong={handlePreviousSong}
-              handleNextSong={handleNextSong}
-              togglePlayPause={togglePlayPause}
-              formatTime={formatTime}
-              favorites={favorites}
-              onToggleFavorite={onToggleFavorite}
-              onAddToPlaylist={handleAddToPlaylist}
-              onViewArtist={onViewArtist}
-            />
-          </div>
-              </div>
-
-              {!isLargeScreen && (
-                <LyricsPanel
-                  showLyrics={showLyrics && appState === 'ready'}
-                  lyrics={lyrics}
-                  isLoadingLyrics={isLoadingLyrics}
-                  isLyricsSynced={isLyricsSynced}
-                  currentLyricIndex={currentLyricIndex}
-                  seekToAbsoluteTime={seekToAbsoluteTime}
-                  setShowLyrics={setShowLyrics}
-                  theme={theme}
-                  onOpenUploadModal={() => setIsLyricsModalOpen(true)}
-                  hasCustomLyrics={loadCustomLyrics(songData.videoId, songData.title, songData.artist) !== null}
-                  enableCustomLyrics={enableCustomLyrics}
-                />
-              )}
-            </motion.div>
-          </motion.div>
-            </div>
-          </motion.div>
-
-          {/* Side-by-Side Lyrics Panel */}
+          {/* Side-by-Side Lyrics Panel for desktop */}
           <AnimatePresence>
             {showLyrics && isLargeScreen && appState === 'ready' && (
               <motion.div
@@ -914,83 +611,22 @@ export function MusicPlayer({
           </AnimatePresence>
         </div>
 
-        {/* Bottom controls */}
-        <motion.div
-          initial={{ opacity: 0, x: 0 }}
-          animate={{ 
-            opacity: isUserIdle && zenMode ? 0 : 1,
-            x: showLyrics && isLargeScreen ? -284 : 0
-          }}
-          transition={{ 
-            opacity: { duration: 0.7 },
-            x: { type: 'spring', stiffness: 180, damping: 25 }
-          }}
-          className={`mt-8 flex items-center justify-center gap-3 ${isUserIdle && zenMode ? 'pointer-events-none' : ''}`}
-        >
-          <div className="flex items-center rounded-full bg-black/35 border border-white/12 overflow-hidden backdrop-blur-md shadow-[0_8px_32px_rgba(0,0,0,0.3)] transition-all">
-            <button
-              id="add-music-button"
-              onClick={() => {
-                if (showQueue && focusSearchInQueue) {
-                  setShowQueue(false);
-                } else {
-                  setFocusSearchInQueue(true);
-                  setShowQueue(true);
-                }
-              }}
-              className={`flex items-center gap-2 px-5 py-2.5 transition-all cursor-pointer ${
-                showQueue && focusSearchInQueue
-                  ? `bg-white/[0.08] ${theme.textLight}`
-                  : 'text-white/60 hover:text-white/90 hover:bg-white/[0.03]'
-              }`}
-            >
-              <Plus className={`w-4 h-4 transition-colors ${showQueue && focusSearchInQueue ? theme.text : 'text-white/40'}`} />
-              <span className="text-sm font-medium tracking-wide">Add Music</span>
-            </button>
-
-            <div className="h-5 w-[1px] bg-white/10 shrink-0" />
-
-            <button
-              id="queue-button"
-              onClick={() => {
-                if (showQueue && !focusSearchInQueue) {
-                  setShowQueue(false);
-                } else {
-                  setFocusSearchInQueue(false);
-                  setShowQueue(true);
-                }
-              }}
-              className={`flex items-center gap-2 px-5 py-2.5 transition-all cursor-pointer relative ${
-                showQueue && !focusSearchInQueue
-                  ? `bg-white/[0.08] ${theme.textLight}`
-                  : 'text-white/60 hover:text-white/90 hover:bg-white/[0.03]'
-              }`}
-            >
-              <List className={`w-4 h-4 transition-colors ${showQueue && !focusSearchInQueue ? theme.text : 'text-white/40'}`} />
-              <span className="text-sm font-medium tracking-wide">Queue</span>
-              {queue.length > 0 && (
-                <span className={`ml-1 px-1.5 py-0.5 rounded text-[10px] font-bold transition-all leading-none ${
-                  showQueue && !focusSearchInQueue
-                    ? `${accentBgs[accentColor]} text-white`
-                    : 'bg-white/10 text-white/60'
-                }`}>
-                  {queue.length}
-                </span>
-              )}
-            </button>
-          </div>
-
-          {showSettingsButton && (
-            <button
-              id="settings-button"
-              onClick={() => setShowSettings(!showSettings)}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-black/30 hover:bg-black/45 border border-white/12 hover:border-white/25 transition-all group"
-            >
-              <Settings className="w-4 h-4 text-white/60 group-hover:text-white/85 transition-colors" />
-              <span className="text-sm text-white/85 group-hover:text-white transition-colors">Settings</span>
-            </button>
-          )}
-        </motion.div>
+        {/* Extracted Bottom Bar Controls */}
+        <BottomBarControls
+          showQueue={showQueue}
+          setShowQueue={setShowQueue}
+          focusSearchInQueue={focusSearchInQueue}
+          setFocusSearchInQueue={setFocusSearchInQueue}
+          accentColor={accentColor}
+          queue={queue}
+          showSettingsButton={showSettingsButton}
+          showSettings={showSettings}
+          setShowSettings={setShowSettings}
+          isUserIdle={isUserIdle}
+          zenMode={zenMode}
+          showLyrics={showLyrics}
+          isLargeScreen={isLargeScreen}
+        />
       </motion.div>
 
       <CustomLyricsModal

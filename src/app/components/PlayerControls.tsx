@@ -66,7 +66,7 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
 
   return (
     <div 
-      className={`absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-black/20 transition-all duration-300 ${
+      className={`absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-black/20 transition-all duration-300 z-20 ${
         (isArtworkHovered || !isPlaying || (tourType !== null && currentStep === 1) || showPlaylistMenu) ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
       }`}
     >

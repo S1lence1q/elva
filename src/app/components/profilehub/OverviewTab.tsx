@@ -1,0 +1,257 @@
+import React, { useState, useEffect } from 'react';
+import { motion } from 'motion/react';
+import { History, Play, Music, ListMusic, Sparkles } from 'lucide-react';
+import { SearchResult, VerifiedArtist } from '../../types';
+import { AccentColor, ACCENT_THEMES } from '../themeUtils';
+import { getHandPickedImage } from '../../utils/apiUtils';
+
+interface Playlist {
+  id: string;
+  name: string;
+  color: string;
+  tracks: SearchResult[];
+}
+
+interface OverviewTabProps {
+  recentlyPlayed: SearchResult[];
+  onSelectSong: (song: SearchResult) => void;
+  artistBubbles: { name: string; channelId?: string; thumbnail: string }[];
+  onSelectArtist?: (artist: VerifiedArtist | null) => void;
+  playlists: Playlist[];
+  setActiveTab: (tab: 'overview' | 'favorites' | 'playlists') => void;
+  setSelectedPlaylistId: (id: string | null) => void;
+  handlePlayPlaylist: (playlist: Playlist) => void;
+  accentColor: AccentColor;
+}
+
+const ArtistAvatar = ({ name, fallbackThumbnail }: { name: string; fallbackThumbnail: string }) => {
+  const handPicked = getHandPickedImage(name);
+  const [imgUrl, setImgUrl] = useState(handPicked || fallbackThumbnail);
+
+  useEffect(() => {
+    if (handPicked) {
+      setImgUrl(handPicked);
+      return;
+    }
+    let active = true;
+    const fetchRealImg = async () => {
+      try {
+        const cached = localStorage.getItem(`elva_artist_img_${name.toLowerCase()}`);
+        if (cached) {
+          setImgUrl(cached);
+          return;
+        }
+        
+        const res = await fetch(`https://corsproxy.io/?https://api.deezer.com/search/artist?q=${encodeURIComponent(name)}`);
+        if (res.ok) {
+          const data = await res.json();
+          const artist = (data.data || []).find((a: any) => a.name.toLowerCase() === name.toLowerCase()) || data.data?.[0];
+          if (artist && active && (artist.picture_medium || artist.picture_big)) {
+            const url = artist.picture_medium || artist.picture_big;
+            setImgUrl(url);
+            localStorage.setItem(`elva_artist_img_${name.toLowerCase()}`, url);
+          }
+        }
+      } catch (e) {
+        // Safe silent fallback
+      }
+    };
+    
+    const handleLoaded = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail && customEvent.detail.name.toLowerCase() === name.toLowerCase()) {
+        setImgUrl(customEvent.detail.url);
+      }
+    };
+    
+    fetchRealImg();
+    window.addEventListener('elva-artist-image-loaded', handleLoaded);
+    return () => {
+      active = false;
+      window.removeEventListener('elva-artist-image-loaded', handleLoaded);
+    };
+  }, [name, fallbackThumbnail]);
+
+  return <img src={imgUrl} alt={name} className="w-full h-full object-cover rounded-full scale-105 group-hover:scale-110 transition-transform duration-500" />;
+};
+
+export function OverviewTab({
+  recentlyPlayed,
+  onSelectSong,
+  artistBubbles,
+  onSelectArtist,
+  playlists,
+  setActiveTab,
+  setSelectedPlaylistId,
+  handlePlayPlaylist,
+  accentColor
+}: OverviewTabProps) {
+  const theme = ACCENT_THEMES[accentColor];
+
+  return (
+    <motion.div
+      key="overview"
+      initial={{ opacity: 0, scale: 0.98 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.98 }}
+      transition={{ duration: 0.3 }}
+      className="flex flex-col gap-8"
+    >
+      {/* B. HORIZONTAL "VINYL FLIP" CAROUSEL (Recently Played) */}
+      <div className="rounded-3xl border border-white/[0.05] bg-white/[0.01] p-6 flex flex-col gap-5 shadow-xl w-full">
+        <div className="flex items-center gap-2 select-none">
+          <History className="w-4 h-4 text-white/30" />
+          <h3 className="text-[10px] uppercase tracking-[0.25em] font-bold text-white/40">Recently Played</h3>
+        </div>
+
+        {recentlyPlayed.length > 0 ? (
+          <div className="flex overflow-x-auto gap-6 pb-4 scrollbar-none snap-x snap-mandatory">
+            {recentlyPlayed.map((song) => (
+              <div 
+                key={song.id} 
+                onClick={() => onSelectSong(song)}
+                className="group flex flex-col gap-3 w-36 shrink-0 snap-start select-none cursor-pointer"
+                title={`Play ${song.title}`}
+              >
+                <div className="relative w-36 h-36 rounded-2xl overflow-hidden shadow-lg border border-white/5 bg-white/5">
+                  <img 
+                    src={song.thumbnail} 
+                    alt={song.title} 
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    onError={(e) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = `https://img.youtube.com/vi/${song.videoId}/mqdefault.jpg`;
+                    }}
+                  />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center backdrop-blur-[1px]">
+                    <div className="p-3.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 hover:scale-110 transition-transform shadow-lg">
+                      <Play className="w-5 h-5 text-white fill-white ml-0.5" />
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="text-left w-full">
+                  <h4 className="text-sm font-semibold text-white/90 truncate leading-tight tracking-wide" title={song.title}>
+                    {song.title}
+                  </h4>
+                  <p className="text-[11px] text-white/45 truncate mt-1 font-medium leading-none">
+                    {song.artist}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-white/[0.04] bg-white/[0.005] p-8 text-center flex flex-col items-center justify-center select-none">
+            <Music className="w-6 h-6 text-white/15 mb-2" />
+            <p className="text-white/40 text-[10px] font-semibold">No recent songs</p>
+            <p className="text-white/20 text-[9px] mt-1 font-light max-w-[160px]">
+              Start playing some tracks to fill your recents history.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* C. Recently Played Artists Carousel */}
+      <div className="rounded-3xl border border-white/[0.05] bg-white/[0.01] p-5 flex flex-col gap-4 shadow-xl w-full">
+        <div className="flex items-center justify-between select-none">
+          <h3 className="text-[10px] uppercase tracking-[0.25em] font-bold text-white/40">Recently Played Artists</h3>
+        </div>
+
+        {artistBubbles.length > 0 ? (
+          <div className="flex flex-wrap items-center gap-5 justify-start">
+            {artistBubbles.map((artist, idx) => (
+              <button
+                key={idx}
+                onClick={() => {
+                  if (onSelectArtist) {
+                    onSelectArtist({
+                      name: artist.name,
+                      thumbnail: artist.thumbnail || '',
+                      channelId: artist.channelId,
+                      isTopic: true
+                    });
+                  }
+                }}
+                className="flex flex-col items-center gap-2 group cursor-pointer focus:outline-none"
+                title={`Explore ${artist.name}`}
+              >
+                <div className="relative w-16 h-16 rounded-full overflow-hidden p-0.5 border border-white/10 hover:border-white/30 group-hover:scale-105 transition-all duration-300 shadow-md">
+                  <ArtistAvatar name={artist.name} fallbackThumbnail={artist.thumbnail || ''} />
+                </div>
+
+                <span className="text-[10px] text-white/50 group-hover:text-white transition-colors font-semibold text-center truncate max-w-[80px] w-full">
+                  {artist.name}
+                </span>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-white/[0.04] bg-white/[0.005] p-6 text-center flex flex-col items-center justify-center select-none">
+            <p className="text-white/40 text-xs font-semibold">No artists resolved yet</p>
+            <p className="text-white/20 text-[10px] mt-1 font-light max-w-[220px]">
+              Your recently played artists will pop up here.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* D. Bottom Showcase: Playlists Horizontal Strip */}
+      <div className="rounded-3xl border border-white/[0.05] bg-white/[0.01] p-5 flex flex-col gap-4 shadow-xl w-full">
+        <div className="flex items-center justify-between select-none">
+          <h3 className="text-[10px] uppercase tracking-[0.25em] font-bold text-white/40">Custom Playlists</h3>
+          <button
+            onClick={() => setActiveTab('playlists')}
+            className="text-[10px] uppercase tracking-wider text-white/40 hover:text-white font-bold transition-all"
+          >
+            View All
+          </button>
+        </div>
+
+        {playlists.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            {playlists.slice(0, 3).map((playlist) => (
+              <div
+                key={playlist.id}
+                onClick={() => {
+                  setActiveTab('playlists');
+                  setSelectedPlaylistId(playlist.id);
+                }}
+                className="group relative rounded-2xl border border-white/[0.05] bg-[#0f0f12]/30 hover:bg-[#0f0f12]/60 p-4.5 flex flex-col justify-between h-[120px] shadow-lg overflow-hidden transition-all duration-300 cursor-pointer active:scale-[0.98]"
+              >
+                <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r ${playlist.color}`} />
+
+                <div className="space-y-0.5 relative z-10 text-left">
+                  <h4 className="text-sm font-semibold text-white/95 truncate leading-tight">{playlist.name}</h4>
+                  <p className="text-[9px] font-light text-white/40 tracking-wider uppercase">
+                    {playlist.tracks.length} songs
+                  </p>
+                </div>
+
+                <div className="flex justify-end items-center relative z-10">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handlePlayPlaylist(playlist);
+                    }}
+                    className="p-2 rounded-full bg-white/10 hover:bg-white text-white hover:text-black border border-white/5 hover:scale-105 transition-all cursor-pointer"
+                    title="Play playlist"
+                  >
+                    <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-white/[0.04] bg-white/[0.005] p-6 text-center flex flex-col items-center justify-center select-none">
+            <p className="text-white/40 text-xs font-semibold">No playlists created yet</p>
+            <p className="text-white/20 text-[10px] mt-1 font-light max-w-[220px]">
+              Go to the Playlists tab to create and manage collections.
+            </p>
+          </div>
+        )}
+      </div>
+    </motion.div>
+  );
+}

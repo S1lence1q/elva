@@ -4,6 +4,7 @@ import type { Playlist, SearchResult } from './types';
 import { ArtistAvatar } from './ArtistAvatar';
 import { QueueSongRow } from './QueueSongRow';
 import { CAROUSEL_END_SPACER_CLASS, CAROUSEL_MASK_STYLE } from './carouselStyles';
+import { panelEnterFromSide } from '../../utils/motionPresets';
 
 interface QueueLibraryViewProps {
   localPlaylists: Playlist[];
@@ -27,9 +28,7 @@ export function QueueLibraryView({
   return (
     <motion.div
       key="library-hub"
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: -20 }}
+      {...panelEnterFromSide}
       className="space-y-8 text-left select-none p-2"
     >
       <div className="space-y-4">

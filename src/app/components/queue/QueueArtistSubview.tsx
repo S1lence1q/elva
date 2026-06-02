@@ -3,6 +3,8 @@ import type { AccentColor } from '../themeUtils';
 import { ACCENT_THEMES } from '../themeUtils';
 import type { SearchResult, VerifiedArtist } from './types';
 import { QueueSongRow } from './QueueSongRow';
+import { panelEnterFromSide } from '../../utils/motionPresets';
+import { ARTIST_PROFILE_BADGE } from '../../constants/artistUi';
 
 interface QueueArtistSubviewProps {
   artist: VerifiedArtist;
@@ -24,9 +26,7 @@ export function QueueArtistSubview({
   return (
     <motion.div
       key="artist-profile"
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: -20 }}
+      {...panelEnterFromSide}
       className="space-y-6 text-left"
     >
       <div className="relative w-full rounded-3xl overflow-hidden border border-white/[0.08] bg-gradient-to-br from-[#121214]/85 via-[#0d0d0f]/50 to-black/30 backdrop-blur-2xl shadow-xl py-6 px-6 flex items-center gap-5 shrink-0">
@@ -41,9 +41,9 @@ export function QueueArtistSubview({
         </div>
         <div className="flex flex-col text-left relative z-10 min-w-0 flex-1">
           <span
-            className={`inline-flex items-center gap-1 text-[9px] font-bold ${theme.text} bg-white/5 border border-white/10 px-2 py-0.5 rounded uppercase tracking-wider`}
+            className={`inline-flex w-fit self-start items-center gap-1 text-[9px] font-bold ${theme.text} bg-white/5 border border-white/10 px-2 py-0.5 rounded uppercase tracking-wider shrink-0`}
           >
-            ✦ Verified Artist
+            ✦ {ARTIST_PROFILE_BADGE}
           </span>
           <h2
             className="text-3xl font-normal text-white mt-2 tracking-wide leading-none truncate"
@@ -51,9 +51,11 @@ export function QueueArtistSubview({
           >
             {artist.name}
           </h2>
-          <p className="text-[9px] text-white/40 font-bold tracking-[0.15em] uppercase mt-2.5">
-            Official Releases
-          </p>
+          {tracks.length > 0 && (
+            <p className="text-[9px] text-white/40 font-bold tracking-[0.15em] uppercase mt-2.5">
+              {tracks.length} tracks
+            </p>
+          )}
         </div>
       </div>
 
