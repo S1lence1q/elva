@@ -319,8 +319,9 @@ export function usePlaybackCore({
           } catch {}
         } else {
           try {
-            ytPlayer.cueVideoById(song.videoId);
+            ytPlayer.loadVideoById(song.videoId);
             ytPlayer.setVolume(0);
+            ytPlayer.playVideo();
             isTransitioningRef.current = false;
           } catch {}
         }
@@ -362,6 +363,7 @@ export function usePlaybackCore({
           try {
             audioEl.load();
             audioEl.volume = 0;
+            void audioEl.play().catch(() => {});
             isTransitioningRef.current = false;
           } catch {}
         }
@@ -593,30 +595,7 @@ export function usePlaybackCore({
     });
   }, []);
 
-  const startEnginePlaybackAtZero = useCallback((engineId: 'A' | 'B', song: PlaybackSongData) => {
-    const isEngineA = engineId === 'A';
-    const isYT = !!song.videoId;
 
-    if (isYT) {
-      const yt = isEngineA ? ytPlayerRefA.current : ytPlayerRefB.current;
-      const fader = isEngineA ? faderRefA : faderRefB;
-      if (!yt) return;
-      fader.current = 0;
-      try {
-        yt.setVolume(0);
-        yt.playVideo();
-      } catch {}
-      return;
-    }
-
-    if (!song.audioUrl) return;
-    const audio = isEngineA ? audioRefA.current : audioRefB.current;
-    const fader = isEngineA ? faderRefA : faderRefB;
-    if (!audio) return;
-    fader.current = 0;
-    audio.volume = 0;
-    void audio.play().catch(() => {});
-  }, [faderRefA, faderRefB]);
 
   // 6. Natural Song End Crossfading Check
   const checkCrossfade = useCallback(async (current: number, dur: number) => {
@@ -707,7 +686,7 @@ export function usePlaybackCore({
         }
       }
 
-      startEnginePlaybackAtZero(nextEngine, resolvedSong);
+
 
       // Wait until the next engine starts making sound/playing before blending
       await playPromise;
@@ -750,7 +729,6 @@ export function usePlaybackCore({
     onSelectFromQueue,
     fadeVolumeA,
     fadeVolumeB,
-    startEnginePlaybackAtZero,
   ]);
 
   // ==========================================
