@@ -16,33 +16,34 @@ Dette dokument er den urokkelige kilde til sandhed (Source of Truth) for Elvas k
 
 **Krav:** Filer SKAL holdes små, fokuserede og opdelte!
 
-**Forskning & begrundelse (Hvorfor dette gælder i Elva):**
+**Forskning, begrundelse & optimal størrelsesfordeling (Hvorfor dette gælder i Elva):**
 
-Der er tre separate grunde til at holde filer under en bestemt størrelse, og de peger alle i samme retning:
+Der er tre helt afgørende grunde til at holde filer under en bestemt størrelse, og de peger alle i samme retning:
 
 **1. For mennesker (vedligeholdelse & læsbarhed):**
-Industristandarder fra React/TypeScript-fællesskabet 2024–2025 er klare:
-- **Under 150 linjer** = Ideelt. Let at forstå, teste og redigere i ét gennemlæsning.
-- **200–300 linjer** = Acceptabelt. Stærkt signal om at overveje opsplitning.
-- **Over 500 linjer** = "Bloated mega-component". For mange ansvarsområder. Svær at teste og ændre uden sideeffekter.
-- En stor fil er næsten altid et tegn på, at den gør *for mange ting* (bryder Single Responsibility Principle).
+Industristandarder fra React/TypeScript-fællesskabet 2024–2026 er klare:
+- **100–150 linjer** = Den absolutte guldstandard / *sweet spot*. Ekstremt let at overskue, teste og vedligeholde.
+- **150–200 linjer** = Acceptabelt for større præsentationskomponenter.
+- **Over 250 linjer** = Hård grænse for nye filer. Bør straks splittes opsplitning! En stor fil bryder Single Responsibility-princippet og øger risikoen for uventede regressioner markant.
 
-**2. For AI-agenter (vibe coding & AI-assisteret kodning):**
-LLM-baserede agenter (som denne!) har et begrænset kontekstvindue. Jo større en fil er, jo mere af agentens budget bruges blot på at læse kontekst — og jo mere sandsynligt er det, at agenten laver fejl, misfortolker sammenhænge eller "glemmer" hvad der stod øverst i filen. Forskning viser:
-- Agenter præsterer markant bedre når filer er **single-responsibility moduler med klare interfaces**.
-- En agent kan læse og rette en 150-linjers fil med høj præcision. En 1.000-linjers fil tvinger agenten til at "gætte" sammenhæng den ikke kan se.
-- **Agent-venlig arkitektur:** Filer bør ideelt set kunne forstås ud fra deres interface alene, uden at læse hele implementationen.
+**2. For AI-agenter (Vibe Coding & Agent-effektivitet):**
+- LLM-baserede agenter (som denne!) præsterer markant bedre, når filer er holdt kompakte og fokuserede.
+- Store filer bruger store mængder af agentens kontekst-budget på overflødig kode, hvilket fører til unødig latency og markant øgede API-omkostninger under vibe coding.
+- Vigtigst af alt: Agenter kan rette en 120-linjers fil med næsten 100% præcision, mens gigantiske filer (som de gamle 1000+ linjers `App.tsx` og `MusicPlayer.tsx`) tvinger agenter til at "gætte" sammenhænge, hvilket skaber hallucinationer og sideeffekter.
 
-**3. For TypeScript-kompilering & IDE-respons:**
-Ekstremt store filer kan bremse TypeScripts language server, gøre autofuldførelse langsommere og øge build-tider. Vite er hurtig til bundling, men store filer med mange implicitte typer øger `tsc`-analysetiden.
+**3. For Web App Runtime & Bundler Performance:**
+- **Hurtigere HMR (Hot Module Replacement):** Vite genindlæser og patcher små moduler på under 10ms direkte i din browser, mens tunge filer bremser udviklingstempoet.
+- **Bedre Code Splitting & Tree-Shaking:** Små, modulære filer lader Vite og Rollup pakke din applikation i mikro-chunks, så den indledende indlæsningstid minimeres og ubenyttet kode udelukkes.
+- **Hurtigere React Reconciliation:** Reacts Virtual DOM genberegner og re-renderer isolerede og afkoblede komponenter langt hurtigere end massive mega-komponenter.
 
-**Aktuelle problemer i Elva (til løsning):**
-- `App.tsx` (~1.120 linjer) — for stor. Bør splittes i en Settings Context + dedikerede sub-hooks.
-- `MusicPlayer.tsx` (~1.021 linjer) — for stor. UI-dele bør udtrækkes.
-- `Queue.tsx` (~68 KB) — for stor. Bør splittes i Queue, QueueSearch og QueueFavorites.
-- `ProfileHubView.tsx` (~61 KB) — for stor. Tab-indholdet bør være selvstændige komponenter.
+**Handling:** Når du tilføjer ny funktionalitet, må du **aldrig** bare smække det ind i en eksisterende fil. Opret et nyt modul med klare props/interfaces. Følg de specifikke grænser:
+- Komponenter: **100–150 linjer**.
+- Hooks: **80–120 linjer**.
+- Utilities: **50–100 linjer**.
 
-**Handling:** Hvis du tilføjer en ny komponent, utility-funktion eller logik-blok, må du **aldrig** bare smække den ind i `App.tsx` eller `MusicPlayer.tsx`. Opret en ny, selvstændig og isoleret fil i `src/app/components/` eller `src/app/utils/` og importér den. Brug React Context til delt state (settings, playback) frem for prop-drilling igennem 4 lag.
+**Aktuelle fremskridt & målsætninger i Elva:**
+- Queue-panelet er allerede blevet succesfuldt splittet op i uafhængige underkomponenter under `src/app/components/queue/` for at overholde Rule 2.
+- MusicPlayer UI og App.tsx er fortsat mål for fremtidig opdeling. Appen har nu et robust React Error Boundary-sikkerhedsnet, så eventuelle isolerede nedbrud i disse komponenter fanges på modul-niveau uden at ramme hele websiden.
 
 ### Rule 3: 💎 Quality-First Designfilosofi ("Gør det ordentligt!")
 * **Krav:** **Vi laver tingene ordentligt, før vi tilføjer noget nyt.** Vi tilføjer aldrig funktioner, medmindre de giver 100% mening, tilføjer reel værdi og passer perfekt ind i den taktile, glassmorphic Scandinavian retro-papir æstetik.
@@ -103,12 +104,14 @@ Ekstremt store filer kan bremse TypeScripts language server, gøre autofuldføre
   * På store skærme (`isLargeScreen`) klappes eller vendes albumcoveret ikke. I stedet glider en boxless, gennemsigtig tekstbjælke ind fra højre, mens albumcoveret glider til venstre (`x: -284px` via GPU). 
   * **Interactive Lyric Scrubbing (Aktiv):** Sangteksterne er fuldt klikbare! Når en bruger klikker på en specifik tekstlinje i `LyricsPanel.tsx`, kaldes `seekToAbsoluteTime` som spoler sangens playhead direkte til det pågældende sekund.
 
-### 🎚️ 7. A/B Dual-Engine Crossfade & Equal-Power Volume Fader
+### 🎚️ 7. A/B Dual-Engine Crossfade, Buffering Sync & Double-Trigger Guards
 * **Filer:** [usePlaybackCore.ts](file:///Users/applemacbook/AntiGravity%20Shit/Elva.nosync/Elva/src/app/hooks/usePlaybackCore.ts), [useFadeVolume.ts](file:///Users/applemacbook/AntiGravity%20Shit/Elva.nosync/Elva/src/app/hooks/useFadeVolume.ts), [MusicPlayer.tsx](file:///Users/applemacbook/AntiGravity%20Shit/Elva.nosync/Elva/src/app/components/MusicPlayer.tsx)
 * **Hvordan det virker:**
   - **A/B Dual-Engine Orchestrator:** Afspilningen administreres af to uafhængige afspiller-sæt (Engine A og Engine B) for både lokale filer (`audioRefA`/`B`) og YouTube streams (`ytPlayerRefA`/`B`). Dette muliggør parallel indlæsning og afspilning.
   - **Constant-Power Equal-Power Fade:** Lydstyrken reguleres af en trigonometrisk (sinus/cosinus) konstant-energi-kurve ($\text{In} = \sin(\text{progress} \cdot \pi/2)$ og $\text{Out} = 1 - \cos(\text{progress} \cdot \pi/2)$). Dette forhindrer det perceivede "volumen-dyk" ved midpoint (50%) under overgange.
-  - **Customizable Transition Timing:** Triggermærket og fade-varigheden indlæses dynamisk fra `localStorage` under nøglen `elva_crossfade_duration`. Brugeren kan indstille denne flydende fra **0s til 12s** via en premium-slider under Control Center (**Audio Preferences**). Hvis indstillet to 0s, slås crossfaden helt fra og sangene skifter øjeblikkeligt ved track-end.
+  - **Customizable Transition Timing:** Triggermærket og fade-varigheden indlæses dynamisk fra `localStorage` under nøglen `elva_crossfade_duration`. Brugeren kan indstille denne flydende fra **0s til 12s** via en premium-slider under Control Center (**Audio Preferences**). Hvis indstillet til 0s, slås crossfaden helt fra og sangene skifter øjeblikkeligt ved track-end.
+  - **Buffering Synchronization (`playPromise`):** Før crossfade-lydovergangen reelt begynder, afventer motoren et `playPromise`, der resolves når den inaktive afspiller skifter til `PLAYING`/`playing` tilstand (enten via HTML5 audio begivenheder eller YouTube player state callback-opsnapning). Dette eliminerer helt tavse huller under buffering, uanset internethastighed.
+  - **Double-Trigger Prevention (`isCrossfadingRef.current`):** Under en aktiv crossfade er track-ended events på den afspillende engine blokeret af et `isCrossfadingRef`-guard, så applikationen ikke forsøger at køre en almindelig skip (`handleNextSong()`) midt i fadet.
   - **Fader Safeguard:** Hvis en ny fade starter, afvikles den foregående faders Promise øjeblikkeligt via `fadeResolveRef` for at forhindre hængende asynkrone tråde.
   - **Stale DOM Recovery:** Detekterer proaktivt hvis en afspillers DOM iframe er blevet udskiftet eller fjernet af React under rendering, hvorefter den gamle instans destrueres og en ny opbygges flydende uden at afbryde appens flow.
   - **Synkroniseret WebGL Farve-Crossfade (Visuel Overgang):** For at matche lyd-crossfadet visuelt, sender lydmotoren et `isCrossfade: true`-flag til `App.tsx` ved overgangens start. Appen indlæser øjeblikkeligt crossfade-varigheden (f.eks. 8s) og sender den til `<FluidBackground />` som `transitionDuration`. For at skabe en ekstremt luksuriøs og blød "liquid paint" sammensmeltning, skalerer baggrunden denne varighed med **1.6x** og anvender en blid eksponentiel dæmpning på `-2.0`:
