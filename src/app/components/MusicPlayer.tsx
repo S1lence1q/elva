@@ -186,7 +186,8 @@ export function MusicPlayer({
     formatTime,
     waveformData,
     setPlaying,
-    analyserRef
+    analyserRef,
+    isCrossfadingRef
   } = usePlaybackCore({
     songData,
     queue: queue.map((item) => ({ 
@@ -601,6 +602,7 @@ export function MusicPlayer({
                   videoId: item.videoId
                 }))}
                 currentSongId={songData.videoId}
+                songData={songData}
                 accentColor={accentColor}
                 onRemove={onRemoveFromQueue || (() => {})}
                 onClearQueue={onClearQueue}
@@ -645,7 +647,7 @@ export function MusicPlayer({
           if (activeEngine === 'A') setDuration(e.currentTarget.duration);
         }}
         onEnded={() => {
-          if (activeEngine === 'A') handleNextSong();
+          if (activeEngine === 'A' && !isCrossfadingRef.current) handleNextSong();
         }}
         className="hidden" 
       />
@@ -655,7 +657,7 @@ export function MusicPlayer({
           if (activeEngine === 'B') setDuration(e.currentTarget.duration);
         }}
         onEnded={() => {
-          if (activeEngine === 'B') handleNextSong();
+          if (activeEngine === 'B' && !isCrossfadingRef.current) handleNextSong();
         }}
         className="hidden" 
       />

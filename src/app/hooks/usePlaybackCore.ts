@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { useFadeVolume } from './useFadeVolume';
 import { initAudioAnalyzer, suspendGlobalAudioContext } from '../utils/audioAnalyzer';
 import type { PlaybackSongData, PlaybackQueueItem } from '../types/playback';
+import { getPlaybackSongKey } from '../utils/playbackSongKey';
 
 interface UsePlaybackCoreOptions {
   songData: PlaybackSongData;
@@ -50,6 +51,7 @@ export function usePlaybackCore({
   const lastToggleTimeRef = useRef(0);
   const isTransitioningRef = useRef(false);
   const isCrossfadingRef = useRef(false);
+  const ytPlayResolveRef = useRef<(() => void) | null>(null);
   const progressTimerRef = useRef<number | null>(null);
   const handleNextSongRef = useRef<() => Promise<void>>(async () => {});
   const currentTimeRef = useRef(currentTime);
@@ -162,7 +164,15 @@ export function usePlaybackCore({
 
   // YouTube State Change callback mapping
   const handleYTStateChange = useCallback((engineId: 'A' | 'B', e: any) => {
-    if (engineId !== activeEngineRef.current) return;
+    if (engineId !== activeEngineRef.current) {
+      if (isCrossfadingRef.current && e.data === window.YT.PlayerState.PLAYING) {
+        if (ytPlayResolveRef.current) {
+          ytPlayResolveRef.current();
+          ytPlayResolveRef.current = null;
+        }
+      }
+      return;
+    }
     
     const isEngineA = engineId === 'A';
     const activeFader = isEngineA ? faderRefA : faderRefB;
@@ -366,13 +376,6 @@ export function usePlaybackCore({
     const activeFadeVolume = activeEngineRef.current === 'A' ? fadeVolumeA : fadeVolumeB;
 
     if (queue.length === 0) {
-      if (isPlaying) {
-        void activeFadeVolume(0, 400);
-      }
-      setPlaying(false);
-      setCurrentTime(0);
-      stopAllPlayback();
-      
       toast.info('Queue is empty', {
         description: 'Add more songs to keep the music playing!',
       });
@@ -383,10 +386,10 @@ export function usePlaybackCore({
       void activeFadeVolume(0, 400);
     }
     
-    const currentIndex = queue.findIndex((item) => {
-      if (songData.videoId && item.videoId === songData.videoId) return true;
-      return item.title === songData.title && item.artist === songData.artist;
-    });
+    const activeKey = getPlaybackSongKey(songData);
+    const currentIndex = activeKey
+      ? queue.findIndex((item) => getPlaybackSongKey(item) === activeKey)
+      : -1;
     const nextIndex = currentIndex === -1 || currentIndex >= queue.length - 1 ? 0 : currentIndex + 1;
     const nextSong = queue[nextIndex];
     if (nextSong && onSelectFromQueue) {
@@ -428,11 +431,11 @@ export function usePlaybackCore({
       void activeFadeVolume(0, 400);
     }
     
-    const currentIndex = queue.findIndex((item) => {
-      if (songData.videoId && item.videoId === songData.videoId) return true;
-      return item.title === songData.title && item.artist === songData.artist;
-    });
-    
+    const activeKey = getPlaybackSongKey(songData);
+    const currentIndex = activeKey
+      ? queue.findIndex((item) => getPlaybackSongKey(item) === activeKey)
+      : -1;
+
     const prevIndex = currentIndex <= 0 ? queue.length - 1 : currentIndex - 1;
     const prevSong = queue[prevIndex];
     if (prevSong && onSelectFromQueue) {
@@ -590,68 +593,137 @@ export function usePlaybackCore({
     });
   }, []);
 
+  const startEnginePlaybackAtZero = useCallback((engineId: 'A' | 'B', song: PlaybackSongData) => {
+    const isEngineA = engineId === 'A';
+    const isYT = !!song.videoId;
+
+    if (isYT) {
+      const yt = isEngineA ? ytPlayerRefA.current : ytPlayerRefB.current;
+      const fader = isEngineA ? faderRefA : faderRefB;
+      if (!yt) return;
+      fader.current = 0;
+      try {
+        yt.setVolume(0);
+        yt.playVideo();
+      } catch {}
+      return;
+    }
+
+    if (!song.audioUrl) return;
+    const audio = isEngineA ? audioRefA.current : audioRefB.current;
+    const fader = isEngineA ? faderRefA : faderRefB;
+    if (!audio) return;
+    fader.current = 0;
+    audio.volume = 0;
+    void audio.play().catch(() => {});
+  }, [faderRefA, faderRefB]);
+
   // 6. Natural Song End Crossfading Check
   const checkCrossfade = useCallback(async (current: number, dur: number) => {
-    if (isCrossfadingRef.current || dur <= 0 || queue.length === 0) return;
-    
-    // Read crossfade duration dynamically from localStorage (default to 3 seconds)
+    if (isCrossfadingRef.current || dur <= 0 || queue.length < 2) return;
+
     const saved = localStorage.getItem('elva_crossfade_duration');
     const crossfadeWindow = saved !== null ? parseFloat(saved) : 3.0;
-    
-    if (crossfadeWindow <= 0) return; // Crossfade disabled
-    
-    if (current >= dur - crossfadeWindow) {
-      isCrossfadingRef.current = true;
-      
-      const currentIndex = queue.findIndex((item) => {
-        if (songData.videoId && item.videoId === songData.videoId) return true;
-        return item.title === songData.title && item.artist === songData.artist;
-      });
-      const nextIndex = currentIndex === -1 || currentIndex >= queue.length - 1 ? 0 : currentIndex + 1;
-      const nextSong = queue[nextIndex];
-      
-      if (!nextSong) {
-        isCrossfadingRef.current = false;
-        return;
-      }
-      
+
+    if (crossfadeWindow <= 0) return;
+
+    if (current < dur - crossfadeWindow) return;
+
+    const activeKey = getPlaybackSongKey(songData);
+    const currentIndex = activeKey
+      ? queue.findIndex((item) => getPlaybackSongKey(item) === activeKey)
+      : -1;
+    const nextIndex = currentIndex === -1 || currentIndex >= queue.length - 1 ? 0 : currentIndex + 1;
+    const nextSong = queue[nextIndex];
+
+    if (!nextSong) return;
+
+    const resolvedSong: PlaybackSongData = {
+      title: nextSong.title || 'Unknown Title',
+      artist: nextSong.artist || 'Unknown Artist',
+      artworkUrl: nextSong.thumbnail || songData.artworkUrl,
+      videoId: nextSong.videoId,
+      audioUrl:
+        nextSong.audioUrl ||
+        (nextSong.videoId ? `https://www.youtube.com/watch?v=${nextSong.videoId}` : ''),
+    };
+
+    const nextSongKey = getPlaybackSongKey(resolvedSong);
+    if (!nextSongKey || (activeKey && nextSongKey === activeKey)) return;
+
+    isCrossfadingRef.current = true;
+
+    try {
       const nextEngine = activeEngineRef.current === 'A' ? 'B' : 'A';
-      const resolvedSong: PlaybackSongData = {
-        title: nextSong.title,
-        artist: nextSong.artist,
-        artworkUrl: nextSong.thumbnail,
-        videoId: nextSong.videoId,
-        audioUrl: nextSong.audioUrl
-      };
-      
-      // 1. Update guard ref to prevent manual load loop
-      const nextSongKey = resolvedSong.videoId || resolvedSong.audioUrl;
-      if (nextSongKey) {
-        lastLoadedSongRef.current = nextSongKey;
-      }
-      
-      // 2. Propagate selected song state up to React parent immediately to begin visual/color transitions
+
+      // Prevent manual-load effect from hijacking mid-crossfade
+      lastLoadedSongRef.current = nextSongKey;
+
       if (onSelectFromQueue) {
         onSelectFromQueue(nextSong.id, true);
       }
-      
-      // 3. Play next song at volume 0 on inactive engine
-      await loadSongIntoEngine(nextEngine, resolvedSong, true);
-      
+
+      // Cue on inactive engine at vol 0 — crossfade curves control both engines
+      await loadSongIntoEngine(nextEngine, resolvedSong, false);
+
+      // Set up a promise to wait until the next engine actually starts playing (to avoid silence during buffering)
+      let playPromise = Promise.resolve();
+
+      if (resolvedSong.videoId) {
+        playPromise = new Promise<void>((resolve) => {
+          ytPlayResolveRef.current = resolve;
+          // Set a safety timeout of 4 seconds in case YouTube API fails or freezes
+          setTimeout(() => {
+            if (ytPlayResolveRef.current === resolve) {
+              ytPlayResolveRef.current = null;
+              resolve();
+            }
+          }, 4000);
+        });
+      } else {
+        // For local audio, wait for the 'playing' event on the HTML5 audio element
+        const audio = nextEngine === 'A' ? audioRefA.current : audioRefB.current;
+        if (audio) {
+          playPromise = new Promise<void>((resolve) => {
+            const onPlaying = () => {
+              audio.removeEventListener('playing', onPlaying);
+              audio.removeEventListener('error', onError);
+              resolve();
+            };
+            const onError = () => {
+              audio.removeEventListener('playing', onPlaying);
+              audio.removeEventListener('error', onError);
+              resolve();
+            };
+            audio.addEventListener('playing', onPlaying);
+            audio.addEventListener('error', onError);
+            // Safety timeout
+            setTimeout(() => {
+              audio.removeEventListener('playing', onPlaying);
+              audio.removeEventListener('error', onError);
+              resolve();
+            }, 3000);
+          });
+        }
+      }
+
+      startEnginePlaybackAtZero(nextEngine, resolvedSong);
+
+      // Wait until the next engine starts making sound/playing before blending
+      await playPromise;
+
       const activeFadeOut = activeEngineRef.current === 'A' ? fadeVolumeA : fadeVolumeB;
       const inactiveFadeIn = activeEngineRef.current === 'A' ? fadeVolumeB : fadeVolumeA;
-      
-      // 4. Perform crossfade simultaneously over the configured duration
-      const fadeDurationMs = Math.max(200, Math.round(crossfadeWindow * 1000 - 200));
+
+      const fadeDurationMs = Math.max(200, Math.round(crossfadeWindow * 1000));
       await Promise.all([
         activeFadeOut(0, fadeDurationMs),
-        inactiveFadeIn(1, fadeDurationMs)
+        inactiveFadeIn(1, fadeDurationMs),
       ]);
-      
-      // 5. Cleanup old active player
+
       const oldAudio = activeEngineRef.current === 'A' ? audioRefA.current : audioRefB.current;
       const oldYT = activeEngineRef.current === 'A' ? ytPlayerRefA.current : ytPlayerRefB.current;
-      
+
       if (oldAudio) {
         try {
           oldAudio.pause();
@@ -659,15 +731,27 @@ export function usePlaybackCore({
         } catch {}
       }
       if (oldYT?.pauseVideo) {
-        try { oldYT.pauseVideo(); } catch {}
+        try {
+          oldYT.pauseVideo();
+        } catch {}
       }
-      
-      // 6. Flip active engine at the end of the crossfade
+
       setActiveEngine(nextEngine);
-      
+      setCurrentTime(0);
+    } catch (err) {
+      console.error('Crossfade failed:', err);
+    } finally {
       isCrossfadingRef.current = false;
     }
-  }, [queue, songData, loadSongIntoEngine, onSelectFromQueue, fadeVolumeA, fadeVolumeB]);
+  }, [
+    queue,
+    songData,
+    loadSongIntoEngine,
+    onSelectFromQueue,
+    fadeVolumeA,
+    fadeVolumeB,
+    startEnginePlaybackAtZero,
+  ]);
 
   // ==========================================
   // 7. EFFECTS GROUP (Grouped at the bottom)
@@ -754,7 +838,9 @@ export function usePlaybackCore({
 
   // Manual Load Effect (Abort active crossfade and load new song)
   useEffect(() => {
-    const songKey = songData.videoId || songData.audioUrl;
+    if (isCrossfadingRef.current) return;
+
+    const songKey = getPlaybackSongKey(songData);
     if (songKey && songKey !== lastLoadedSongRef.current) {
       lastLoadedSongRef.current = songKey;
       isTransitioningRef.current = true;
@@ -939,6 +1025,7 @@ export function usePlaybackCore({
     formatTime,
     waveformData,
     setPlaying,
-    analyserRef
+    analyserRef,
+    isCrossfadingRef
   };
 }
