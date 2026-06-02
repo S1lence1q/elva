@@ -776,7 +776,10 @@ export function MusicPlayer({
               boxShadow: isPlaying 
                 ? '0 30px 60px rgba(0,0,0,0.75), 0 10px 30px var(--theme-primary-fade), 0 5px 15px var(--theme-secondary-fade)'
                 : '0 15px 35px rgba(0,0,0,0.5), 0 5px 15px var(--theme-primary-fade)',
-              isolation: 'isolate'
+              isolation: 'isolate',
+              backgroundImage: previousArtwork ? `url("${previousArtwork}")` : 'none',
+              backgroundSize: 'cover',
+              backgroundPosition: 'center'
             }}
             onPointerDown={(e) => {
               const target = e.target as HTMLElement;
@@ -831,25 +834,7 @@ export function MusicPlayer({
               }}
             />
 
-            {/* Outgoing artwork: sits on top and fades out while new one sharpens beneath */}
-            {showPreviousArtwork && previousArtwork && (
-              <motion.img
-                key={`prev-${previousArtwork}`}
-                src={previousArtwork}
-                alt="Previous artwork"
-                onError={(e) => {
-                  e.currentTarget.onerror = null;
-                  const src = e.currentTarget.src;
-                  if (src.includes('maxresdefault.jpg')) {
-                    e.currentTarget.src = src.replace('maxresdefault.jpg', 'mqdefault.jpg');
-                  }
-                }}
-                className={`absolute inset-0 w-full h-full object-cover z-[2] ${songData.videoId ? 'scale-[1.35]' : ''}`}
-                initial={{ opacity: 1, filter: 'blur(0px)' }}
-                animate={{ opacity: isLoaded ? 0 : 1, filter: isLoaded ? 'blur(10px)' : 'blur(0px)' }}
-                transition={{ duration: 0.85, ease: 'easeInOut' }}
-              />
-            )}
+
 
             <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-white/5 pointer-events-none" />
 
