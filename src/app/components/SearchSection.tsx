@@ -1,13 +1,22 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, ChevronRight, Plus, Music } from 'lucide-react';
+import { Search, ChevronRight, Music } from 'lucide-react';
 import { SearchResult, VerifiedArtist } from '../types';
 import { ARTIST_PROFILE_BADGE, ARTIST_SEARCH_CARD_HINT } from '../constants/artistUi';
 import { ThemeColors } from './themeUtils';
 import { shouldShowArtistCard } from '../utils/apiUtils';
 import { LandingRecents } from './LandingRecents';
 import { SongRowOptions } from './SongRowOptions';
-import { fadeIn, listItemEnter } from '../utils/motionPresets';
+import { SearchLoadingState } from './SearchLoadingState';
+import {
+  EASE_PREMIUM,
+  searchArtistCardItem,
+  searchPhaseMotion,
+  searchStaggerContainer,
+  searchStaggerItem,
+} from '../utils/motionPresets';
+
+type SearchPanelPhase = 'recents' | 'loading' | 'results';
 
 interface SearchSectionProps {
   searchQuery: string;
@@ -32,6 +41,92 @@ interface SearchSectionProps {
   hasSelectedArtist: boolean;
 }
 
+function SearchArtistCard({
+  artist,
+  isFocused,
+  onOpen,
+}: {
+  artist: VerifiedArtist;
+  isFocused: boolean;
+  onOpen: () => void;
+}) {
+  const hasMeta = !!(artist.disambiguation || artist.country || (artist.tags && artist.tags.length > 0));
+
+  return (
+    <motion.div
+      variants={searchArtistCardItem}
+      onClick={onOpen}
+      className={`relative overflow-hidden p-6 rounded-3xl bg-gradient-to-br from-[#121214]/65 via-[#0d0d0e]/40 to-black/20 border transition-colors duration-200 mb-4 flex items-center justify-between gap-6 group shadow-lg cursor-pointer backdrop-blur-xl w-full min-h-[108px] will-change-transform ${
+        isFocused
+          ? 'border-white/25 bg-white/[0.04]'
+          : 'border-white/[0.06] hover:border-white/15 hover:from-white/[0.03] hover:to-white/[0.01]'
+      }`}
+    >
+      <div className="flex items-center gap-5 relative z-10 min-w-0">
+        <div className="relative w-20 h-20 md:w-[88px] md:h-[88px] rounded-full overflow-hidden border-2 border-white/10 flex-shrink-0 shadow-xl">
+          <img src={artist.thumbnail} alt={artist.name} className="w-full h-full object-cover" />
+        </div>
+        <div className="flex flex-col text-left min-w-0">
+          <span className="text-[10px] md:text-xs font-bold text-zinc-300 tracking-wider bg-zinc-800/40 border border-zinc-700/40 px-2.5 py-0.5 rounded-md uppercase w-fit">
+            ✦ {ARTIST_PROFILE_BADGE}
+          </span>
+          <h4 className="text-base md:text-xl font-black text-white mt-1.5 group-hover:text-zinc-100 transition-colors tracking-tight leading-tight truncate">
+            {artist.name}
+          </h4>
+          <div className="min-h-[2.25rem] mt-1">
+            <AnimatePresence mode="wait" initial={false}>
+              {hasMeta ? (
+                <motion.div
+                  key="meta"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.28, ease: EASE_PREMIUM }}
+                >
+                  {artist.disambiguation && (
+                    <p className="text-[11px] md:text-xs text-white/60 font-semibold leading-snug">
+                      {artist.disambiguation} {artist.country && `(${artist.country})`}
+                    </p>
+                  )}
+                  {!artist.disambiguation && artist.country && (
+                    <p className="text-[11px] md:text-xs text-white/60 font-semibold">
+                      Artist from {artist.country}
+                    </p>
+                  )}
+                  {artist.tags && artist.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {artist.tags.slice(0, 3).map((tag) => (
+                        <span
+                          key={tag}
+                          className="text-[10px] font-bold text-white/40 bg-white/5 border border-white/10 px-2 py-0.5 rounded-md uppercase tracking-wider"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </motion.div>
+              ) : (
+                <motion.p
+                  key="hint"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.28, ease: EASE_PREMIUM }}
+                  className="text-[11px] md:text-xs text-white/50 font-semibold uppercase tracking-wide"
+                >
+                  {ARTIST_SEARCH_CARD_HINT}
+                </motion.p>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+      </div>
+      <ChevronRight className="w-6 h-6 text-white/20 group-hover:text-white/45 transition-colors duration-200 shrink-0 self-center relative z-10" />
+    </motion.div>
+  );
+}
+
 export const SearchSection: React.FC<SearchSectionProps> = ({
   searchQuery,
   setSearchQuery,
@@ -52,17 +147,15 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
   handleFileSelect,
   theme,
   isFirstVisit,
-  hasSelectedArtist
+  hasSelectedArtist,
 }) => {
   const [localQuery, setLocalQuery] = useState(searchQuery);
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Synchronize parent searchQuery to localQuery for outside changes (Bento shortcuts, reset, etc.)
   useEffect(() => {
     setLocalQuery(searchQuery);
   }, [searchQuery]);
 
-  // Clean up debounce timeout on unmount
   useEffect(() => {
     return () => {
       if (debounceTimeoutRef.current) {
@@ -79,35 +172,43 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
       setSearchQuery(val);
     }, 300);
   };
+
+  const panelPhase: SearchPanelPhase = useMemo(() => {
+    if (isSearching) return 'loading';
+    if (searchResults.length > 0 && lastSearchedQuery?.trim()) return 'results';
+    return 'recents';
+  }, [isSearching, searchResults.length, lastSearchedQuery]);
+
+  const showArtistCard =
+    panelPhase === 'results' &&
+    shouldShowArtistCard(lastSearchedQuery || '') &&
+    !!verifiedArtist;
+
   const searchInputVariants = {
     initial: { opacity: 0, y: 25 },
     animate: {
       opacity: 1,
       y: 0,
       transition: {
-        delay: hasSelectedArtist ? 0 : (isFirstVisit ? 2.5 : 0.4),
-        duration: hasSelectedArtist ? 0.2 : (isFirstVisit ? 1.4 : 0.8),
-        ease: [0.16, 1, 0.3, 1]
-      }
-    }
+        delay: hasSelectedArtist ? 0 : isFirstVisit ? 2.5 : 0.4,
+        duration: hasSelectedArtist ? 0.2 : isFirstVisit ? 1.4 : 0.8,
+        ease: [0.16, 1, 0.3, 1] as const,
+      },
+    },
   };
 
   return (
     <motion.div
-      key="search-input-section"
-      layout
       variants={searchInputVariants}
       initial="initial"
       animate="animate"
       className="w-full max-w-2xl px-6 space-y-4"
     >
-      {/* Main input - clean with subtle details */}
-      <motion.div layout className="relative group">
-        {/* Subtle corner accents */}
-        <div className="absolute -top-px -left-px w-8 h-8 border-t border-l border-white/0 group-focus-within:border-white/20 rounded-tl-3xl transition-all duration-500" />
-        <div className="absolute -top-px -right-px w-8 h-8 border-t border-r border-white/0 group-focus-within:border-white/20 rounded-tr-3xl transition-all duration-500" />
-        <div className="absolute -bottom-px -left-px w-8 h-8 border-b border-l border-white/0 group-focus-within:border-white/20 rounded-bl-3xl transition-all duration-500" />
-        <div className="absolute -bottom-px -right-px w-8 h-8 border-b border-r border-white/0 group-focus-within:border-white/20 rounded-br-3xl transition-all duration-500" />
+      <div className="relative group">
+        <div className="absolute -top-px -left-px w-8 h-8 border-t border-l border-white/0 group-focus-within:border-white/20 rounded-tl-3xl transition-colors duration-500" />
+        <div className="absolute -top-px -right-px w-8 h-8 border-t border-r border-white/0 group-focus-within:border-white/20 rounded-tr-3xl transition-colors duration-500" />
+        <div className="absolute -bottom-px -left-px w-8 h-8 border-b border-l border-white/0 group-focus-within:border-white/20 rounded-bl-3xl transition-colors duration-500" />
+        <div className="absolute -bottom-px -right-px w-8 h-8 border-b border-r border-white/0 group-focus-within:border-white/20 rounded-br-3xl transition-colors duration-500" />
 
         <div className="relative">
           <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-white/30 group-focus-within:text-white/50 transition-colors duration-300" />
@@ -126,7 +227,7 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
                   clearTimeout(debounceTimeoutRef.current);
                 }
                 setSearchQuery(localQuery);
-                
+
                 if (localQuery.match(/^https?:\/\//)) {
                   handleUrlSubmit(localQuery);
                 } else {
@@ -140,210 +241,142 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
             autoCorrect="off"
             autoCapitalize="off"
             spellCheck="false"
-            className="w-full pl-16 pr-8 py-6 rounded-3xl bg-white/[0.02] border border-white/[0.08] text-white/90 placeholder-white/25 text-lg font-light tracking-wide focus:outline-none focus:border-white/15 focus:bg-white/[0.04] transition-all duration-300 backdrop-blur-2xl"
+            className="w-full pl-16 pr-8 py-6 rounded-3xl bg-white/[0.02] border border-white/[0.08] text-white/90 placeholder-white/25 text-lg font-light tracking-wide focus:outline-none focus:border-white/15 focus:bg-white/[0.04] transition-colors duration-300 backdrop-blur-2xl"
           />
-
-          {/* Subtle inner shadow for depth */}
           <div className="absolute inset-0 rounded-3xl pointer-events-none shadow-[inset_0_1px_2px_rgba(0,0,0,0.2)]" />
         </div>
-      </motion.div>
+      </div>
 
-      {/* Unified Landing Recents Section (Recently Played Songs & Recent Artists) */}
-      {!searchQuery.trim() && !isSearching && searchResults.length === 0 && (
-        <LandingRecents
-          recentlyPlayed={recentlyPlayed}
-          recentArtists={recentArtists}
-          onPlaySong={handleSelectSong}
-          onViewArtist={handleViewArtistProfile}
-          loadingSongId={loadingSongId}
-        />
-      )}
-
-      {/* Search results */}
-      <AnimatePresence>
-        {isSearching && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="text-center py-16 text-white/40 text-sm"
-          >
+      {/* Fixed slot: crossfade phases without layout-driven push */}
+      <div
+        className="relative w-full"
+        style={{ contain: 'layout style' }}
+      >
+        <AnimatePresence mode="wait" initial={false}>
+          {panelPhase === 'recents' && (
             <motion.div
-              animate={{ rotate: 360 }}
-              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-              className="w-6 h-6 mx-auto mb-4 border border-white/20 border-t-white/50 rounded-full"
-            />
-            Searching...
-          </motion.div>
-        )}
-        {!isSearching && searchResults.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.3 }}
-            className="space-y-4 max-h-[550px] md:max-h-[60vh] overflow-y-auto px-1 scrollbar-none w-full"
-          >
-            {/* Search Results List with Glowing Premium Clickable Artist Profile Card */}
-            <>
-              {shouldShowArtistCard(lastSearchedQuery || searchQuery) && verifiedArtist && (
-                (() => {
-                  const artist = verifiedArtist;
-                  const isFocused = focusedResultIndex === 0;
+              key="search-phase-recents"
+              {...searchPhaseMotion}
+              className="w-full will-change-transform"
+            >
+              <LandingRecents
+                recentlyPlayed={recentlyPlayed}
+                recentArtists={recentArtists}
+                onPlaySong={handleSelectSong}
+                onViewArtist={handleViewArtistProfile}
+                loadingSongId={loadingSongId}
+              />
+            </motion.div>
+          )}
+
+          {panelPhase === 'loading' && (
+            <motion.div key="search-phase-loading" {...searchPhaseMotion} className="w-full will-change-transform">
+              <SearchLoadingState />
+            </motion.div>
+          )}
+
+          {panelPhase === 'results' && (
+            <motion.div
+              key="search-phase-results"
+              {...searchPhaseMotion}
+              className="w-full max-h-[min(60vh,520px)] overflow-y-auto px-1 scrollbar-none overscroll-contain will-change-transform"
+            >
+              <motion.div
+                variants={searchStaggerContainer}
+                initial="initial"
+                animate="animate"
+                className="space-y-2"
+              >
+                {showArtistCard && verifiedArtist && (
+                  <SearchArtistCard
+                    artist={verifiedArtist}
+                    isFocused={focusedResultIndex === 0}
+                    onOpen={() => handleViewArtistProfile(verifiedArtist)}
+                  />
+                )}
+
+                {searchResults.map((result, index) => {
+                  const hasArtistCard = showArtistCard;
+                  const actualIndex = hasArtistCard ? index + 1 : index;
+                  const isFocused = focusedResultIndex === actualIndex;
+
                   return (
                     <motion.div
-                       {...fadeIn}
-                       onClick={() => handleViewArtistProfile(artist)}
-                       className={`relative overflow-hidden p-6 rounded-3xl bg-gradient-to-br from-[#121214]/65 via-[#0d0d0e]/40 to-black/20 border transition-colors duration-300 mb-6 flex items-center justify-between gap-6 group shadow-lg cursor-pointer backdrop-blur-xl w-full ${
-                         isFocused
-                           ? 'border-white/25 bg-white/[0.04]'
-                           : 'border-white/[0.06] hover:border-white/15 hover:from-white/[0.03] hover:to-white/[0.01]'
-                       }`}
-                     >
-                       <div className="flex items-center gap-5 relative z-10">
-                         {/* Beautifully scaled-up circular avatar with neutral border */}
-                         <div className="relative w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden border-2 border-white/10 flex-shrink-0 shadow-xl group-hover:scale-105 transition-all duration-300">
-                           <img src={artist.thumbnail} alt={artist.name} className="w-full h-full object-cover scale-105" />
-                         </div>
-                         <div className="flex flex-col text-left">
-                           <div className="flex items-center gap-1.5">
-                             <span className="text-[10px] md:text-xs font-bold text-zinc-300 tracking-wider bg-zinc-800/40 border border-zinc-700/40 px-2.5 py-0.5 rounded-md uppercase">
-                               ✦ {ARTIST_PROFILE_BADGE}
-                             </span>
-                           </div>
-                           <h4 className="text-base md:text-xl font-black text-white mt-1.5 group-hover:text-zinc-100 transition-colors tracking-tight leading-tight">{artist.name}</h4>
-                           {!artist.disambiguation && !artist.country && !(artist.tags && artist.tags.length > 0) && (
-                             <p className="text-[11px] md:text-xs text-white/50 font-semibold mt-1 uppercase tracking-wide">
-                               {ARTIST_SEARCH_CARD_HINT}
-                             </p>
-                           )}
-                           {artist.disambiguation && (
-                             <p className="text-[11px] md:text-xs text-white/60 font-semibold mt-1 leading-snug">
-                               {artist.disambiguation} {artist.country && `(${artist.country})`}
-                             </p>
-                           )}
-                           {!artist.disambiguation && artist.country && (
-                             <p className="text-[11px] md:text-xs text-white/60 font-semibold mt-1">
-                               Artist from {artist.country}
-                             </p>
-                           )}
-                           {artist.tags && artist.tags.length > 0 && (
-                             <div className="flex flex-wrap gap-1.5 mt-2.5">
-                               {artist.tags.slice(0, 3).map((tag) => (
-                                 <span
-                                   key={tag}
-                                   className="text-[10px] font-bold text-white/40 bg-white/5 border border-white/10 px-2 py-0.5 rounded-md uppercase tracking-wider group-hover:border-white/20 group-hover:text-white/60 transition-colors"
-                                 >
-                                   {tag}
-                                 </span>
-                               ))}
-                             </div>
-                           )}
-                         </div>
-                       </div>
-                       <ChevronRight className="w-6 h-6 text-white/20 group-hover:text-white/45 group-hover:translate-x-0.5 transition-all duration-300 shrink-0 self-center relative z-10" />
+                      key={result.id}
+                      variants={searchStaggerItem}
+                      onClick={() => {
+                        if (!loadingSongId) handleSelectSong(result);
+                      }}
+                      className={`group relative w-full flex items-center gap-4 p-3.5 rounded-2xl border transition-colors duration-200 backdrop-blur-xl cursor-pointer will-change-transform ${
+                        loadingSongId === result.id
+                          ? `${theme.borderActive} ${theme.bgActive}`
+                          : isFocused
+                            ? 'bg-white/[0.06] border-white/20 shadow-md'
+                            : 'bg-white/[0.02] border-white/[0.06] hover:bg-white/[0.06] hover:border-white/15'
+                      }`}
+                    >
+                      <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-white/0 via-white/[0.02] to-white/0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+
+                      <div className="relative w-16 h-16 rounded-xl overflow-hidden flex-shrink-0">
+                        <img
+                          src={result.thumbnail}
+                          alt={result.title}
+                          onError={(e) => {
+                            e.currentTarget.onerror = null;
+                            e.currentTarget.src = `https://img.youtube.com/vi/${result.videoId}/mqdefault.jpg`;
+                          }}
+                          className={`w-full h-full object-cover ${loadingSongId === result.id ? 'opacity-40' : ''}`}
+                        />
+                        <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+                          {loadingSongId === result.id ? (
+                            <div
+                              className={`w-5 h-5 rounded-full border border-white/20 border-t-white/40 animate-spin ${theme.borderT}`}
+                            />
+                          ) : (
+                            <Music className="w-5 h-5 text-white/0 group-hover:text-white/80 transition-colors" />
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="relative flex-1 text-left min-w-0">
+                        <h3
+                          className={`text-sm font-medium truncate transition-colors duration-200 ${
+                            loadingSongId === result.id
+                              ? `${theme.text} font-semibold`
+                              : 'text-white/75 group-hover:text-white/95'
+                          }`}
+                        >
+                          {result.title}
+                        </h3>
+                        <p className="text-white/35 text-xs truncate mt-1">{result.artist}</p>
+                      </div>
+
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 shrink-0">
+                        <SongRowOptions
+                          track={result}
+                          onPlayNext={handlePlayNext}
+                          onAddToQueue={handleAddToQueue}
+                        />
+                      </div>
                     </motion.div>
                   );
-                })()
-              )}
+                })}
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
-              {searchResults.map((result, index) => {
-                const hasArtistCard = shouldShowArtistCard(lastSearchedQuery || searchQuery) && verifiedArtist;
-                const actualIndex = hasArtistCard ? index + 1 : index;
-                const isFocused = focusedResultIndex === actualIndex;
-
-                return (
-                  <motion.div
-                    key={result.id}
-                    {...listItemEnter(index)}
-                    onClick={() => {
-                      if (!loadingSongId) handleSelectSong(result);
-                    }}
-                    className={`group relative w-full flex items-center gap-4 p-3.5 rounded-2xl border transition-colors duration-200 backdrop-blur-xl cursor-pointer ${
-                      loadingSongId === result.id
-                        ? `${theme.borderActive} ${theme.bgActive}`
-                        : isFocused
-                        ? 'bg-white/[0.06] border-white/20 shadow-md'
-                        : 'bg-white/[0.02] border-white/[0.06] hover:bg-white/[0.06] hover:border-white/15'
-                    }`}
-                  >
-                    {/* Subtle highlight on hover */}
-                    <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-white/0 via-white/[0.02] to-white/0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-
-                    {/* Thumbnail Container */}
-                    <div className="relative w-16 h-16 rounded-xl overflow-hidden flex-shrink-0">
-                      <img
-                        src={result.thumbnail}
-                        alt={result.title}
-                        onError={(e) => {
-                          e.currentTarget.onerror = null;
-                          e.currentTarget.src = `https://img.youtube.com/vi/${result.videoId}/mqdefault.jpg`;
-                        }}
-                        className={`w-full h-full object-cover transition-opacity duration-300 ${loadingSongId === result.id ? 'opacity-40' : ''}`}
-                      />
-                      <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-all flex items-center justify-center">
-                        {loadingSongId === result.id ? (
-                          <motion.div
-                            animate={{ rotate: 360 }}
-                            transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}
-                            className={`w-5 h-5 rounded-full border border-white/20 ${theme.borderT}`}
-                          />
-                        ) : (
-                          <Music className="w-5 h-5 text-white/0 group-hover:text-white/80 transition-colors" />
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Song Info */}
-                    <div className="relative flex-1 text-left min-w-0">
-                      <h3 className={`text-sm font-medium truncate transition-colors duration-300 ${
-                        loadingSongId === result.id ? `${theme.text} font-semibold` : 'text-white/75 group-hover:text-white/95'
-                      }`}>
-                        {result.title}
-                      </h3>
-                      <p className="text-white/35 text-xs truncate mt-1">
-                        {result.artist}
-                      </p>
-                    </div>
-
-                     {/* More options dropdown */}
-                     <div className="opacity-0 group-hover:opacity-100 duration-200 shrink-0">
-                       <SongRowOptions
-                         track={result}
-                         onPlayNext={handlePlayNext}
-                         onAddToQueue={handleAddToQueue}
-                       />
-                     </div>
-                  </motion.div>
-                );
-              })}
-            </>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Discreet upload option with better styling */}
-      {!isSearching && searchResults.length === 0 && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1 }}
-          className="text-center pt-4"
-        >
+      {panelPhase === 'recents' && (
+        <div className="text-center pt-4">
           <label id="upload-button" className="inline-flex items-center gap-2 cursor-pointer group">
-            <input
-              type="file"
-              accept="audio/*"
-              onChange={handleFileSelect}
-              className="hidden"
-            />
-            <span className="text-sm text-white/30 group-hover:text-white/50 transition-colors">
-              or
-            </span>
+            <input type="file" accept="audio/*" onChange={handleFileSelect} className="hidden" />
+            <span className="text-sm text-white/30 group-hover:text-white/50 transition-colors">or</span>
             <span className="text-sm text-white/40 group-hover:text-white/60 transition-colors border-b border-white/20 group-hover:border-white/40">
               upload a file
             </span>
           </label>
-        </motion.div>
+        </div>
       )}
     </motion.div>
   );

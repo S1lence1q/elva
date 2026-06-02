@@ -20,7 +20,7 @@ export function getPrimaryArtist(artist: string): string {
     .split(/\s+featuring\s+/i)[0];
     
   // Split on collaborative delimiters and take the first item
-  const delimiters = [',', ' & ', ' x ', ' X '];
+  const delimiters = [',', ' & ', ' and ', ' x ', ' X '];
   for (const delimiter of delimiters) {
     if (cleaned.includes(delimiter)) {
       cleaned = cleaned.split(delimiter)[0];

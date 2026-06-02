@@ -46,6 +46,7 @@ interface MusicPlayerProps {
   onSelectFromQueue?: (id: string, isCrossfade?: boolean) => void;
   onAddToQueue?: (song: SearchResult) => void;
   onSelectSong?: (song: SearchResult) => void;
+  onPlayPlaylist?: (tracks: SearchResult[], label?: string) => void;
   onFileSelect?: (file: File) => void;
   onUrlSubmit?: (url: string) => void;
   onReorderQueue?: (newIds: string[]) => void;
@@ -112,7 +113,8 @@ export function MusicPlayer({
   onShuffleQueue,
   onSelectFromQueue, 
   onAddToQueue, 
-  onSelectSong, 
+  onSelectSong,
+  onPlayPlaylist,
   onFileSelect, 
   onUrlSubmit, 
   onReorderQueue,
@@ -485,6 +487,7 @@ export function MusicPlayer({
                 onSearch={onSearch}
                 onFetchChannelUploads={onFetchChannelUploads}
                 onAddToQueue={onAddToQueue}
+                onPlayPlaylist={onPlayPlaylist}
                 onSelectSong={async (song) => {
                   if (isPlayingRef.current) {
                     await fadeVolume(0, 400);

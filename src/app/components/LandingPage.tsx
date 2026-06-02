@@ -41,6 +41,7 @@ interface LandingPageProps {
   favorites: SearchResult[];
   handleSelectSong: (song: SearchResult) => void;
   handleAddToQueue: (song: SearchResult) => void;
+  handlePlayPlaylist: (tracks: SearchResult[], label?: string) => void;
   handlePlayNext: (song: SearchResult) => void;
   handleToggleFavorite: (song: SearchResult) => void;
   handleViewArtistProfile: (artist: VerifiedArtist) => void;
@@ -83,6 +84,7 @@ export function LandingPage({
   favorites,
   handleSelectSong,
   handleAddToQueue,
+  handlePlayPlaylist,
   handlePlayNext,
   handleToggleFavorite,
   handleViewArtistProfile,
@@ -256,6 +258,7 @@ export function LandingPage({
               loadingSongId={loadingSongId}
               handleSelectSong={handleSelectSong}
               handleAddToQueue={handleAddToQueue}
+              onPlayPlaylist={handlePlayPlaylist}
               favorites={favorites}
               onToggleFavorite={handleToggleFavorite}
               onPlayNext={handlePlayNext}
@@ -333,6 +336,7 @@ export function LandingPage({
           <DiscoverView
             onSelectSong={handleSelectSong}
             onAddToQueue={handleAddToQueue}
+            onPlayPlaylist={handlePlayPlaylist}
             onPlayNext={handlePlayNext}
             accentColor={accentColor}
             favorites={favorites}
@@ -356,6 +360,7 @@ export function LandingPage({
             onToggleFavorite={handleToggleFavorite}
             onSelectSong={handleSelectSong}
             onAddToQueue={handleAddToQueue}
+            onPlayPlaylist={handlePlayPlaylist}
             accentColor={accentColor}
             onSelectArtist={handleViewArtistProfile}
             onPlayNext={handlePlayNext}

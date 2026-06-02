@@ -3,7 +3,6 @@ import { motion } from 'motion/react';
 import { ArrowLeft, Play, Plus, Music, Heart, Loader2 } from 'lucide-react';
 import { SearchResult } from '../types';
 import { AccentColor, ACCENT_THEMES } from './themeUtils';
-import { showMiniHUD } from '../utils/hudUtils';
 import { SongRowOptions } from './SongRowOptions';
 
 export interface Playlist {
@@ -21,6 +20,7 @@ interface PlaylistDetailsViewProps {
   loadingSongId: string | null;
   handleSelectSong: (track: SearchResult) => void;
   handleAddToQueue: (track: SearchResult) => void;
+  onPlayPlaylist: (tracks: SearchResult[], label?: string) => void;
   favorites: SearchResult[];
   onToggleFavorite: (track: SearchResult) => void;
   onPlayNext?: (track: SearchResult) => void;
@@ -33,6 +33,7 @@ export const PlaylistDetailsView: React.FC<PlaylistDetailsViewProps> = ({
   loadingSongId,
   handleSelectSong,
   handleAddToQueue,
+  onPlayPlaylist,
   favorites,
   onToggleFavorite,
   onPlayNext,
@@ -43,13 +44,7 @@ export const PlaylistDetailsView: React.FC<PlaylistDetailsViewProps> = ({
 
   const handlePlayAll = () => {
     if (playlist.tracks.length === 0) return;
-    
-    handleSelectSong(playlist.tracks[0]);
-    playlist.tracks.slice(1).forEach(track => {
-      handleAddToQueue(track);
-    });
-
-    showMiniHUD('Playing playlist', 'success');
+    onPlayPlaylist(playlist.tracks, playlist.name);
   };
 
   const isFavorite = (songId: string) => {

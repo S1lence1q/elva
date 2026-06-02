@@ -1,10 +1,8 @@
-import { motion } from 'motion/react';
 import { Music, ListMusic, User, Heart, ChevronRight } from 'lucide-react';
 import type { Playlist, SearchResult } from './types';
 import { ArtistAvatar } from './ArtistAvatar';
 import { QueueSongRow } from './QueueSongRow';
 import { CAROUSEL_END_SPACER_CLASS, CAROUSEL_MASK_STYLE } from './carouselStyles';
-import { panelEnterFromSide } from '../../utils/motionPresets';
 
 interface QueueLibraryViewProps {
   localPlaylists: Playlist[];
@@ -26,11 +24,7 @@ export function QueueLibraryView({
   onAddToQueue,
 }: QueueLibraryViewProps) {
   return (
-    <motion.div
-      key="library-hub"
-      {...panelEnterFromSide}
-      className="space-y-8 text-left select-none p-2"
-    >
+    <div className="space-y-8 text-left select-none">
       <div className="space-y-4">
         <div className="flex items-center gap-2 border-b border-white/5 pb-2">
           <ListMusic className="w-4 h-4 text-white/30" />
@@ -127,6 +121,6 @@ export function QueueLibraryView({
           </div>
         )}
       </div>
-    </motion.div>
+    </div>
   );
 }

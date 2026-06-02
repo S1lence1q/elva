@@ -33,6 +33,7 @@ interface ProfileHubViewProps {
   onToggleFavorite: (song: SearchResult) => void;
   onSelectSong: (song: SearchResult) => void;
   onAddToQueue: (song: SearchResult) => void;
+  onPlayPlaylist: (tracks: SearchResult[], label?: string) => void;
   accentColor: AccentColor;
   onSelectArtist?: (artist: VerifiedArtist | null) => void;
   onPlayNext?: (song: SearchResult) => void;
@@ -66,6 +67,7 @@ export const ProfileHubView: React.FC<ProfileHubViewProps> = ({
   onToggleFavorite,
   onSelectSong,
   onAddToQueue,
+  onPlayPlaylist,
   accentColor,
   onSelectArtist,
   onPlayNext,
@@ -199,9 +201,7 @@ export const ProfileHubView: React.FC<ProfileHubViewProps> = ({
       showMiniHUD('Playlist is empty', 'error');
       return;
     }
-    onSelectSong(playlist.tracks[0]);
-    playlist.tracks.slice(1).forEach((t) => onAddToQueue(t));
-    showMiniHUD('Playing playlist');
+    onPlayPlaylist(playlist.tracks, playlist.name);
   };
 
   const handleAddTrackToPlaylist = (playlistId: string, track: SearchResult) => {

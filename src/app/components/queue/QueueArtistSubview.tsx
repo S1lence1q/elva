@@ -1,9 +1,7 @@
-import { motion } from 'motion/react';
 import type { AccentColor } from '../themeUtils';
 import { ACCENT_THEMES } from '../themeUtils';
 import type { SearchResult, VerifiedArtist } from './types';
 import { QueueSongRow } from './QueueSongRow';
-import { panelEnterFromSide } from '../../utils/motionPresets';
 import { ARTIST_PROFILE_BADGE } from '../../constants/artistUi';
 
 interface QueueArtistSubviewProps {
@@ -24,11 +22,7 @@ export function QueueArtistSubview({
   const theme = ACCENT_THEMES[accentColor];
 
   return (
-    <motion.div
-      key="artist-profile"
-      {...panelEnterFromSide}
-      className="space-y-6 text-left"
-    >
+    <div className="space-y-6 text-left">
       <div className="relative w-full rounded-3xl overflow-hidden border border-white/[0.08] bg-gradient-to-br from-[#121214]/85 via-[#0d0d0f]/50 to-black/30 backdrop-blur-2xl shadow-xl py-6 px-6 flex items-center gap-5 shrink-0">
         <div
           className="absolute -top-20 -right-20 w-44 h-44 rounded-full blur-[45px] opacity-35 pointer-events-none"
@@ -59,7 +53,7 @@ export function QueueArtistSubview({
         </div>
       </div>
 
-      <div className="space-y-2 px-5">
+      <div className="space-y-2">
         {tracks.map((track) => (
           <QueueSongRow
             key={`artist-track-${track.id}`}
@@ -69,6 +63,6 @@ export function QueueArtistSubview({
           />
         ))}
       </div>
-    </motion.div>
+    </div>
   );
 }

@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Toaster, toast } from 'sonner';
 import 'sonner/dist/styles.css';
-import { SkipBack, Play, Pause, SkipForward, X, Volume, Volume1, Volume2, VolumeX } from 'lucide-react';
 
 import { MusicPlayer } from './components/MusicPlayer';
 import { OnboardingTour } from './components/OnboardingTour';
@@ -14,6 +13,9 @@ import { showMiniHUD } from './utils/hudUtils';
 import { SearchResult, VerifiedArtist } from './types';
 import { getDynamicFallbackColors, extractColorsFromImage } from './utils/playerColorUtils';
 import { executeSearchAPI, executeChannelUploadsAPI } from './utils/apiUtils';
+import { resolveYouTubeForChartTrack } from './utils/chartPlaybackUtils';
+import { isLikelyMusicVideoStream } from './utils/apiUtils';
+import { prefetchChartTracks } from './utils/chartPrefetch';
 import { parseLocalMetadata } from './utils/metadataParser';
 import { getPlaybackSongKey } from './utils/playbackSongKey';
 
@@ -25,28 +27,18 @@ import { useSearchLogic } from './hooks/useSearchLogic';
 import { LandingPage } from './components/LandingPage';
 import { Playlist } from './components/PlaylistDetailsView';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { GlobalVolumeHUD } from './components/app/GlobalVolumeHUD';
+import { LandingMiniPlayerPill } from './components/app/LandingMiniPlayerPill';
+import { useGlobalVolumeHUD } from './hooks/useGlobalVolumeHUD';
 
 type AppState = 'landing' | 'processing' | 'ready';
-
-const accentBgs400: Record<AccentColor, string> = {
-  emerald: 'bg-emerald-400',
-  sand: 'bg-amber-400',
-  wine: 'bg-rose-400',
-  navy: 'bg-slate-400'
-};
 
 export default function App() {
   const [appState, setAppState] = useState<AppState>('landing');
   const [showSettings, setShowSettings] = useState(false);
   const [isMiniPlaying, setIsMiniPlaying] = useState(true);
 
-  // Global Volume HUD state
-  const [globalVolume, setGlobalVolume] = useState<number>(() => {
-    const saved = localStorage.getItem('elva_player_volume');
-    return saved !== null ? parseInt(saved, 10) : 70;
-  });
-  const [showGlobalVolumeHUD, setShowGlobalVolumeHUD] = useState(false);
-  const globalVolumeHUDTimeoutRef = useRef<any>(null);
+  const { globalVolume, showGlobalVolumeHUD } = useGlobalVolumeHUD();
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -97,6 +89,18 @@ export default function App() {
   const colorTransitionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const [loadingSongId, setLoadingSongId] = useState<string | null>(null);
+
+  const resolvedVideoIdsRef = useRef(resolvedVideoIds);
+  const queueRef = useRef(queue);
+  const prefetchAbortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    resolvedVideoIdsRef.current = resolvedVideoIds;
+  }, [resolvedVideoIds]);
+
+  useEffect(() => {
+    queueRef.current = queue;
+  }, [queue]);
 
   // Mini HUD state
   const [hudMessage, setHudMessage] = useState<string | null>(null);
@@ -236,26 +240,81 @@ export default function App() {
     }, 1200);
   };
 
+  const persistResolvedVideoId = (trackId: string, videoId: string, thumbnail?: string) => {
+    setResolvedVideoIds((prev) => {
+      const next = { ...prev, [trackId]: videoId };
+      localStorage.setItem('elva_resolved_video_ids', JSON.stringify(next));
+      return next;
+    });
+    setQueue((prev) =>
+      prev.map((item) =>
+        item.id === trackId
+          ? {
+              ...item,
+              videoId,
+              ...(thumbnail ? { thumbnail } : {}),
+            }
+          : item
+      )
+    );
+  };
+
+  const startQueuePrefetch = (tracks: SearchResult[], skipTrackId?: string) => {
+    prefetchAbortRef.current?.abort();
+    const controller = new AbortController();
+    prefetchAbortRef.current = controller;
+
+    void prefetchChartTracks(
+      tracks,
+      (id) => resolvedVideoIdsRef.current[id],
+      ({ trackId, videoId, thumbnail }) => {
+        if (controller.signal.aborted) return;
+        persistResolvedVideoId(trackId, videoId, thumbnail);
+      },
+      {
+        concurrency: 2,
+        signal: controller.signal,
+        skipTrackIds: skipTrackId ? new Set([skipTrackId]) : undefined,
+      }
+    );
+  };
+
   const ensureTrackInQueue = (track: SearchResult) => {
     setQueue((prev) => {
       const key = getPlaybackSongKey(track);
-      const exists = prev.some(
+      const existingIndex = prev.findIndex(
         (item) => item.id === track.id || (key !== null && getPlaybackSongKey(item) === key)
       );
-      if (exists) return prev;
+      if (existingIndex >= 0) {
+        const existing = prev[existingIndex];
+        if (track.videoId && track.videoId !== existing.videoId) {
+          const next = [...prev];
+          next[existingIndex] = { ...existing, ...track, videoId: track.videoId };
+          return next;
+        }
+        return prev;
+      }
       return [...prev, track];
     });
   };
 
   const handleSelectSong = async (result: SearchResult, isCrossfade?: boolean) => {
+    const startingAppState = appState;
     latestSelectedSongIdRef.current = result.id;
     const isLocal = !!(result.audioUrl?.startsWith('blob:') || result.id?.startsWith('local_'));
     const latestId = latestSelectedSongIdRef.current;
-    let finalVideoId = isLocal ? '' : (result.videoId || resolvedVideoIds[result.id]);
+    const queuedMatch = queueRef.current.find((item) => item.id === result.id);
+    const hadCachedVideoId = !!(result.videoId || resolvedVideoIdsRef.current[result.id] || queuedMatch?.videoId);
+    let finalVideoId = isLocal
+      ? ''
+      : (result.videoId || resolvedVideoIdsRef.current[result.id] || queuedMatch?.videoId || '');
     let finalArtwork = result.thumbnail || 'https://images.unsplash.com/photo-1676068368612-1c8b3e2afed0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxhbGJ1bSUyMGNvdmVyJTIwbXVzaWMlMjBhYnN0cmFjdCUyMGFydCUyMGNvbG9yZnVsfGVufDF8fHx8MTc3ODk2NjA3OHww&ixlib=rb-4.1.0&q=80&w=1080';
+    let neededResolve = !isLocal && !finalVideoId;
+    const needsAudioSwap =
+      !isLocal && !!finalVideoId && isLikelyMusicVideoStream(result);
 
     // Crossfade path: metadata/colors only — playback stays on dual-engine crossfader
-    if (isCrossfade && appState === 'ready') {
+    if (isCrossfade && startingAppState === 'ready') {
       if (!isLocal && !finalVideoId) {
         console.warn('Crossfade skipped: missing videoId for', result.title);
         return;
@@ -307,40 +366,36 @@ export default function App() {
       return;
     }
 
-    if (!isLocal && !finalVideoId) {
+    if (!isLocal && (neededResolve || needsAudioSwap)) {
       setLoadingSongId(result.id);
-      setAppState('processing');
+      if (startingAppState !== 'ready') {
+        setAppState('processing');
+      }
       try {
-        const query = `${result.artist} ${result.title} audio`;
-        const resolved = await executeSearchAPI(query, 5);
+        const resolved = await resolveYouTubeForChartTrack(
+          needsAudioSwap ? { ...result, videoId: '' } : result
+        );
         if (latestSelectedSongIdRef.current !== latestId) return;
-        if (resolved && resolved.length > 0) {
-          finalVideoId = resolved[0].videoId;
-          
-          setResolvedVideoIds(prev => {
-            const next = { ...prev, [result.id]: finalVideoId };
-            localStorage.setItem('elva_resolved_video_ids', JSON.stringify(next));
-            return next;
-          });
-
-          if (!result.thumbnail) {
-            finalArtwork = resolved[0].thumbnail || finalArtwork;
-          }
+        if (resolved?.videoId) {
+          finalVideoId = resolved.videoId;
+          finalArtwork = resolved.thumbnail;
+          persistResolvedVideoId(result.id, finalVideoId, resolved.thumbnail);
+          startQueuePrefetch(queueRef.current, result.id);
         } else {
-          toast.error("Could not play song", {
-            description: "No audio stream was found on YouTube."
+          toast.error('Could not play song', {
+            description: `No verified YouTube match for "${result.title}". Try searching the song directly.`,
           });
           setLoadingSongId(null);
-          setAppState('landing');
+          setAppState(startingAppState === 'ready' ? 'ready' : 'landing');
           return;
         }
       } catch (e) {
-        console.error("Failed to dynamically resolve YouTube video ID:", e);
-        toast.error("Playback error", {
-          description: "Could not retrieve the audio stream for this song."
+        console.error('Failed to dynamically resolve YouTube video ID:', e);
+        toast.error('Playback error', {
+          description: 'Could not retrieve the audio stream for this song.',
         });
         setLoadingSongId(null);
-        setAppState('landing');
+        setAppState(startingAppState === 'ready' ? 'ready' : 'landing');
         return;
       }
     }
@@ -379,7 +434,7 @@ export default function App() {
       accent: fallbacks.accent
     });
 
-    if (appState === 'ready') {
+    if (startingAppState === 'ready') {
       setSongData({
         title: result.title,
         artist: result.artist,
@@ -388,7 +443,9 @@ export default function App() {
         videoId: finalVideoId,
         channelId: result.channelId
       });
-      
+      setAppState('ready');
+      setLoadingSongId(null);
+
       const img = new Image();
       img.crossOrigin = 'anonymous';
       if (finalArtwork && (finalArtwork.includes('ytimg.com') || finalArtwork.includes('youtube.com') || finalArtwork.startsWith('http'))) {
@@ -412,7 +469,7 @@ export default function App() {
     setAppState('processing');
 
     const startTime = Date.now();
-    const minDisplayTime = 1200;
+    const minDisplayTime = neededResolve || needsAudioSwap || hadCachedVideoId ? 0 : 500;
 
     const img = new Image();
     img.crossOrigin = 'anonymous';
@@ -452,7 +509,7 @@ export default function App() {
     img.onerror = proceedToReady;
   };
 
-  const handleAddToQueue = (result: SearchResult) => {
+  const handleAddToQueue = (result: SearchResult, options?: { silent?: boolean }) => {
     const key = getPlaybackSongKey(result);
     let added = false;
     setQueue((prev) => {
@@ -464,10 +521,22 @@ export default function App() {
       return [...prev, result];
     });
     if (added) {
-      showMiniHUD('Added to queue', 'success');
-    } else {
+      if (!options?.silent) {
+        showMiniHUD('Added to queue', 'success');
+      }
+    } else if (!options?.silent) {
       toast.error('Already in queue', { description: result.title });
     }
+  };
+
+  const handlePlayPlaylist = async (tracks: SearchResult[], label?: string) => {
+    if (tracks.length === 0) return;
+
+    setQueue(tracks);
+    startQueuePrefetch(tracks, tracks[0].id);
+    await handleSelectSong(tracks[0]);
+
+    showMiniHUD(label ? `Playing ${label}` : 'Playing playlist', 'success');
   };
 
   // 3. Search and Artist Profiles Logic Hook
@@ -570,30 +639,6 @@ export default function App() {
 
     window.addEventListener('elva-reset-tour', handleResetTour);
     return () => window.removeEventListener('elva-reset-tour', handleResetTour);
-  }, []);
-
-  useEffect(() => {
-    const handleGlobalVolumeChange = (e: Event) => {
-      const customEvent = e as CustomEvent<{ volume: number }>;
-      const newVol = customEvent.detail.volume;
-      setGlobalVolume(newVol);
-
-      if (globalVolumeHUDTimeoutRef.current) {
-        clearTimeout(globalVolumeHUDTimeoutRef.current);
-      }
-      setShowGlobalVolumeHUD(true);
-      globalVolumeHUDTimeoutRef.current = setTimeout(() => {
-        setShowGlobalVolumeHUD(false);
-      }, 1500);
-    };
-
-    window.addEventListener('elva-volume-change', handleGlobalVolumeChange);
-    return () => {
-      window.removeEventListener('elva-volume-change', handleGlobalVolumeChange);
-      if (globalVolumeHUDTimeoutRef.current) {
-        clearTimeout(globalVolumeHUDTimeoutRef.current);
-      }
-    };
   }, []);
 
   const startTour = () => {
@@ -890,6 +935,7 @@ export default function App() {
             favorites={favorites}
             handleSelectSong={handleSelectSong}
             handleAddToQueue={handleAddToQueue}
+            handlePlayPlaylist={handlePlayPlaylist}
             handlePlayNext={handlePlayNext}
             handleToggleFavorite={handleToggleFavorite}
             handleViewArtistProfile={searchLogic.handleViewArtistProfile}
@@ -902,7 +948,7 @@ export default function App() {
           </ErrorBoundary>
         )}
 
-        {appState === 'processing' && (
+        {appState === 'processing' && !songData && (
           <motion.div
             key="processing"
             initial={{ opacity: 0, scale: 0.98, filter: 'blur(4px)' }}
@@ -959,6 +1005,7 @@ export default function App() {
               onShuffleQueue={handleShuffleQueue}
               onSelectFromQueue={handleSelectFromQueue}
               onAddToQueue={handleAddToQueue}
+              onPlayPlaylist={handlePlayPlaylist}
               onReorderQueue={handleReorderQueue}
               onQueueFileSelect={handleQueueFileSelect}
               onSelectSong={handleSelectSong}
@@ -1093,119 +1140,26 @@ export default function App() {
         accentColor={accentColor}
       />
 
-      {/* Floating MiniPlayer Pill */}
-      <AnimatePresence>
-        {appState === 'landing' && songData && (
-          <motion.div
-            initial={{ opacity: 0, y: 50, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 30, scale: 0.95 }}
-            transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-[410px] max-w-[92vw] h-14 rounded-2xl border border-white/10 bg-black/55 backdrop-blur-2xl shadow-[0_12px_45px_rgba(0,0,0,0.65)] flex items-center justify-between px-3.5 select-none"
-          >
-            <div 
-              onClick={() => setAppState('ready')}
-              className="flex items-center gap-3 cursor-pointer group min-w-0 flex-1"
-            >
-              <div className="w-9 h-9 rounded-lg overflow-hidden relative border border-white/5 shadow-md shrink-0">
-                <img 
-                  src={songData.artworkUrl} 
-                  alt={songData.title}
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  style={{ borderRadius: '8px' }}
-                />
-              </div>
-              
-              <div className="flex flex-col min-w-0">
-                <span className="text-[11px] font-semibold text-white/95 truncate group-hover:text-emerald-400 transition-colors">
-                  {songData.title}
-                </span>
-                <span className="text-[9px] text-white/45 truncate mt-0.5">
-                  {songData.artist}
-                </span>
-              </div>
-            </div>
+      <LandingMiniPlayerPill
+        visible={appState === 'landing' && !!songData}
+        song={{
+          title: songData?.title ?? '',
+          artist: songData?.artist ?? '',
+          artworkUrl: songData?.artworkUrl ?? '',
+        }}
+        isPlaying={isMiniPlaying}
+        onOpenPlayer={() => setAppState('ready')}
+        onStop={() => {
+          setColorsSongData(null);
+          setSongData(null);
+        }}
+      />
 
-            <div className="flex items-center gap-3.5 shrink-0 ml-3">
-              <button
-                onClick={() => window.dispatchEvent(new Event('elva-play-prev'))}
-                className="text-white/50 hover:text-white/95 transition-colors cursor-pointer focus:outline-none"
-                title="Previous track"
-              >
-                <SkipBack className="w-4 h-4 fill-white/10" />
-              </button>
-
-              <motion.button
-                whileHover={{ scale: 1.06 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => window.dispatchEvent(new Event('elva-toggle-play'))}
-                className="w-8.5 h-8.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/8 flex items-center justify-center text-white cursor-pointer transition-colors focus:outline-none"
-              >
-                {isMiniPlaying ? (
-                  <Pause className="w-3.5 h-3.5 fill-white" />
-                ) : (
-                  <Play className="w-3.5 h-3.5 fill-white ml-0.5" />
-                )}
-              </motion.button>
-
-              <button
-                onClick={() => window.dispatchEvent(new Event('elva-play-next'))}
-                className="text-white/50 hover:text-white/95 transition-colors cursor-pointer focus:outline-none"
-                title="Next track"
-              >
-                <SkipForward className="w-4 h-4 fill-white/10" />
-              </button>
-
-              <div className="w-[1px] h-4 bg-white/10" />
-
-              <button
-                onClick={() => {
-                  setColorsSongData(null);
-                  setSongData(null);
-                }}
-                className="text-white/35 hover:text-rose-400 transition-colors cursor-pointer focus:outline-none"
-                title="Stop & Clear"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Global Custom Premium Volume HUD overlay */}
-      <AnimatePresence>
-        {showGlobalVolumeHUD && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: -20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: -10 }}
-            transition={{ type: "spring", stiffness: 350, damping: 25 }}
-            className="fixed top-10 left-1/2 -translate-x-1/2 z-[99999] flex items-center gap-3 px-5 py-3 rounded-full bg-black/60 backdrop-blur-2xl border border-white/10 shadow-[0_12px_40px_rgba(0,0,0,0.5)] pointer-events-none"
-          >
-            {globalVolume === 0 ? (
-              <VolumeX className="w-4 h-4 text-white/55" />
-            ) : globalVolume < 33 ? (
-              <Volume className="w-4 h-4 text-white/80" />
-            ) : globalVolume < 66 ? (
-              <Volume1 className="w-4 h-4 text-white/80" />
-            ) : (
-              <Volume2 className="w-4 h-4 text-white/80" />
-            )}
-            <div className="w-24 h-1.5 bg-white/15 rounded-full overflow-hidden relative">
-              <motion.div
-                className={`h-full ${accentBgs400[accentColor]} rounded-full`}
-                initial={{ width: 0 }}
-                animate={{ width: `${globalVolume}%` }}
-                transition={{ type: "spring", stiffness: 300, damping: 20 }}
-              />
-            </div>
-            <span className="text-xs font-semibold text-white/90 tabular-nums w-8 text-right">
-              {globalVolume}%
-            </span>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <GlobalVolumeHUD
+        visible={showGlobalVolumeHUD}
+        volume={globalVolume}
+        accentColor={accentColor}
+      />
 
       <Toaster 
         position="top-center" 

@@ -37,13 +37,7 @@ export const LandingRecents: React.FC<LandingRecentsProps> = ({
   const showTabs = hasSongs && hasArtists;
 
   return (
-    <motion.div
-      key="landing-recents-section"
-      layout
-      initial={{ opacity: 0, y: 15 }}
-      animate={{ opacity: 1, y: 0, transition: { duration: 0.8, ease: [0.16, 1, 0.3, 1] } }}
-      className="w-full max-w-2xl px-1 space-y-5 pt-4 shrink-0 overflow-hidden"
-    >
+    <div className="w-full max-w-2xl px-1 space-y-5 pt-4 shrink-0 overflow-hidden">
       {/* Dynamic Tab Bar Selector - sliding bubble glassmorphism */}
       {showTabs && (
         <div className="flex justify-center mb-1">
@@ -197,6 +191,6 @@ export const LandingRecents: React.FC<LandingRecentsProps> = ({
           )}
         </AnimatePresence>
       </div>
-    </motion.div>
+    </div>
   );
 };

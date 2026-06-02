@@ -1,8 +1,6 @@
-import { motion } from 'motion/react';
 import { Play } from 'lucide-react';
 import type { Playlist, SearchResult } from './types';
 import { QueueSongRow } from './QueueSongRow';
-import { panelEnterFromSide } from '../../utils/motionPresets';
 
 interface QueuePlaylistSubviewProps {
   playlist: Playlist;
@@ -20,11 +18,7 @@ export function QueuePlaylistSubview({
   const tracks = playlist.tracks || [];
 
   return (
-    <motion.div
-      key="playlist-detail"
-      {...panelEnterFromSide}
-      className="space-y-6 text-left"
-    >
+    <div className="space-y-6 text-left">
       <div className="relative w-full h-44 overflow-hidden select-none shrink-0 bg-[#0c0c0f] border-b border-white/5 flex flex-col justify-end p-6">
         <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${playlist.color}`} />
         <span className="text-[9px] uppercase font-bold tracking-[0.2em] text-white/30">Playlist</span>
@@ -61,6 +55,6 @@ export function QueuePlaylistSubview({
           </div>
         )}
       </div>
-    </motion.div>
+    </div>
   );
 }

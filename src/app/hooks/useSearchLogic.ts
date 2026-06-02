@@ -429,20 +429,28 @@ export function useSearchLogic({
   };
 
   const handleSearch = async (overrideQuery?: string) => {
-    const query = overrideQuery !== undefined ? overrideQuery : searchQuery;
-    if (!query.trim()) return;
+    const query = (overrideQuery !== undefined ? overrideQuery : searchQuery).trim();
+    if (!query) return;
+
+    const sameQueryAlreadyShown =
+      query.toLowerCase() === lastSearchedQuery.trim().toLowerCase() && searchResults.length > 0;
+
+    if (sameQueryAlreadyShown && !isSearching) {
+      return;
+    }
+
+    const cached = getCachedSearch(query);
+    if (cached) {
+      setSelectedArtist(null);
+      setArtistTracks([]);
+      setSearchResults([...cached]);
+      setLastSearchedQuery(query);
+      return;
+    }
 
     setSelectedArtist(null);
     setArtistTracks([]);
     setVerifiedArtist(null);
-
-    // Check in-memory cache first — returns instantly for repeated queries within 5 minutes
-    const cached = getCachedSearch(query);
-    if (cached) {
-      setSearchResults(cached);
-      setLastSearchedQuery(query);
-      return;
-    }
 
     setIsSearching(true);
     const results = await executeSearchAPI(query);

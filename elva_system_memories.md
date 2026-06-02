@@ -8,42 +8,54 @@ Dette dokument er den urokkelige kilde til sandhed (Source of Truth) for Elvas k
 ## 🛑 STRATEGISKE WORKSPACE-REGLER & FILOSOFI
 *(Disse regler skal overholdes uanset hvad – ingen undtagelser!)*
 
-### Rule 1: 🇬🇧 100% English Language Directive
-* **Krav:** Hele applikationens brugerflade skal være **100% på engelsk**. 
-* **Handling:** Eventuelle eksisterende danske ord (f.eks. *"Historik"*, *"Artister"*, *"Kunne ikke afspille sang"*, *"Søg efter kunstner eller sang"*, *"Nyligt afspillet"*) skal oversættes til engelsk for at opretholde en international, strømlinet og eksklusiv lytter-oplevelse.
+### Rule 1: 🌐 Sprog (UI)
+* **Standard:** UI-copy er primært **engelsk** (international baseline).
+* **Dansk:** Brugeren ønsker **dansk + engelsk senere** (i18n) — undgå at *tilføje nye* hardcodede danske strenge i kode medmindre det er bevidst copy; eksisterende dansk i UI er OK.
+* **Agenter:** Tilføj ikke danske tekster “automatisk” på nye features — hold nye strings engelske indtil et rigtigt sprog-lag findes.
 
-### Rule 2: 🧱 Modulopbygget Kode — Filstørrelse & Struktur
+### Rule 2: 🧱 Modulopbygget Kode — Ét ansvar, ikke et linjetal
 
-**Krav:** Filer SKAL holdes små, fokuserede og opdelte!
+**Krav:** Undgå monolitter. Opdel kode når det giver **klarere ansvar**, **lavere risiko** eller **genbrug** — ikke for at jage et magisk linjetal.
 
-**Forskning, begrundelse & optimal størrelsesfordeling (Hvorfor dette gælder i Elva):**
+**Hvorfor (kort):**
+- **Mennesker:** Store filer med mange ansvarsområder (fx 1000+ linjers `App.tsx`) er svære at navigere og giver flere regressioner.
+- **AI-agenter:** Kompakte, fokuserede moduler er nemmere at rette præcist; monolitter øger hallucinationer og sideeffekter.
+- **Runtime:** Små moduler kan hjælpe HMR og code-splitting, men det er **sekundært** — primært mål er forståelighed.
 
-Der er tre helt afgørende grunde til at holde filer under en bestemt størrelse, og de peger alle i samme retning:
+**Pragmatiske retningslinjer (soft limits — ikke hårde regler):**
 
-**1. For mennesker (vedligeholdelse & læsbarhed):**
-Industristandarder fra React/TypeScript-fællesskabet 2024–2026 er klare:
-- **100–150 linjer** = Den absolutte guldstandard / *sweet spot*. Ekstremt let at overskue, teste og vedligeholde.
-- **150–200 linjer** = Acceptabelt for større præsentationskomponenter.
-- **Over 250 linjer** = Hård grænse for nye filer. Bør straks splittes opsplitning! En stor fil bryder Single Responsibility-princippet og øger risikoen for uventede regressioner markant.
+| Type | Typisk OK | Overvej split når |
+|------|-----------|-------------------|
+| Præsentationskomponenter | ~200–350 linjer | Filen blander UI + tung logik, eller du rører den konstant med frygt |
+| Hooks (kompleks state) | ~250–400 linjer | Én hook styrer flere uafhængige flows (fx crossfade + engines + progress) |
+| Utilities | ~50–150 linjer | Filen blander urelaterede domæner (fx søg + kanal + ranking i én fil) |
+| Nye filer | Ét ansvar du kan forklare på **én sætning** | — |
 
-**2. For AI-agenter (Vibe Coding & Agent-effektivitet):**
-- LLM-baserede agenter (som denne!) præsterer markant bedre, når filer er holdt kompakte og fokuserede.
-- Store filer bruger store mængder af agentens kontekst-budget på overflødig kode, hvilket fører til unødig latency og markant øgede API-omkostninger under vibe coding.
-- Vigtigst af alt: Agenter kan rette en 120-linjers fil med næsten 100% præcision, mens gigantiske filer (som de gamle 1000+ linjers `App.tsx` og `MusicPlayer.tsx`) tvinger agenter til at "gætte" sammenhænge, hvilket skaber hallucinationer og sideeffekter.
+**Split når mindst én er sand:**
+1. Forskellige ansvarsområder (fx HTTP-klient vs. søg-ranking vs. kanal-uploads).
+2. Genbrug på tværs af features.
+3. Testbar ren logik (utils uden DOM).
+4. Filen er et vedligeholdelses-flaskehals (ofte ændret + høj regressionsrisiko).
 
-**3. For Web App Runtime & Bundler Performance:**
-- **Hurtigere HMR (Hot Module Replacement):** Vite genindlæser og patcher små moduler på under 10ms direkte i din browser, mens tunge filer bremser udviklingstempoet.
-- **Bedre Code Splitting & Tree-Shaking:** Små, modulære filer lader Vite og Rollup pakke din applikation i mikro-chunks, så den indledende indlæsningstid minimeres og ubenyttet kode udelukkes.
-- **Hurtigere React Reconciliation:** Reacts Virtual DOM genberegner og re-renderer isolerede og afkoblede komponenter langt hurtigere end massive mega-komponenter.
+**Split IKKE når:**
+- Du kun får flere imports/props-drilling uden klarere mental model.
+- To moduler **altid** ændres sammen (behold dem sammen).
+- Du splitter midt i én sammenhængende state-machine (fx crossfade) uden klar grænse.
+- Målet er linjetal, ikke læsbarhed.
 
-**Handling:** Når du tilføjer ny funktionalitet, må du **aldrig** bare smække det ind i en eksisterende fil. Opret et nyt modul med klare props/interfaces. Følg de specifikke grænser:
-- Komponenter: **100–150 linjer**.
-- Hooks: **80–120 linjer**.
-- Utilities: **50–100 linjer**.
+**Handling ved ny funktionalitet:** Tilføj ikke blindt til en eksisterende stor fil. Opret et nyt modul med klart navn og interface. Brug barrel-exports (`apiUtils.ts` re-exports) hvis det reducerer import-støj under migration.
 
-**Aktuelle fremskridt & målsætninger i Elva:**
-- Queue-panelet er allerede blevet succesfuldt splittet op i uafhængige underkomponenter under `src/app/components/queue/` for at overholde Rule 2.
-- MusicPlayer UI og App.tsx er fortsat mål for fremtidig opdeling. Appen har nu et robust React Error Boundary-sikkerhedsnet, så eventuelle isolerede nedbrud i disse komponenter fanges på modul-niveau uden at ramme hele websiden.
+**Målrettet refactor-prioritet i Elva (kun hvor smerten er):**
+1. **`src/app/utils/api/`** — opdelt fra `apiUtils.ts` (HTTP, søg, kanal, ranking, metadata).
+2. **`App.tsx`** — global Volume HUD + landing Mini-Player ud i egne komponenter/hooks; orchestration bliver i `App.tsx`.
+3. **`usePlaybackCore.ts`** — kun når crossfade/engines røres ofte; split engines vs. crossfade vs. progress-sync i samme mappe.
+4. **Lad være** med at opdele filer der virker stabile (`MusicPlayer.tsx`, `ArtworkCard.tsx`, …) medmindre de aktivt debuggeres.
+
+**Allerede gennemført:**
+- Queue under `src/app/components/queue/` (inkl. `QueuePanelLayer`, `QueueSearchResults`, `queueArtistUtils`).
+- Profile Hub + MusicPlayer UI-moduler + `components/app/` (GlobalVolumeHUD, LandingMiniPlayerPill).
+- `src/app/utils/api/` barrel + chart utilities (`chartFeeds`, `chartPlaybackUtils`, `chartPrefetch`).
+- React Error Boundary på rod-niveau.
 
 ### Rule 3: 💎 Quality-First Designfilosofi ("Gør det ordentligt!")
 * **Krav:** **Vi laver tingene ordentligt, før vi tilføjer noget nyt.** Vi tilføjer aldrig funktioner, medmindre de giver 100% mening, tilføjer reel værdi og passer perfekt ind i den taktile, glassmorphic Scandinavian retro-papir æstetik.
@@ -119,13 +131,15 @@ Industristandarder fra React/TypeScript-fællesskabet 2024–2026 er klare:
     $$\text{speed} = 1.0 - e^{-2.0 / (\text{duration} \cdot 1.6 \cdot 60.0)}$$
     Dette gør, at farverne morfer utroligt langsomt og flydende under hele crossfade-vinduet og fortsætter blødt et par sekunder efter, at lyden har lagt sig. Ved almindelige manuelle sangskift nulstilles transitionstiden automatisk til standarden på `1.2s` for øjeblikkelig taktil respons.
 
-### 🔍 8. Metadata Weighted Search Ranker
-* **Filer:** [apiUtils.ts](file:///Users/applemacbook/AntiGravity%20Shit/Elva.nosync/Elva/src/app/utils/apiUtils.ts) (`rankAndSortSearchResults`)
+### 🔍 8. Metadata Weighted Search Ranker & Audio-First Playback
+* **Filer:** `src/app/utils/api/searchRanking.ts`, `musicStreamFilters.ts` (`isLikelyMusicVideoStream`), `chartPlaybackUtils.ts`, `App.tsx` (`handleSelectSong`)
 * **Hvordan det virker:**
   - Modvirker uofficiel YouTube-støj (fan-made, live-klip, 10-timers loops).
-  - Søgeresultater scores: **Topic kanaler (+150 pts)**, **VEVO (+100 pts)**. 
-  - **Aggressive strafpoint:** Bootlegs, live-optagelser, cover-versioner og specielt lyric-videoer straffes hårdt med op til **-250 pts** til **-500 pts**. 
-  - **Kanal-filtrering:** Hvis kanalen/uploaderen indeholder ord som "lyrics", "cover", "remix" osv., trækkes der op til **-500 pts** fra resultatet, hvilket udelukker uofficielle uploadere fuldstændigt.
+  - Søgeresultater scores: **Topic kanaler (+220 pts)**, **official audio (+90)**. **VEVO/MV straffes** når brugeren ikke søger efter video (`music video` ca. **-200 pts**).
+  - **Aggressive strafpoint:** Bootlegs, live, cover, lyric-videoer (op til **-500 pts**).
+  - **Chart/Apple-tracks uden `videoId`:** `resolveYouTubeForChartTrack()` — parallel søgning (official audio + Topic), hurtig sti for Topic-match, ellers max 2 metadata-verifikationer.
+  - **MV-swap ved afspilning:** Hvis et valgt resultat ligner musikvideo/VEVO (`isLikelyMusicVideoStream`), re-resolves til audio-version automatisk (ingen manuelt lyrics-offset).
+  - **Baggrund-prefetch:** `chartPrefetch.ts` — op til **2 parallelle** resolves af kø-tracks efter Play All / første sang (gemmes i `elva_resolved_video_ids` + opdaterer kø-rækker).
 
 ### 🖱️ 9. Klikbart Artist-navn med Smart Fallback
 * **Filer:** [PlayerControls.tsx](file:///Users/applemacbook/AntiGravity%20Shit/Elva.nosync/Elva/src/app/components/PlayerControls.tsx), [App.tsx](file:///Users/applemacbook/AntiGravity%20Shit/Elva.nosync/Elva/src/app/App.tsx)
@@ -149,6 +163,21 @@ Industristandarder fra React/TypeScript-fællesskabet 2024–2026 er klare:
   - **Carousel End-Gate lyttehistorik toggle:** For enden af favoritter-rækken er placeret en rammeløs, transparent knap med et `History`-ikon og en diskret tekst. Ved klik glider historik-rækken (Recently Played) blødt frem nedenunder via en Framer Motion transition. Den gennemsigtige og rammeløse æstetik forhindrer, at elementet klippes grimt i kanten af panelets højre fade-maske.
   - **Apple-style Carousel Mask-Fade:** Alle vandret rullende carouseller (Likes, History og Favorite Artists) bruger en CSS `mask-image` linear-gradient, der toner elementerne blødt ud mod højre kant (fra 85% dækning til 100% gennemsigtighed). For at forhindre, at de sidste elementer (såsom "View History"-teksten, det sidste cover eller kunstnernavnet) bliver tonet ud eller cuttet af ved maksimal scrolling, er der tilføjet en ikke-komprimerbar trailing spacer (`w-[15px] shrink-0 h-1`) i slutningen af hver række. Dette danner en flydende, luksuriøs overgang til panelets obsidian-baggrund, mens alt indhold kan rulles helt ind i det 100% ubeskårne, tydelige område.
   - **Understated Library Shortcut Pill (Browse Full Library):** En minimalistisk, rolig glassmorphic-pille placeret centreret direkte under dine Quick-Add favoritter. Det sikrer, at adgangen til det fulde bibliotek altid er synlig uden scroll.
+  - **My Space (Browse Full Library) — overgang uden layout-hop:**
+    - **Filer:** `Queue.tsx`, `QueuePanelLayer.tsx`, `motionPresets.ts` (`queuePanelLayerClass`, `searchPhaseMotion`)
+    - Header/titel/tilbage-pil **crossfader** (ikke instant swap). Søgefelt skjules via **CSS grid `0fr → 1fr`** (ikke Framer `height`).
+    - Indhold ligger i **absolutte lag** (`QueuePanelLayer`) med `AnimatePresence mode="wait"` — undgår at to views stables i flow og fordobler panelhøjde under crossfade.
+    - Queue-søg bruger **samme premium animation** som landing (`SearchSection` + `SearchLoadingState`).
+  - **Artist-kort i søg (landing + queue):** `pickArtistCardFromSearchResults()` i `artistHelpers.ts` — grupperer resultater, kræver **min. 2 tracks** fra samme artist, undgår collab-kanal som “Kundo and Benny Jamz” ved søgning på `kundo`. `getPrimaryArtist()` splitter også ` and `.
+  - **Dobbelt Enter i landing-søg:** `handleSearch` ignorerer gentagen submit af samme query (forhindrer at `verifiedArtist` nulstilles).
+
+### 📊 11b. Discover Charts (Apple Music Live Charts)
+* **Filer:** `DiscoverView.tsx`, `chartFeeds.ts`
+* **Hvordan det virker:**
+  - Henter Apple most-played JSON: **dev** via Vite-proxy `/api-apple`, **production** via `robustFetch` direkte til `rss.marketingtools.apple.com`.
+  - **Ingen falsk fallback-liste** — ved fejl: fejlkort + Retry (ikke hardcodet placeholder-chart).
+  - **Cache:** `elva_apple_chart_dk_v2` / `elva_apple_chart_us_v2` i localStorage (6 t TTL, stale tilladt offline).
+  - **Play All:** `handlePlayPlaylist` i `App.tsx` sætter kø + starter prefetch; første sang resolves, resten i baggrunden.
 
 ### 🏛️ 12. Profile Hub (My Hub) Widescreen & Widescreen Tabbed Redesign
 * **Filer:** [ProfileHubView.tsx](file:///Users/applemacbook/AntiGravity%20Shit/Elva.nosync/Elva/src/app/components/ProfileHubView.tsx)
@@ -199,17 +228,35 @@ Industristandarder fra React/TypeScript-fællesskabet 2024–2026 er klare:
   - **Timeout Ref Cleanup:** Indlæsnings- og udtoningstimere styres af `loadTimeoutRef` og `hidePrevTimeoutRef` via `useRef`, som nulstilles proaktivt ved hvert sangskift for at forhindre hængende overgange under hurtigt sangskift (rapid skip).
   - **Settings Modal Synkronisering:** For at forhindre at indstillings-modaler overlapper eller åbnes automatisk under skift tilbage til landing page, deaktiveres den globale `Cmd+,` keyboard shortcut (i `useKeyboardShortcuts.ts`), når app-tilstanden er `'ready'` (da afspilleren har sin egen lokale settings instans). Derudover kaldes `setShowSettings(false)` proaktivt i `onBackToHome` callback'en i `App.tsx`.
 
+### 🎬 17. Premium Motion Presets (Landing + Queue Search)
+* **Filer:** `motionPresets.ts`, `SearchSection.tsx`, `SearchLoadingState.tsx`, `QueueSearchResults.tsx`
+* **Regler for agenter:**
+  - Brug **`EASE_PREMIUM`** `[0.16, 1, 0.3, 1]` og **`searchPhaseMotion`** (opacity + let blur/lift) til fase-skift.
+  - **ALDRIG `layout` prop** på søge-/queue-containere der skifter indholdshøjde — det giver “vokse/skubbe”-effekt.
+  - Landing search: faser `recents | loading | results` med `AnimatePresence mode="wait"`; resultatrækker **stagger** via `searchStaggerContainer` / `searchStaggerItem`.
+  - Recents vises indtil **`lastSearchedQuery`** (ikke debounced `searchQuery` alene).
+
+### 🚀 18. Deploy & Miljø
+* **Repo:** `Elva/` (GitHub: `S1lence1q/elva`)
+* **Production:** GitHub Actions (`.github/workflows/deploy.yml`) deployer **`dist/`** til GitHub Pages ved **push til `main`**.
+* **Vigtigt:** Lokal `npm run dev` ≠ live site før push. Test charts/queue-fixes på dev-server eller efter deploy.
+* **`elva_resolved_video_ids`:** Stadig simpel `trackId → videoId` map i localStorage (rigere cache med `resolvedAt` er **ikke** implementeret — kun tilføj hvis reel smerte).
+
 ---
 
-## 📁 17. Modulopbygget Kodebase
+## 📁 19. Modulopbygget Kodebase
 
 ### `src/app/utils/` — Utilities
 1. `playerColorUtils.ts` — HSL/RGB konvertering, downsampled 32x32 scanning og fallbacks.
 2. `lyricsUtils.ts` — LRC parsing og dynamiske fallback lyrics.
 3. `stringUtils.ts` — Song title sanitizing.
-4. `apiUtils.ts` — YouTube search, ranking, channel uploads.
+4. `apiUtils.ts` — Barrel re-export for `src/app/utils/api/*` (HTTP client, search, ranking, channel uploads, video metadata).
 5. `hudUtils.ts` — Global `showMiniHUD()` toast-hjælper.
 6. `discographyCache.ts` — 48-timers localStorage-baseret discography cache med LRU eviction.
+7. `chartFeeds.ts` — Apple chart fetch + 6t localStorage cache (DK/US).
+8. `chartPlaybackUtils.ts` — Chart/Apple track → verified YouTube audio (Topic-prioritet).
+9. `chartPrefetch.ts` — Baggrund-resolve af kø-tracks (concurrency 2).
+10. `motionPresets.ts` — Delte Framer transitions (`searchPhaseMotion`, `queuePanelLayerClass`, stagger variants).
 
 ### `src/app/hooks/` — Custom React Hooks (fra App.tsx og MusicPlayer.tsx refactor)
 Disse hooks er udtrukket for at holde `App.tsx` og `MusicPlayer.tsx` fokuserede og fri for koderod.
@@ -226,9 +273,12 @@ Disse hooks er udtrukket for at holde `App.tsx` og `MusicPlayer.tsx` fokuserede 
 | `usePlaybackCore.ts` | Core Dual-Engine (A/B) afspilnings-livscyklus med asynkron pre-loading, automatisk equal-power crossfading og localStorage-baseret timing. |
 | `useLyrics.ts` | LRC parsing og dynamisk synkronisering/søgning af sangtekster |
 | `usePlayStats.ts` | Sporing af afspilningshistorik, nyligt afspillede og ugentlig lyttetid |
+| `useGlobalVolumeHUD.ts` | Lytter på `elva-volume-change` og styrer det globale volume HUD |
 
 ### `src/app/components/` — Vigtige komponenter
-- **`App.tsx`** — Root controller og state host. Orchestrerer alle hooks og delegerer UI til `LandingPage.tsx`. Hoster det globale Volume HUD og MiniPlayer Pill.
+- **`App.tsx`** — Root controller og state host. Delegerer landing UI til `LandingPage.tsx`.
+- **`components/app/GlobalVolumeHUD.tsx`** + **`hooks/useGlobalVolumeHUD.ts`** — Rod-niveau volume overlay (event-driven).
+- **`components/app/LandingMiniPlayerPill.tsx`** — Mini-player på landing under baggrundsafspilning.
 - **`LandingPage.tsx`** — Udtrukket UI-komponent for landing page. Modtager all relevant state og callbacks som props fra `App.tsx`. Indeholder Search, Charts og My Hub sektionerne.
 - **`MusicPlayer.tsx`** — Bridge mellem player-hooks og præsentationslaget (`LyricsPanel`, `PlayerControls`). Bruger `useFadeVolume`, `useAudioPlayer` og `useYouTubePlayer`.
 - **`LyricsPanel.tsx`** — Apple Music-stil floating lyrics med interactive scrubbing.
@@ -236,3 +286,6 @@ Disse hooks er udtrukket for at holde `App.tsx` og `MusicPlayer.tsx` fokuserede 
 - **`Queue.tsx`** — Sidebar med køstyring, søgning, favoritter og historik.
 - **`ProfileHubView.tsx`** — Widescreen My Hub profil-side med tabs.
 - **`LandingRecents.tsx`** — Vandret rullende historik + artist-kortvisning.
+- **`SearchSection.tsx`** + **`SearchLoadingState.tsx`** — Landing-søg med fase-animationer.
+- **`DiscoverView.tsx`** — Live Apple charts (ingen fake fallback).
+- **`queue/QueuePanelLayer.tsx`** — Absolut crossfade-lag i queue-panelet.

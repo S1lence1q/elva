@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Music, X, ArrowLeft, Loader2 } from 'lucide-react';
+import { EASE_PREMIUM } from '../utils/motionPresets';
+import { QueuePanelLayer } from './queue/QueuePanelLayer';
 import { toast } from 'sonner';
 import { AccentColor } from './themeUtils';
 import { ELVA_STORAGE_KEYS, readJsonStorage } from '../utils/elvaStorage';
@@ -37,6 +39,7 @@ interface QueueProps {
   onFetchChannelUploads?: (channelId: string, limit?: number) => Promise<SearchResult[]>;
   onAddToQueue?: (song: SearchResult) => void;
   onSelectSong?: (song: SearchResult) => void;
+  onPlayPlaylist?: (tracks: SearchResult[], label?: string) => void;
   onFileSelect?: (file: File) => void;
   onUrlSubmit?: (url: string) => void;
   onReorder?: (newIds: string[]) => void;
@@ -57,6 +60,7 @@ export function Queue({
   onFetchChannelUploads,
   onAddToQueue,
   onSelectSong,
+  onPlayPlaylist,
   onFileSelect,
   onUrlSubmit,
   onReorder,
@@ -187,9 +191,13 @@ export function Queue({
       });
       return;
     }
-    onSelectSong?.(playlist.tracks[0]);
-    playlist.tracks.slice(1).forEach((track) => onAddToQueue?.(track));
-    toast.success(`Playing playlist: ${playlist.name}`);
+    if (onPlayPlaylist) {
+      onPlayPlaylist(playlist.tracks, playlist.name);
+    } else {
+      onSelectSong?.(playlist.tracks[0]);
+      playlist.tracks.slice(1).forEach((track) => onAddToQueue?.(track));
+      toast.success(`Playing playlist: ${playlist.name}`);
+    }
   };
 
   const syncPlaylistFromStorage = (prev: Playlist | null) => {
@@ -219,6 +227,9 @@ export function Queue({
   };
 
   const showBackButton = selectedArtist || selectedQueuePlaylist || viewMode === 'library';
+  const showSessionSearch =
+    !selectedArtist && !selectedQueuePlaylist && viewMode === 'session';
+  const headerLabel = headerTitle();
 
   return (
     <>
@@ -246,37 +257,75 @@ export function Queue({
           }}
         />
 
-        <div className="relative px-6 py-5 border-b border-white/5 flex items-center justify-between shrink-0 z-10 bg-black/10 select-none">
-          <div className="flex items-center gap-3">
-            {showBackButton && (
-              <button
-                onClick={() => {
-                  if (selectedArtist || selectedQueuePlaylist) {
-                    setSelectedArtist(null);
-                    setArtistTracks([]);
-                    setSelectedQueuePlaylist(null);
-                  } else {
-                    setViewMode('session');
-                  }
-                }}
-                className="p-1.5 hover:bg-white/10 rounded-lg text-white/50 hover:text-white transition-colors cursor-pointer"
-                title="Back"
-              >
-                <ArrowLeft className="w-4 h-4" />
-              </button>
-            )}
-            {!showBackButton && <Music className="w-4 h-4 text-white/40" />}
-            <span
-              className="text-lg font-normal tracking-wide text-white/95"
-              style={{ fontFamily: '"Kaobe", serif' }}
-            >
-              {headerTitle()}
-            </span>
-            {!searchQuery.trim() && viewMode === 'session' && !selectedArtist && !selectedQueuePlaylist && (
-              <span className="text-[10px] text-white/30 font-normal tracking-wider ml-1.5 lowercase">
-                ({items.length} {items.length === 1 ? 'song' : 'songs'})
-              </span>
-            )}
+        <div className="relative px-6 py-5 border-b border-white/5 flex items-center justify-between shrink-0 z-10 bg-black/10 select-none min-h-[60px]">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="relative w-7 h-7 shrink-0 flex items-center justify-center">
+              <AnimatePresence mode="wait" initial={false}>
+                {showBackButton ? (
+                  <motion.button
+                    key="queue-header-back"
+                    type="button"
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -10 }}
+                    transition={{ duration: 0.24, ease: EASE_PREMIUM }}
+                    onClick={() => {
+                      if (selectedArtist || selectedQueuePlaylist) {
+                        setSelectedArtist(null);
+                        setArtistTracks([]);
+                        setSelectedQueuePlaylist(null);
+                      } else {
+                        setViewMode('session');
+                      }
+                    }}
+                    className="absolute inset-0 p-1.5 hover:bg-white/10 rounded-lg text-white/50 hover:text-white transition-colors cursor-pointer flex items-center justify-center"
+                    title="Back"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                  </motion.button>
+                ) : (
+                  <motion.div
+                    key="queue-header-music"
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -10 }}
+                    transition={{ duration: 0.24, ease: EASE_PREMIUM }}
+                    className="absolute inset-0 flex items-center justify-center"
+                  >
+                    <Music className="w-4 h-4 text-white/40" />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+            <div className="flex items-baseline gap-1.5 min-w-0">
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.span
+                  key={headerLabel}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.26, ease: EASE_PREMIUM }}
+                  className="text-lg font-normal tracking-wide text-white/95 truncate"
+                  style={{ fontFamily: '"Kaobe", serif' }}
+                >
+                  {headerLabel}
+                </motion.span>
+              </AnimatePresence>
+              <AnimatePresence initial={false}>
+                {showSessionSearch && !searchQuery.trim() && (
+                  <motion.span
+                    key="queue-header-count"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.22, ease: EASE_PREMIUM }}
+                    className="text-[10px] text-white/30 font-normal tracking-wider lowercase whitespace-nowrap"
+                  >
+                    ({items.length} {items.length === 1 ? 'song' : 'songs'})
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
 
           {!selectedArtist && !selectedQueuePlaylist && (
@@ -290,111 +339,116 @@ export function Queue({
           )}
         </div>
 
-        {!selectedArtist && !selectedQueuePlaylist && viewMode === 'session' && (
-          <QueueSearchBar
-            searchQuery={searchQuery}
-            onSearchQueryChange={setSearchQuery}
-            onSearch={handleSearch}
-            onUploadClick={() => fileInputRef.current?.click()}
-            onFileChange={handleFileChange}
-            searchInputRef={searchInputRef}
-            fileInputRef={fileInputRef}
-          />
-        )}
-
         <div
-          className={`flex-1 overflow-y-auto scrollbar-none relative z-10 pb-[120px] ${selectedArtist ? 'p-0' : 'p-5'}`}
+          className={`grid shrink-0 transition-[grid-template-rows] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+            showSessionSearch ? 'border-b border-white/5' : ''
+          }`}
+          style={{ gridTemplateRows: showSessionSearch ? '1fr' : '0fr' }}
         >
-          <AnimatePresence mode="wait">
+          <div className="min-h-0 overflow-hidden">
+            <QueueSearchBar
+              searchQuery={searchQuery}
+              onSearchQueryChange={setSearchQuery}
+              onSearch={handleSearch}
+              onUploadClick={() => fileInputRef.current?.click()}
+              onFileChange={handleFileChange}
+              searchInputRef={searchInputRef}
+              fileInputRef={fileInputRef}
+            />
+          </div>
+        </div>
+
+        <div className="relative flex-1 min-h-0 overflow-hidden z-10">
+          <AnimatePresence mode="wait" initial={false}>
             {isLoadingArtist ? (
-              <motion.div
-                key="artist-loading"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="flex flex-col items-center justify-center py-24 text-center select-none"
-              >
-                <Loader2 className="w-8 h-8 text-white/40 animate-spin mb-3" />
-                <p className="text-xs text-white/40 font-medium tracking-wide">Loading tracks...</p>
-              </motion.div>
+              <QueuePanelLayer layerKey="artist-loading">
+                <div className="flex flex-col items-center justify-center py-24 text-center select-none">
+                  <Loader2 className="w-8 h-8 text-white/40 animate-spin mb-3" />
+                  <p className="text-xs text-white/40 font-medium tracking-wide">Loading tracks...</p>
+                </div>
+              </QueuePanelLayer>
             ) : selectedArtist ? (
-              <QueueArtistSubview
-                artist={selectedArtist}
-                tracks={artistTracks}
-                accentColor={accentColor}
-                onPlaySong={handlePlaySongDirectly}
-                onAddToQueue={onAddToQueue ? handleAddSongToQueue : undefined}
-              />
+              <QueuePanelLayer layerKey={`artist-${selectedArtist.name}`}>
+                <QueueArtistSubview
+                  artist={selectedArtist}
+                  tracks={artistTracks}
+                  accentColor={accentColor}
+                  onPlaySong={handlePlaySongDirectly}
+                  onAddToQueue={onAddToQueue ? handleAddSongToQueue : undefined}
+                />
+              </QueuePanelLayer>
             ) : selectedQueuePlaylist ? (
-              <QueuePlaylistSubview
-                playlist={selectedQueuePlaylist}
-                onPlayAll={() => handlePlayPlaylistDirectly(selectedQueuePlaylist)}
-                onPlaySong={handlePlaySongDirectly}
-                onAddToQueue={onAddToQueue ? handleAddSongToQueue : undefined}
-              />
+              <QueuePanelLayer layerKey={`playlist-${selectedQueuePlaylist.id}`} className="!p-0">
+                <QueuePlaylistSubview
+                  playlist={selectedQueuePlaylist}
+                  onPlayAll={() => handlePlayPlaylistDirectly(selectedQueuePlaylist)}
+                  onPlaySong={handlePlaySongDirectly}
+                  onAddToQueue={onAddToQueue ? handleAddSongToQueue : undefined}
+                />
+              </QueuePanelLayer>
             ) : viewMode === 'library' ? (
-              <QueueLibraryView
-                localPlaylists={localPlaylists}
-                localFavorites={localFavorites}
-                artistBubbles={artistBubbles}
-                onSelectPlaylist={setSelectedQueuePlaylist}
-                onOpenArtist={(artist) =>
-                  openArtistProfile({
-                    name: artist.name,
-                    thumbnail: getCachedArtistThumbnail(artist.name, artist.thumbnail),
-                    channelId: artist.channelId,
-                    isTopic: true,
-                  })
-                }
-                onPlaySong={handlePlaySongDirectly}
-                onAddToQueue={onAddToQueue ? handleAddSongToQueue : undefined}
-              />
-            ) : searchQuery.trim() ? (
-              <QueueSearchResults
-                isSearching={isSearching}
-                hasSearched={hasSearched}
-                searchResults={searchResults}
-                matchedArtist={matchedArtist}
-                accentColor={accentColor}
-                onOpenArtist={openArtistProfile}
-                onPlaySong={handlePlaySongDirectly}
-                onAddToQueue={onAddToQueue ? handleAddSongToQueue : undefined}
-              />
-            ) : (
-              <motion.div
-                key="default-active-session"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="flex flex-col gap-8 text-left"
-              >
-                <QueueUpNext
-                  items={items}
-                  displayItems={displayItems}
-                  currentSongId={currentSongId}
-                  songData={songData}
-                  accentColor={accentColor}
-                  activeDragIndex={activeDragIndex}
-                  onSelect={onSelect}
-                  onRemove={onRemove}
-                  onClearQueue={onClearQueue}
-                  onShuffleQueue={onShuffleQueue}
-                  onDragStart={handleDragStart}
-                  onDragOver={handleDragOver}
-                  onDragEnd={handleDragEnd}
-                />
-                <QueueQuickAdd
+              <QueuePanelLayer layerKey="library-hub">
+                <QueueLibraryView
+                  localPlaylists={localPlaylists}
                   localFavorites={localFavorites}
-                  localHistory={localHistory}
-                  showFavorites={showFavorites}
-                  showHistory={showHistory}
-                  onToggleFavorites={() => setShowFavorites((v) => !v)}
-                  onToggleHistory={() => setShowHistory((v) => !v)}
-                  onAddToQueue={onAddToQueue}
-                  onBrowseLibrary={() => setViewMode('library')}
-                  accentColor={accentColor}
+                  artistBubbles={artistBubbles}
+                  onSelectPlaylist={setSelectedQueuePlaylist}
+                  onOpenArtist={(artist) =>
+                    openArtistProfile({
+                      name: artist.name,
+                      thumbnail: getCachedArtistThumbnail(artist.name, artist.thumbnail),
+                      channelId: artist.channelId,
+                      isTopic: true,
+                    })
+                  }
+                  onPlaySong={handlePlaySongDirectly}
+                  onAddToQueue={onAddToQueue ? handleAddSongToQueue : undefined}
                 />
-              </motion.div>
+              </QueuePanelLayer>
+            ) : searchQuery.trim() ? (
+              <QueuePanelLayer layerKey="queue-search">
+                <QueueSearchResults
+                  isSearching={isSearching}
+                  hasSearched={hasSearched}
+                  searchResults={searchResults}
+                  matchedArtist={matchedArtist}
+                  accentColor={accentColor}
+                  onOpenArtist={openArtistProfile}
+                  onPlaySong={handlePlaySongDirectly}
+                  onAddToQueue={onAddToQueue ? handleAddSongToQueue : undefined}
+                />
+              </QueuePanelLayer>
+            ) : (
+              <QueuePanelLayer layerKey="active-session">
+                <div className="flex flex-col gap-8 text-left">
+                  <QueueUpNext
+                    items={items}
+                    displayItems={displayItems}
+                    currentSongId={currentSongId}
+                    songData={songData}
+                    accentColor={accentColor}
+                    activeDragIndex={activeDragIndex}
+                    onSelect={onSelect}
+                    onRemove={onRemove}
+                    onClearQueue={onClearQueue}
+                    onShuffleQueue={onShuffleQueue}
+                    onDragStart={handleDragStart}
+                    onDragOver={handleDragOver}
+                    onDragEnd={handleDragEnd}
+                  />
+                  <QueueQuickAdd
+                    localFavorites={localFavorites}
+                    localHistory={localHistory}
+                    showFavorites={showFavorites}
+                    showHistory={showHistory}
+                    onToggleFavorites={() => setShowFavorites((v) => !v)}
+                    onToggleHistory={() => setShowHistory((v) => !v)}
+                    onAddToQueue={onAddToQueue}
+                    onBrowseLibrary={() => setViewMode('library')}
+                    accentColor={accentColor}
+                  />
+                </div>
+              </QueuePanelLayer>
             )}
           </AnimatePresence>
         </div>
