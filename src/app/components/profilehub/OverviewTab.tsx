@@ -113,7 +113,7 @@ export function OverviewTab({
                 className="group flex flex-col gap-3 w-36 shrink-0 snap-start select-none cursor-pointer"
                 title={`Play ${song.title}`}
               >
-                <div className="relative w-36 h-36 rounded-2xl overflow-hidden shadow-lg border border-white/5 bg-white/5">
+                <div className="relative w-36 h-36 rounded-2xl overflow-hidden shadow-lg border border-white/[0.08] bg-[#0c0d10]">
                   <img 
                     src={song.thumbnail} 
                     alt={song.title} 
@@ -142,7 +142,7 @@ export function OverviewTab({
             ))}
           </div>
         ) : (
-          <div className="rounded-2xl border border-white/[0.06] bg-[#121318]/50 p-8 text-center flex flex-col items-center justify-center select-none shadow-sm">
+          <div className="rounded-2xl border border-white/[0.08] bg-[#0c0d10]/40 p-8 text-center flex flex-col items-center justify-center select-none shadow-sm">
             <Music className="w-6 h-6 text-white/20 mb-2" />
             <p className="text-white/40 text-[10px] font-semibold">No recent songs</p>
             <p className="text-white/20 text-[9px] mt-1 font-light max-w-[160px]">
@@ -187,7 +187,7 @@ export function OverviewTab({
             ))}
           </div>
         ) : (
-          <div className="rounded-2xl border border-white/[0.06] bg-[#121318]/50 p-6 text-center flex flex-col items-center justify-center select-none shadow-sm">
+          <div className="rounded-2xl border border-white/[0.08] bg-[#0c0d10]/40 p-6 text-center flex flex-col items-center justify-center select-none shadow-sm">
             <p className="text-white/40 text-xs font-semibold">No artists resolved yet</p>
             <p className="text-white/20 text-[10px] mt-1 font-light max-w-[220px]">
               Your recently played artists will pop up here.
@@ -217,7 +217,7 @@ export function OverviewTab({
                   setActiveTab('playlists');
                   setSelectedPlaylistId(playlist.id);
                 }}
-                className="group relative rounded-2xl border border-white/[0.05] bg-[#121319]/45 hover:bg-[#161720]/75 p-4.5 flex flex-col justify-between h-[120px] shadow-lg overflow-hidden transition-all duration-300 cursor-pointer active:scale-[0.98]"
+                className="group relative rounded-2xl border border-white/[0.07] bg-[#13141b]/35 hover:bg-[#181a23]/60 p-4.5 flex flex-col justify-between h-[120px] shadow-lg overflow-hidden transition-all duration-300 cursor-pointer active:scale-[0.98]"
               >
                 <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r ${playlist.color}`} />
 
@@ -244,7 +244,7 @@ export function OverviewTab({
             ))}
           </div>
         ) : (
-          <div className="rounded-2xl border border-white/[0.06] bg-[#121318]/50 p-6 text-center flex flex-col items-center justify-center select-none shadow-sm">
+          <div className="rounded-2xl border border-white/[0.08] bg-[#0c0d10]/40 p-6 text-center flex flex-col items-center justify-center select-none shadow-sm">
             <p className="text-white/40 text-xs font-semibold">No playlists created yet</p>
             <p className="text-white/20 text-[10px] mt-1 font-light max-w-[220px]">
               Go to the Playlists tab to create and manage collections.

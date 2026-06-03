@@ -41,11 +41,11 @@ export const LandingRecents: React.FC<LandingRecentsProps> = ({
       {/* Dynamic Tab Bar Selector - sliding bubble glassmorphism */}
       {showTabs && (
         <div className="flex justify-center mb-1">
-          <div className="relative flex p-1 rounded-full bg-white/[0.02] border border-white/[0.06] backdrop-blur-2xl">
+          <div className="relative flex p-1 rounded-full bg-[#0b0c10]/95 border border-white/[0.08] shadow-[0_12px_40px_rgba(0,0,0,0.55)]">
             {/* Sliding background bubble */}
             <motion.div
               layoutId="recentsActiveBubble"
-              className="absolute inset-y-1 rounded-full bg-white/[0.07] border border-white/10 shadow-[0_2px_10px_rgba(255,255,255,0.02)]"
+              className="absolute inset-y-1 rounded-full bg-[#07080a] border border-white/[0.08] shadow-[0_2px_10px_rgba(0,0,0,0.5)]"
               animate={{
                 x: activeTab === 'songs' ? 0 : 96,
                 width: activeTab === 'songs' ? 96 : 96,
@@ -105,10 +105,10 @@ export const LandingRecents: React.FC<LandingRecentsProps> = ({
                     key={song.id}
                     whileHover={{ y: -4 }}
                     onClick={() => onPlaySong(song)}
-                    className="group snap-start flex-shrink-0 w-[170px] flex flex-col gap-3 p-3.5 rounded-2xl bg-white/[0.015] hover:bg-white/[0.035] border border-white/[0.03] hover:border-white/[0.09] transition-all duration-300 cursor-pointer relative overflow-hidden"
+                    className="group snap-start flex-shrink-0 w-[170px] flex flex-col gap-3 p-3.5 rounded-2xl bg-[#13141b]/35 hover:bg-[#181a23]/60 border border-white/[0.04] hover:border-white/[0.09] transition-all duration-300 cursor-pointer relative overflow-hidden shadow-sm"
                   >
                     {/* Cover Artwork Container */}
-                    <div className="relative aspect-square w-full rounded-xl overflow-hidden bg-neutral-950 border border-white/5 shadow-[0_8px_20px_rgba(0,0,0,0.5)]">
+                    <div className="relative aspect-square w-full rounded-xl overflow-hidden bg-neutral-955 border border-white/[0.08] shadow-[0_8px_20px_rgba(0,0,0,0.5)]">
                       <img
                         src={song.thumbnail}
                         alt={song.title}
@@ -163,10 +163,10 @@ export const LandingRecents: React.FC<LandingRecentsProps> = ({
                   key={artist.name}
                   whileHover={{ y: -4 }}
                   onClick={() => onViewArtist(artist)}
-                  className="group snap-start flex-shrink-0 w-[140px] flex flex-col items-center gap-3 p-3.5 rounded-2xl bg-white/[0.012] hover:bg-white/[0.03] border border-white/[0.02] hover:border-white/[0.08] transition-all duration-300 cursor-pointer relative overflow-hidden"
+                  className="group snap-start flex-shrink-0 w-[140px] flex flex-col items-center gap-3 p-3.5 rounded-2xl bg-[#13141b]/35 hover:bg-[#181a23]/60 border border-white/[0.04] hover:border-white/[0.09] transition-all duration-300 cursor-pointer relative overflow-hidden shadow-sm"
                 >
                   {/* circular profile avatar */}
-                  <div className="relative w-24 h-24 rounded-full overflow-hidden flex-shrink-0 bg-neutral-900 border border-white/5 shadow-[0_8px_20px_rgba(0,0,0,0.5)] group-hover:border-white/20 transition-colors duration-300">
+                  <div className="relative w-24 h-24 rounded-full overflow-hidden flex-shrink-0 bg-neutral-950 border border-white/[0.08] shadow-[0_8px_20px_rgba(0,0,0,0.5)] group-hover:border-white/20 transition-colors duration-300">
                     <img
                       src={artist.thumbnail}
                       alt={artist.name}

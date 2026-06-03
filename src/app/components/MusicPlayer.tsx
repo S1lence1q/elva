@@ -309,6 +309,7 @@ export function MusicPlayer({
   // Keyboard controls
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
+      if (appState !== 'ready') return;
       const target = e.target as HTMLElement;
       if (
         target &&

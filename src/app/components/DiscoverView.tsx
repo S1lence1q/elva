@@ -142,7 +142,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
             Array.from({ length: 2 }).map((_, idx) => (
               <div
                 key={idx}
-                className="rounded-3xl border border-white/[0.04] p-7 bg-[#0a0a0c]/60 backdrop-blur-xl h-[190px] flex flex-col justify-between animate-pulse"
+                className="rounded-3xl border border-white/[0.07] p-7 bg-[#0e0f14]/94 h-[190px] flex flex-col justify-between animate-pulse shadow-[0_12px_36px_rgba(0,0,0,0.55)]"
               >
                 <div className="space-y-3">
                   <div className="h-4 bg-white/10 rounded w-[60%]" />
@@ -192,7 +192,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
               Array.from({ length: 4 }).map((_, idx) => (
                 <div
                   key={idx}
-                  className="flex items-center justify-between p-3 rounded-2xl bg-white/[0.02] border border-white/[0.04] h-[74px] animate-pulse"
+                  className="flex items-center justify-between p-3.5 rounded-2xl bg-[#13141b]/20 border border-white/[0.04] h-[74px] animate-pulse"
                 />
               ))
             ) : trendingList.length > 0 ? (
@@ -225,7 +225,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
               Array.from({ length: 4 }).map((_, idx) => (
                 <div
                   key={idx}
-                  className="flex items-center justify-between p-3 rounded-2xl bg-white/[0.02] border border-white/[0.04] h-[74px] animate-pulse"
+                  className="flex items-center justify-between p-3.5 rounded-2xl bg-[#13141b]/20 border border-white/[0.04] h-[74px] animate-pulse"
                 />
               ))
             ) : dailyPicks.length > 0 ? (

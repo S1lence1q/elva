@@ -356,6 +356,7 @@ export function ArtworkCard({
                   isolation: 'isolate',
                 }}
                 onPointerDown={(e) => {
+                  if (appState !== 'ready') return;
                   const target = e.target as HTMLElement;
                   if (
                     target.closest('button') || 
@@ -370,6 +371,7 @@ export function ArtworkCard({
                   }
                 }}
                 onClick={(e) => {
+                  if (appState !== 'ready') return;
                   const target = e.target as HTMLElement;
                   if (
                     target.closest('button') || 

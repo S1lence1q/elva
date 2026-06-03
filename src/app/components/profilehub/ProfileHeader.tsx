@@ -23,7 +23,7 @@ export function ProfileHeader({
   const theme = ACCENT_THEMES[accentColor];
 
   return (
-    <div className="rounded-3xl border border-white/5 bg-[#0f0f12]/35 backdrop-blur-xl p-5 flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden shadow-2xl">
+    <div className="rounded-3xl border border-white/[0.07] bg-[#0e0f13]/90 p-5 flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden shadow-[0_12px_40px_rgba(0,0,0,0.6)]">
       <div className={`absolute -top-12 -left-12 w-28 h-28 rounded-full ${theme.bgFade} blur-2xl opacity-20`} />
 
       {/* Left Side: Avatar & Username */}
