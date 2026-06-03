@@ -274,7 +274,7 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
             <motion.div
               key="search-phase-results"
               {...searchPhaseMotion}
-              className="w-full max-h-[min(60vh,520px)] overflow-y-auto px-1 scrollbar-none overscroll-contain will-change-transform"
+              className="w-full max-h-[min(60vh,520px)] overflow-y-auto px-1 scrollbar-none overscroll-contain"
             >
               <motion.div
                 variants={searchStaggerContainer}
