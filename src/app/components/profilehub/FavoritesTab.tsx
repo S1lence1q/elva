@@ -99,7 +99,7 @@ export function FavoritesTab({
           ))}
         </div>
       ) : (
-        <div className="rounded-3xl border border-white/[0.07] bg-[#0c0d10]/95 p-16 text-center flex flex-col items-center justify-center select-none shadow-[0_12px_40px_rgba(0,0,0,0.6)]">
+        <div className="rounded-3xl border border-white/[0.08] bg-[#0a0b10]/65 backdrop-blur-2xl p-16 text-center flex flex-col items-center justify-center select-none shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_12px_40px_rgba(0,0,0,0.5)]">
           <Heart className="w-8 h-8 text-white/20 mb-3" />
           <p className="text-white/50 text-sm font-medium">No favorite songs yet</p>
           <p className="text-white/30 text-xs mt-1.5 font-light max-w-[280px]">

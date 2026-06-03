@@ -120,7 +120,7 @@ export function PlaylistsTab({
               </button>
 
               {/* Header Card */}
-              <div className="relative w-full rounded-3xl overflow-hidden border border-white/[0.07] bg-[#0e0f13]/90 shadow-[0_12px_40px_rgba(0,0,0,0.6)] py-5 px-6 md:px-8 flex flex-col md:flex-row items-center justify-between gap-6">
+              <div className="relative w-full rounded-3xl overflow-hidden border border-white/[0.08] bg-[#0a0b10]/65 backdrop-blur-2xl shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_12px_40px_rgba(0,0,0,0.5)] py-5 px-6 md:px-8 flex flex-col md:flex-row items-center justify-between gap-6">
                 <div className={`absolute -top-12 -left-12 w-28 h-28 rounded-full bg-gradient-to-tr ${playlist.color} blur-3xl opacity-20`} />
                 
                 <div className="flex items-center gap-5 relative z-10 w-full md:w-auto">
@@ -216,7 +216,7 @@ export function PlaylistsTab({
                     ))}
                   </div>
                 ) : (
-                  <div className="rounded-3xl border border-white/[0.07] bg-[#0c0d10]/95 p-12 text-center flex flex-col items-center justify-center select-none shadow-[0_12px_40px_rgba(0,0,0,0.6)]">
+                  <div className="rounded-3xl border border-white/[0.08] bg-[#0a0b10]/65 backdrop-blur-2xl p-12 text-center flex flex-col items-center justify-center select-none shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_12px_40px_rgba(0,0,0,0.5)]">
                     <Music className="w-8 h-8 text-white/25 mb-3 animate-pulse" />
                     <p className="text-white/50 text-sm font-semibold">This playlist is empty</p>
                     <p className="text-white/30 text-xs mt-1.5 font-light max-w-[280px]">
@@ -248,7 +248,7 @@ export function PlaylistsTab({
                       autoCorrect="off"
                       autoCapitalize="off"
                       spellCheck="false"
-                      className="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-[#0e0f13]/90 border border-white/[0.09] text-white/90 placeholder-white/20 text-sm focus:outline-none focus:border-white/20 focus:bg-[#121319]/95 transition-all duration-300"
+                      className="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-[#0a0b10]/55 border border-white/[0.08] text-white/90 placeholder-white/20 text-sm focus:outline-none focus:border-white/20 focus:bg-[#13141b]/70 transition-all duration-300 backdrop-blur-xl"
                     />
                   </div>
                   <button
@@ -346,7 +346,7 @@ export function PlaylistsTab({
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
-                className="rounded-3xl border border-white/[0.08] bg-[#0e0f13]/90 shadow-[0_12px_40px_rgba(0,0,0,0.6)] p-5 overflow-hidden text-left"
+                className="rounded-3xl border border-white/[0.08] bg-[#0a0b10]/65 backdrop-blur-2xl shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_12px_40px_rgba(0,0,0,0.5)] p-5 overflow-hidden text-left"
               >
                 <div className="flex flex-col gap-4">
                   <h4 className="text-xs uppercase tracking-widest font-semibold text-white/70">Create new playlist</h4>
@@ -361,7 +361,7 @@ export function PlaylistsTab({
                       autoCorrect="off"
                       autoCapitalize="off"
                       spellCheck="false"
-                      className="flex-1 bg-[#0c0d10]/90 border border-white/[0.09] focus:border-white/20 text-white rounded-xl px-4 py-2.5 text-sm focus:outline-none transition-all duration-300 font-light"
+                      className="flex-1 bg-[#050608]/85 border border-white/[0.08] focus:border-white/20 text-white rounded-xl px-4 py-2.5 text-sm focus:outline-none transition-all duration-300 font-light backdrop-blur-xl"
                       autoFocus
                     />
                     <div className="flex items-center gap-2">
@@ -402,7 +402,7 @@ export function PlaylistsTab({
                 <div
                   key={playlist.id}
                   onClick={() => setSelectedPlaylistId(playlist.id)}
-                  className="group relative rounded-3xl border border-white/[0.07] bg-[#0e0f14]/94 hover:bg-[#121319]/96 p-6.5 flex flex-col justify-between h-[160px] shadow-[0_12px_36px_rgba(0,0,0,0.55)] overflow-hidden transition-all duration-300 hover:border-white/15 hover:shadow-black/75 cursor-pointer active:scale-[0.99]"
+                  className="group relative rounded-3xl border border-white/[0.08] bg-[#0a0b10]/65 hover:bg-[#13141c]/75 p-6.5 flex flex-col justify-between h-[160px] shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_12px_36px_rgba(0,0,0,0.55)] overflow-hidden transition-all duration-300 hover:border-white/15 hover:shadow-black/75 cursor-pointer active:scale-[0.99] backdrop-blur-2xl"
                 >
                   <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${playlist.color}`} />
 
@@ -440,7 +440,7 @@ export function PlaylistsTab({
               ))}
             </div>
           ) : (
-            <div className="rounded-3xl border border-white/[0.07] bg-[#0c0d10]/95 p-16 text-center flex flex-col items-center justify-center select-none shadow-[0_12px_40px_rgba(0,0,0,0.6)]">
+            <div className="rounded-3xl border border-white/[0.08] bg-[#0a0b10]/65 backdrop-blur-2xl p-16 text-center flex flex-col items-center justify-center select-none shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_12px_40px_rgba(0,0,0,0.5)]">
               <ListMusic className="w-8 h-8 text-white/20 mb-3" />
               <p className="text-white/50 text-sm font-medium">No playlists yet</p>
               <p className="text-white/30 text-xs mt-1.5 font-light max-w-[280px]">

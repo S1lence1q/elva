@@ -41,7 +41,7 @@ export const LandingRecents: React.FC<LandingRecentsProps> = ({
       {/* Dynamic Tab Bar Selector - sliding bubble glassmorphism */}
       {showTabs && (
         <div className="flex justify-center mb-1">
-          <div className="relative flex p-1 rounded-full bg-[#0b0c10]/95 border border-white/[0.08] shadow-[0_12px_40px_rgba(0,0,0,0.55)]">
+          <div className="relative flex p-1 rounded-full bg-[#0a0b10]/65 border border-white/[0.08] backdrop-blur-2xl shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_12px_40px_rgba(0,0,0,0.55)]">
             {/* Sliding background bubble */}
             <motion.div
               layoutId="recentsActiveBubble"

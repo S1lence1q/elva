@@ -23,7 +23,7 @@ export function QueueArtistSubview({
 
   return (
     <div className="space-y-6 text-left">
-      <div className="relative w-full rounded-3xl overflow-hidden border border-white/[0.07] bg-[#0e0f13]/90 shadow-[0_12px_40px_rgba(0,0,0,0.6)] py-6 px-6 flex items-center gap-5 shrink-0">
+      <div className="relative w-full rounded-3xl overflow-hidden border border-white/[0.08] bg-[#0a0b10]/65 backdrop-blur-2xl shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_12px_40px_rgba(0,0,0,0.5)] py-6 px-6 flex items-center gap-5 shrink-0">
         <div
           className="absolute -top-20 -right-20 w-44 h-44 rounded-full blur-[45px] opacity-35 pointer-events-none"
           style={{

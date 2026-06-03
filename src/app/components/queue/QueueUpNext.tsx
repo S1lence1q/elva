@@ -82,7 +82,7 @@ export function QueueUpNext({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="flex items-center gap-3.5 p-4.5 rounded-2xl border border-white/[0.06] bg-[#121318]/50 select-none text-left min-h-[88px] shadow-md"
+              className="flex items-center gap-3.5 p-4.5 rounded-2xl border border-white/[0.08] bg-[#0a0b10]/40 select-none text-left min-h-[88px] shadow-md"
             >
               <div className="w-16 h-16 rounded-2xl border border-white/[0.08] bg-[#1a1b24]/40 flex items-center justify-center shrink-0">
                 <Music className="w-5 h-5 text-white/20 animate-pulse" />
@@ -120,7 +120,7 @@ export function QueueUpNext({
                   } ${
                     isCurrent
                       ? `bg-white/[0.06] border-white/20 shadow-[0_4px_12px_rgba(0,0,0,0.5)] ${theme.border} shadow-[0_0_12px_var(--theme-primary-fade)]`
-                      : 'bg-[#121319]/40 border-white/[0.03] hover:border-white/10 hover:bg-[#171822]/60'
+                      : 'bg-[#0a0b10]/45 border-white/[0.04] hover:border-white/10 hover:bg-[#13141b]/60'
                   }`}
                 >
                   <div className="flex items-center gap-2.5 truncate mr-3 flex-1">

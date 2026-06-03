@@ -66,7 +66,7 @@ export const LyricsPanel: React.FC<LyricsPanelProps> = ({
       className={`${
         isSideBySide 
           ? 'relative w-full h-full flex flex-col items-start py-4 bg-transparent border-0 shadow-none' 
-          : 'absolute inset-0 w-full h-full rounded-[28px] overflow-hidden bg-[#09090c] border border-white/[0.08] shadow-[0_40px_80px_rgba(0,0,0,0.85)] flex flex-col items-center py-10'
+          : 'absolute inset-0 w-full h-full rounded-[28px] overflow-hidden bg-[#050508]/85 backdrop-blur-3xl border border-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_40px_80px_rgba(0,0,0,0.85)] flex flex-col items-center py-10'
       } cursor-default ${
         !showLyrics ? 'pointer-events-none' : 'pointer-events-auto'
       }`}

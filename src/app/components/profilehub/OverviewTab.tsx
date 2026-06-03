@@ -98,7 +98,7 @@ export function OverviewTab({
       className="flex flex-col gap-8"
     >
       {/* B. HORIZONTAL "VINYL FLIP" CAROUSEL (Recently Played) */}
-      <div className="rounded-3xl border border-white/[0.07] bg-[#0e0f13]/90 p-6 flex flex-col gap-5 shadow-[0_12px_36px_rgba(0,0,0,0.55)] w-full">
+      <div className="rounded-3xl border border-white/[0.08] bg-[#0a0b10]/65 backdrop-blur-2xl p-6 flex flex-col gap-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_12px_36px_rgba(0,0,0,0.55)] w-full">
         <div className="flex items-center gap-2 select-none">
           <History className="w-4 h-4 text-white/30" />
           <h3 className="text-[10px] uppercase tracking-[0.25em] font-bold text-white/40">Recently Played</h3>
@@ -153,7 +153,7 @@ export function OverviewTab({
       </div>
 
       {/* C. Recently Played Artists Carousel */}
-      <div className="rounded-3xl border border-white/[0.07] bg-[#0e0f13]/90 p-5 flex flex-col gap-4 shadow-[0_12px_36px_rgba(0,0,0,0.55)] w-full">
+      <div className="rounded-3xl border border-white/[0.08] bg-[#0a0b10]/65 backdrop-blur-2xl p-5 flex flex-col gap-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_12px_36px_rgba(0,0,0,0.55)] w-full">
         <div className="flex items-center justify-between select-none">
           <h3 className="text-[10px] uppercase tracking-[0.25em] font-bold text-white/40">Recently Played Artists</h3>
         </div>
@@ -197,7 +197,7 @@ export function OverviewTab({
       </div>
 
       {/* D. Bottom Showcase: Playlists Horizontal Strip */}
-      <div className="rounded-3xl border border-white/[0.07] bg-[#0e0f13]/90 p-5 flex flex-col gap-4 shadow-[0_12px_36px_rgba(0,0,0,0.55)] w-full">
+      <div className="rounded-3xl border border-white/[0.08] bg-[#0a0b10]/65 backdrop-blur-2xl p-5 flex flex-col gap-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_12px_36px_rgba(0,0,0,0.55)] w-full">
         <div className="flex items-center justify-between select-none">
           <h3 className="text-[10px] uppercase tracking-[0.25em] font-bold text-white/40">Custom Playlists</h3>
           <button

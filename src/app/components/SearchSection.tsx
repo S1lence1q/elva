@@ -56,10 +56,10 @@ function SearchArtistCard({
     <motion.div
       variants={searchArtistCardItem}
       onClick={onOpen}
-      className={`relative overflow-hidden p-6 rounded-3xl bg-[#0c0d10]/95 border transition-all duration-300 mb-4 flex items-center justify-between gap-6 group shadow-[0_12px_40px_rgba(0,0,0,0.6)] cursor-pointer w-full min-h-[108px] will-change-transform ${
+      className={`relative overflow-hidden p-6 rounded-3xl bg-[#0a0b10]/65 backdrop-blur-2xl border transition-all duration-300 mb-4 flex items-center justify-between gap-6 group shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_12px_40px_rgba(0,0,0,0.5)] cursor-pointer w-full min-h-[108px] will-change-transform ${
         isFocused
-          ? 'border-white/25 bg-[#121318]'
-          : 'border-white/[0.08] hover:border-white/15 hover:bg-[#121319]'
+          ? 'border-white/25 bg-[#13141c]/75'
+          : 'border-white/[0.08] hover:border-white/15 hover:bg-[#13141c]/75'
       }`}
     >
       <div className="flex items-center gap-5 relative z-10 min-w-0">
@@ -241,7 +241,7 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
             autoCorrect="off"
             autoCapitalize="off"
             spellCheck="false"
-            className="w-full pl-16 pr-8 py-6 rounded-3xl bg-[#0e0f13]/90 border border-white/[0.09] text-white/90 placeholder-white/25 text-lg font-light tracking-wide focus:outline-none focus:border-white/20 focus:bg-[#121319]/95 transition-all duration-300 shadow-[inset_0_1px_2px_rgba(0,0,0,0.25)]"
+            className="w-full pl-16 pr-8 py-6 rounded-3xl bg-[#0a0b10]/55 border border-white/[0.08] text-white/90 placeholder-white/25 text-lg font-light tracking-wide focus:outline-none focus:border-white/20 focus:bg-[#13141c]/70 transition-all duration-300 shadow-[inset_0_1px_2px_rgba(0,0,0,0.25)] backdrop-blur-xl"
           />
           <div className="absolute inset-0 rounded-3xl pointer-events-none shadow-[inset_0_1px_2px_rgba(0,0,0,0.2)]" />
         </div>
@@ -312,7 +312,7 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
                           ? `${theme.borderActive} bg-[#181a23]/60`
                           : isFocused
                             ? 'bg-[#181a23]/80 border-white/20 shadow-md'
-                            : 'bg-[#111216]/50 border-white/[0.04] hover:bg-[#161720]/80 hover:border-white/10'
+                            : 'bg-[#0a0b10]/40 border-white/[0.05] hover:bg-[#13141c]/55 hover:border-white/10'
                       }`}
                     >
                       <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-white/0 via-white/[0.02] to-white/0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />

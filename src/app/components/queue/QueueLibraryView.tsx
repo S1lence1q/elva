@@ -40,7 +40,7 @@ export function QueueLibraryView({
               <div
                 key={`lib-plist-${playlist.id}`}
                 onClick={() => onSelectPlaylist(playlist)}
-                className="group w-full flex items-center justify-between p-3.5 rounded-2xl bg-[#13141b]/35 hover:bg-[#181a23]/60 border border-white/[0.04] hover:border-white/[0.09] transition-all duration-300 cursor-pointer"
+                className="group w-full flex items-center justify-between p-3.5 rounded-2xl bg-[#0a0b10]/45 hover:bg-[#13141b]/60 border border-white/[0.04] hover:border-white/[0.09] transition-all duration-300 cursor-pointer"
               >
                 <div className="flex items-center gap-3.5 min-w-0 flex-1">
                   <div className="relative w-12 h-12 rounded-xl overflow-hidden bg-neutral-900 border border-white/5 flex items-center justify-center shrink-0">

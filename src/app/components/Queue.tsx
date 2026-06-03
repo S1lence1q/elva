@@ -247,7 +247,7 @@ export function Queue({
         animate={{ x: 0 }}
         exit={{ x: '100%' }}
         transition={{ type: 'spring', damping: 26, stiffness: 220 }}
-        className="fixed right-0 top-0 bottom-0 w-full max-w-[460px] bg-[#07080a]/96 border-l border-white/[0.08] z-50 flex flex-col shadow-[-20px_0_60px_rgba(0,0,0,0.85)] pointer-events-auto overflow-hidden backdrop-blur-3xl h-full before:content-[''] before:absolute before:inset-y-0 before:left-0 before:w-[1px] before:bg-white/[0.04] before:pointer-events-none"
+        className="fixed right-0 top-0 bottom-0 w-full max-w-[460px] bg-[#08090c]/85 border-l border-white/[0.08] z-50 flex flex-col shadow-[-20px_0_60px_rgba(0,0,0,0.85)] pointer-events-auto overflow-hidden backdrop-blur-3xl h-full before:content-[''] before:absolute before:inset-y-0 before:left-0 before:w-[1px] before:bg-white/[0.04] before:pointer-events-none"
       >
         <div
           className="absolute inset-0 opacity-[0.08] pointer-events-none"

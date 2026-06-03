@@ -20,7 +20,7 @@ export function QueueSearchBar({
   fileInputRef,
 }: QueueSearchBarProps) {
   return (
-    <div className="relative px-5 py-4 border-b border-white/[0.06] shrink-0 z-10 flex gap-2.5 bg-[#0b0c10]/40 items-center">
+    <div className="relative px-5 py-4 border-b border-white/[0.08] shrink-0 z-10 flex gap-2.5 bg-[#0a0b10]/25 items-center">
       <div className="relative flex-1">
         <button
           onClick={onSearch}
@@ -40,7 +40,7 @@ export function QueueSearchBar({
           autoCorrect="off"
           autoCapitalize="off"
           spellCheck={false}
-          className="w-full pl-12 pr-10 py-3 rounded-2xl bg-[#13141b]/50 border border-white/[0.06] hover:border-white/12 focus:border-white/20 focus:bg-[#181a23]/60 text-white placeholder-white/30 text-sm focus:outline-none transition-all duration-200"
+          className="w-full pl-12 pr-10 py-3 rounded-2xl bg-[#0a0b10]/45 border border-white/[0.06] hover:border-white/12 focus:border-white/20 focus:bg-[#13141b]/60 text-white placeholder-white/30 text-sm focus:outline-none transition-all duration-200"
         />
         {searchQuery && (
           <button
@@ -54,7 +54,7 @@ export function QueueSearchBar({
 
       <button
         onClick={onUploadClick}
-        className="w-[46px] h-[46px] p-0 rounded-2xl bg-[#13141b]/50 hover:bg-white/10 border border-white/[0.06] hover:border-white/12 active:scale-95 transition-all text-white/50 hover:text-white shrink-0 cursor-pointer flex items-center justify-center shadow-sm"
+        className="w-[46px] h-[46px] p-0 rounded-2xl bg-[#0a0b10]/45 hover:bg-[#13141b]/60 border border-white/[0.06] hover:border-white/12 active:scale-95 transition-all text-white/50 hover:text-white shrink-0 cursor-pointer flex items-center justify-center shadow-sm"
         title="Upload custom audio file"
       >
         <Upload className="w-4 h-4" />

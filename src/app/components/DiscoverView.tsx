@@ -272,10 +272,10 @@ function ChartCard({
       transition={{ delay: idx * 0.1, ease: 'easeOut' }}
       whileHover={{
         y: -6,
-        borderColor: 'rgba(255, 255, 255, 0.15)',
-        backgroundColor: '#121319',
+        borderColor: 'rgba(255, 255, 255, 0.18)',
+        backgroundColor: 'rgba(24, 26, 35, 0.85)',
       }}
-      className="relative rounded-3xl border border-white/[0.07] p-7 flex items-center justify-between bg-[#0e0f14]/94 h-[190px] group transition-all duration-300 shadow-[0_12px_36px_rgba(0,0,0,0.55)] select-none cursor-pointer text-left overflow-hidden gap-6"
+      className="relative rounded-3xl border border-white/[0.08] p-7 flex items-center justify-between bg-[#0a0b10]/65 backdrop-blur-2xl h-[190px] group transition-all duration-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_12px_36px_rgba(0,0,0,0.55)] select-none cursor-pointer text-left overflow-hidden gap-6"
     >
       <div className="flex flex-col justify-between h-full flex-1 min-w-0">
         <div className="space-y-2">

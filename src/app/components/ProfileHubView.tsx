@@ -320,7 +320,7 @@ export const ProfileHubView: React.FC<ProfileHubViewProps> = ({
       className="w-full max-w-[898px] relative z-10 flex flex-col gap-8 px-6 pt-4 pb-24 cursor-default"
     >
       {/* 1. HIGH-FOCUS GLASSMORPHIC TABS SWITCHER (Always on top) */}
-      <div className="flex items-center gap-1.5 p-1.5 rounded-2xl bg-[#0b0c10]/95 border border-white/[0.08] backdrop-blur-md w-full shrink-0 select-none shadow-[0_12px_40px_rgba(0,0,0,0.55)]">
+      <div className="flex items-center gap-1.5 p-1.5 rounded-2xl bg-[#0a0b10]/65 border border-white/[0.08] backdrop-blur-2xl w-full shrink-0 select-none shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_12px_40px_rgba(0,0,0,0.55)]">
         {[
           { id: 'overview', label: 'Overview', icon: Sparkles },
           { id: 'favorites', label: 'Favorites', icon: Heart },
