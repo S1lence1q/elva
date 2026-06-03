@@ -350,7 +350,7 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
                         <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 shrink-0">
                           <SongRowOptions
                             track={result}
-                            onPlayNext={onPlayNext}
+                            onPlayNext={handlePlayNext}
                             onAddToQueue={handleAddToQueue}
                           />
                         </div>
