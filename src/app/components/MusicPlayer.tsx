@@ -342,18 +342,18 @@ export function MusicPlayer({
       } else if (e.code === 'ArrowUp') {
         e.preventDefault();
         const nv = Math.min(100, volume + 5);
-        handleVolumeChange([nv]);
+        handleVolumeChange(nv);
       } else if (e.code === 'ArrowDown') {
         e.preventDefault();
         const nv = Math.max(0, volume - 5);
-        handleVolumeChange([nv]);
+        handleVolumeChange(nv);
       } else if (e.code === 'KeyM') {
         e.preventDefault();
         if (volume > 0) {
           setPreMuteVolume(volume);
-          handleVolumeChange([0]);
+          handleVolumeChange(0);
         } else {
-          handleVolumeChange([preMuteVolume || 70]);
+          handleVolumeChange(preMuteVolume || 70);
         }
       } else if (e.code === 'KeyL') {
         e.preventDefault();
