@@ -23,13 +23,13 @@ export function QueueArtistSubview({
 
   return (
     <div className="space-y-6 text-left">
-      <div className="relative w-full rounded-3xl overflow-hidden border border-white/[0.08] bg-[#0a0b10]/65 backdrop-blur-2xl shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_12px_40px_rgba(0,0,0,0.5)] py-6 px-6 flex items-center gap-5 shrink-0">
-        <div className="relative w-24 h-24 rounded-full overflow-hidden border-2 border-white/10 shadow-2xl transition-transform duration-500 hover:scale-105 shrink-0 z-10 bg-neutral-900">
+      <div className="relative w-full rounded-3xl overflow-hidden bg-[#0a0b10]/65 backdrop-blur-2xl shadow-[0_12px_40px_rgba(0,0,0,0.5)] py-6 px-6 flex items-center gap-5 shrink-0">
+        <div className="relative w-24 h-24 rounded-full overflow-hidden shadow-2xl transition-transform duration-500 hover:scale-105 shrink-0 z-10 bg-neutral-900">
           <img src={artist.thumbnail} alt={artist.name} className="w-full h-full object-cover scale-105" />
         </div>
         <div className="flex flex-col text-left relative z-10 min-w-0 flex-1">
           <span
-            className={`inline-flex w-fit self-start items-center gap-1 text-[9px] font-bold ${theme.text} bg-white/5 border border-white/10 px-2 py-0.5 rounded uppercase tracking-wider shrink-0`}
+            className={`inline-flex w-fit self-start items-center gap-1 text-[9px] font-bold ${theme.text} bg-white/5 px-2 py-0.5 rounded uppercase tracking-wider shrink-0`}
           >
             ✦ {ARTIST_PROFILE_BADGE}
           </span>

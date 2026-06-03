@@ -57,7 +57,7 @@ export const ArtistProfileView: React.FC<ArtistProfileViewProps> = ({
       className="w-full max-w-5xl px-4 flex flex-col h-[calc(100vh-80px)] overflow-y-auto scrollbar-none z-10"
     >
       {/* Navigation bar above the layout */}
-      <div className="flex items-center justify-between w-full pb-3 border-b border-white/5 shrink-0 px-2 select-none">
+      <div className="flex items-center justify-between w-full pb-3 shrink-0 px-2 select-none">
         <button
           onClick={() => {
             setSelectedArtist(null);
@@ -82,16 +82,16 @@ export const ArtistProfileView: React.FC<ArtistProfileViewProps> = ({
       </div>
 
       {/* Immersive Widescreen Artist Hero Banner */}
-      <div className="relative w-full rounded-3xl overflow-hidden border border-white/[0.06] bg-white/[0.01] backdrop-blur-2xl shadow-2xl py-4 px-6 md:py-5 md:px-8 flex flex-col md:flex-row items-center gap-6 md:gap-8 shrink-0 mt-4">
+      <div className="relative w-full rounded-3xl overflow-hidden bg-white/[0.01] backdrop-blur-2xl shadow-2xl py-4 px-6 md:py-5 md:px-8 flex flex-col md:flex-row items-center gap-6 md:gap-8 shrink-0 mt-4">
         {/* Giant circular avatar with high-end border */}
-        <div className="relative w-36 h-36 md:w-48 md:h-48 rounded-full overflow-hidden border-2 border-white/10 shadow-2xl transition-transform duration-500 hover:scale-105 shrink-0 z-10">
+        <div className="relative w-36 h-36 md:w-48 md:h-48 rounded-full overflow-hidden shadow-2xl transition-transform duration-500 hover:scale-105 shrink-0 z-10">
           <img src={selectedArtist.thumbnail} alt={selectedArtist.name} className="w-full h-full object-cover scale-105" />
         </div>
         
         {/* Hero Info Text (aligned bottom-left on desktop) */}
         <div className="flex flex-col text-center md:text-left relative z-10">
           <div className="flex items-center justify-center md:justify-start gap-2">
-            <span className="flex items-center gap-1 text-[9px] font-bold text-white/50 bg-white/5 border border-white/10 px-2.5 py-0.5 rounded-md uppercase tracking-wider">
+            <span className="flex items-center gap-1 text-[9px] font-bold text-white/50 bg-white/5 px-2.5 py-0.5 rounded-md uppercase tracking-wider">
               ✦ {ARTIST_PROFILE_BADGE}
             </span>
           </div>
@@ -123,9 +123,9 @@ export const ArtistProfileView: React.FC<ArtistProfileViewProps> = ({
         {/* COLUMN 1: Discography Section */}
         <div className="w-full flex flex-col relative">
 
-          <div className="flex items-center justify-between pb-3 border-b border-white/5 shrink-0 z-10 relative">
+          <div className="flex items-center justify-between pb-3 shrink-0 z-10 relative">
             <span className="text-[10px] text-white/40 font-bold uppercase tracking-wider">{ARTIST_TRACKS_SECTION_LABEL}</span>
-            <span className="text-[10px] text-white/30 font-medium uppercase tracking-wider bg-white/5 border border-white/5 px-2.5 py-0.5 rounded-md">
+            <span className="text-[10px] text-white/30 font-medium uppercase tracking-wider bg-white/5 px-2.5 py-0.5 rounded-md">
               {artistTracks.length} tracks
             </span>
           </div>
@@ -136,7 +136,7 @@ export const ArtistProfileView: React.FC<ArtistProfileViewProps> = ({
               /* Pulsing skeleton list */
               <div className="space-y-3">
                 {[1, 2, 3, 4, 5].map((i) => (
-                  <div key={i} className="flex items-center gap-4 p-3 rounded-2xl border border-white/[0.02] bg-white/[0.01] animate-pulse">
+                  <div key={i} className="flex items-center gap-4 p-3 rounded-2xl bg-white/[0.01] animate-pulse">
                     <div className="w-4 h-4 bg-white/5 rounded shrink-0" />
                     <div className="w-10 h-10 bg-white/5 rounded-lg shrink-0" />
                     <div className="flex-1 space-y-1.5">
@@ -162,7 +162,7 @@ export const ArtistProfileView: React.FC<ArtistProfileViewProps> = ({
                     <motion.div
                       key={`artist-track-${track.id}`}
                       {...listItemEnter(index)}
-                      className={`group w-full flex items-center gap-4 py-4 px-3 border-b border-white/5 last:border-b-0 bg-transparent transition-colors duration-200 hover:bg-white/[0.02] cursor-pointer ${
+                      className={`group w-full flex items-center gap-4 py-4 px-3 last:border-b-0 bg-transparent transition-colors duration-200 hover:bg-white/[0.02] cursor-pointer ${
                         isLoading ? 'bg-white/[0.03]' : isFocused ? 'bg-white/[0.04]' : ''
                       }`}
                       onClick={() => {
@@ -173,9 +173,9 @@ export const ArtistProfileView: React.FC<ArtistProfileViewProps> = ({
                       <span className="text-xs font-mono text-white/35 group-hover:text-white/60 transition-colors shrink-0 w-6 text-right">
                         {trackNumber}
                       </span>
-
+ 
                       {/* Song Thumbnail */}
-                      <div className="relative w-13 h-13 rounded-xl overflow-hidden flex-shrink-0 bg-neutral-900 border border-white/5 shadow-md">
+                      <div className="relative w-13 h-13 rounded-xl overflow-hidden flex-shrink-0 bg-neutral-900 shadow-md">
                         <img 
                           src={track.thumbnail} 
                           alt={track.title} 

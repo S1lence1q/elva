@@ -56,18 +56,18 @@ function SearchArtistCard({
     <motion.div
       variants={searchArtistCardItem}
       onClick={onOpen}
-      className={`relative overflow-hidden p-6 rounded-3xl bg-[#0d0e15]/90 transition-all duration-300 mb-4 flex items-center justify-between gap-6 group shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_12px_40px_rgba(0,0,0,0.5)] cursor-pointer w-full min-h-[108px] ${
+      className={`relative overflow-hidden p-6 rounded-3xl bg-[#0d0e15]/90 transition-all duration-300 mb-4 flex items-center justify-between gap-6 group shadow-[0_12px_40px_rgba(0,0,0,0.5)] cursor-pointer w-full min-h-[108px] ${
         isFocused
           ? 'bg-[#161824]/95 shadow-[0_0_15px_rgba(255,255,255,0.05)]'
           : 'hover:bg-[#12131c]/90'
       }`}
     >
       <div className="flex items-center gap-5 relative z-10 min-w-0">
-        <div className="relative w-20 h-20 md:w-[88px] md:h-[88px] rounded-full overflow-hidden border-2 border-white/10 flex-shrink-0 shadow-xl">
+        <div className="relative w-20 h-20 md:w-[88px] md:h-[88px] rounded-full overflow-hidden flex-shrink-0 shadow-xl">
           <img src={artist.thumbnail} alt={artist.name} className="w-full h-full object-cover" />
         </div>
         <div className="flex flex-col text-left min-w-0">
-          <span className="text-[10px] md:text-xs font-bold text-zinc-300 tracking-wider bg-zinc-800/40 border border-zinc-700/40 px-2.5 py-0.5 rounded-md uppercase w-fit">
+          <span className="text-[10px] md:text-xs font-bold text-zinc-300 tracking-wider bg-zinc-800/40 px-2.5 py-0.5 rounded-md uppercase w-fit">
             ✦ {ARTIST_PROFILE_BADGE}
           </span>
           <h4 className="text-base md:text-xl font-black text-white mt-1.5 group-hover:text-zinc-100 transition-colors tracking-tight leading-tight truncate">
@@ -98,7 +98,7 @@ function SearchArtistCard({
                       {artist.tags.slice(0, 3).map((tag) => (
                         <span
                           key={tag}
-                          className="text-[10px] font-bold text-white/40 bg-white/5 border border-white/10 px-2 py-0.5 rounded-md uppercase tracking-wider"
+                          className="text-[10px] font-bold text-white/40 bg-white/5 px-2 py-0.5 rounded-md uppercase tracking-wider"
                         >
                           {tag}
                         </span>
@@ -271,93 +271,95 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
           )}
 
           {panelPhase === 'results' && (
-            <motion.div
-              key="search-phase-results"
-              {...searchPhaseMotion}
-              className="w-full max-h-[min(60vh,520px)] overflow-y-auto px-1 scrollbar-none overscroll-contain"
-            >
+            <div className="w-full overflow-hidden px-1">
               <motion.div
-                variants={searchStaggerContainer}
-                initial="initial"
-                animate="animate"
-                className="space-y-2"
+                key="search-phase-results"
+                {...searchPhaseMotion}
+                className="w-[calc(100%+24px)] pr-[24px] max-h-[min(60vh,520px)] overflow-y-auto scrollbar-none overscroll-contain"
               >
-                {showArtistCard && verifiedArtist && (
-                  <SearchArtistCard
-                    artist={verifiedArtist}
-                    isFocused={focusedResultIndex === 0}
-                    onOpen={() => handleViewArtistProfile(verifiedArtist)}
-                  />
-                )}
+                <motion.div
+                  variants={searchStaggerContainer}
+                  initial="initial"
+                  animate="animate"
+                  className="space-y-2 pr-1"
+                >
+                  {showArtistCard && verifiedArtist && (
+                    <SearchArtistCard
+                      artist={verifiedArtist}
+                      isFocused={focusedResultIndex === 0}
+                      onOpen={() => handleViewArtistProfile(verifiedArtist)}
+                    />
+                  )}
 
-                {searchResults.map((result, index) => {
-                  const hasArtistCard = showArtistCard;
-                  const actualIndex = hasArtistCard ? index + 1 : index;
-                  const isFocused = focusedResultIndex === actualIndex;
+                  {searchResults.map((result, index) => {
+                    const hasArtistCard = showArtistCard;
+                    const actualIndex = hasArtistCard ? index + 1 : index;
+                    const isFocused = focusedResultIndex === actualIndex;
 
-                  return (
-                    <motion.div
-                      key={result.id}
-                      variants={searchStaggerItem}
-                      onClick={() => {
-                        if (!loadingSongId) handleSelectSong(result);
-                      }}
-                      className={`group relative w-full flex items-center gap-4 p-3.5 rounded-2xl border transition-all duration-300 cursor-pointer will-change-transform ${
-                        loadingSongId === result.id
-                          ? `${theme.borderActive} bg-[#181a23]/60`
-                          : isFocused
-                            ? 'bg-[#181a23]/80 border-white/20 shadow-md'
-                            : 'bg-[#0a0b10]/40 border-white/[0.05] hover:bg-[#13141c]/55 hover:border-white/10'
-                      }`}
-                    >
-                      <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-white/0 via-white/[0.02] to-white/0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                    return (
+                      <motion.div
+                        key={result.id}
+                        variants={searchStaggerItem}
+                        onClick={() => {
+                          if (!loadingSongId) handleSelectSong(result);
+                        }}
+                        className={`group relative w-full flex items-center gap-4 p-3.5 rounded-2xl border transition-all duration-300 cursor-pointer will-change-transform ${
+                          loadingSongId === result.id
+                            ? `${theme.borderActive} bg-[#181a23]/60`
+                            : isFocused
+                              ? 'bg-[#181a23]/80 border-white/20 shadow-md'
+                              : 'bg-[#0a0b10]/40 border-white/[0.05] hover:bg-[#13141c]/55 hover:border-white/10'
+                        }`}
+                      >
+                        <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-white/0 via-white/[0.02] to-white/0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
 
-                      <div className="relative w-16 h-16 rounded-xl overflow-hidden flex-shrink-0">
-                        <img
-                          src={result.thumbnail}
-                          alt={result.title}
-                          onError={(e) => {
-                            e.currentTarget.onerror = null;
-                            e.currentTarget.src = `https://img.youtube.com/vi/${result.videoId}/mqdefault.jpg`;
-                          }}
-                          className={`w-full h-full object-cover ${loadingSongId === result.id ? 'opacity-40' : ''}`}
-                        />
-                        <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors flex items-center justify-center">
-                          {loadingSongId === result.id ? (
-                            <div
-                              className={`w-5 h-5 rounded-full border border-white/20 border-t-white/40 animate-spin ${theme.borderT}`}
-                            />
-                          ) : (
-                            <Music className="w-5 h-5 text-white/0 group-hover:text-white/80 transition-colors" />
-                          )}
+                        <div className="relative w-16 h-16 rounded-xl overflow-hidden flex-shrink-0">
+                          <img
+                            src={result.thumbnail}
+                            alt={result.title}
+                            onError={(e) => {
+                              e.currentTarget.onerror = null;
+                              e.currentTarget.src = `https://img.youtube.com/vi/${result.videoId}/mqdefault.jpg`;
+                            }}
+                            className={`w-full h-full object-cover ${loadingSongId === result.id ? 'opacity-40' : ''}`}
+                          />
+                          <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+                            {loadingSongId === result.id ? (
+                              <div
+                                className={`w-5 h-5 rounded-full border border-white/20 border-t-white/40 animate-spin ${theme.borderT}`}
+                              />
+                            ) : (
+                              <Music className="w-5 h-5 text-white/0 group-hover:text-white/80 transition-colors" />
+                            )}
+                          </div>
                         </div>
-                      </div>
 
-                      <div className="relative flex-1 text-left min-w-0">
-                        <h3
-                          className={`text-sm font-medium truncate transition-colors duration-200 ${
-                            loadingSongId === result.id
-                              ? `${theme.text} font-semibold`
-                              : 'text-white/75 group-hover:text-white/95'
-                          }`}
-                        >
-                          {result.title}
-                        </h3>
-                        <p className="text-white/35 text-xs truncate mt-1">{result.artist}</p>
-                      </div>
+                        <div className="relative flex-1 text-left min-w-0">
+                          <h3
+                            className={`text-sm font-medium truncate transition-colors duration-200 ${
+                              loadingSongId === result.id
+                                ? `${theme.text} font-semibold`
+                                : 'text-white/75 group-hover:text-white/95'
+                            }`}
+                          >
+                            {result.title}
+                          </h3>
+                          <p className="text-white/35 text-xs truncate mt-1">{result.artist}</p>
+                        </div>
 
-                      <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 shrink-0">
-                        <SongRowOptions
-                          track={result}
-                          onPlayNext={handlePlayNext}
-                          onAddToQueue={handleAddToQueue}
-                        />
-                      </div>
-                    </motion.div>
-                  );
-                })}
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 shrink-0">
+                          <SongRowOptions
+                            track={result}
+                            onPlayNext={onPlayNext}
+                            onAddToQueue={handleAddToQueue}
+                          />
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </motion.div>
               </motion.div>
-            </motion.div>
+            </div>
           )}
         </AnimatePresence>
       </div>
