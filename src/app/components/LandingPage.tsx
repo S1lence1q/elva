@@ -254,7 +254,7 @@ export function LandingPage({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.35 }}
-            className="fixed inset-0 z-30 flex flex-col items-center justify-center pt-8 pb-12"
+            className="fixed inset-0 z-30 bg-[#0a0b10]/95 backdrop-blur-3xl flex flex-col items-center justify-center pt-8 pb-12"
           >
             <ArtistProfileView
               selectedArtist={selectedArtist}

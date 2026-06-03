@@ -83,16 +83,6 @@ export const ArtistProfileView: React.FC<ArtistProfileViewProps> = ({
 
       {/* Immersive Widescreen Artist Hero Banner */}
       <div className="relative w-full rounded-3xl overflow-hidden border border-white/[0.06] bg-white/[0.01] backdrop-blur-2xl shadow-2xl py-4 px-6 md:py-5 md:px-8 flex flex-col md:flex-row items-center gap-6 md:gap-8 shrink-0 mt-4">
-        {/* Ambient dynamic theme glow behind/inside the banner */}
-        {artistColors && (
-          <div 
-            className="absolute top-0 right-0 w-80 h-80 rounded-full blur-[75px] opacity-40 pointer-events-none"
-            style={{
-              background: `radial-gradient(circle, ${artistColors.solidGlow} 0%, rgba(255,255,255,0) 70%)`
-            }}
-          />
-        )}
-        
         {/* Giant circular avatar with high-end border */}
         <div className="relative w-36 h-36 md:w-48 md:h-48 rounded-full overflow-hidden border-2 border-white/10 shadow-2xl transition-transform duration-500 hover:scale-105 shrink-0 z-10">
           <img src={selectedArtist.thumbnail} alt={selectedArtist.name} className="w-full h-full object-cover scale-105" />

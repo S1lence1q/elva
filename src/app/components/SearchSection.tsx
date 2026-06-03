@@ -205,11 +205,6 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
       className="w-full max-w-2xl px-6 space-y-4"
     >
       <div className="relative group">
-        <div className="absolute -top-px -left-px w-8 h-8 border-t border-l border-white/0 group-focus-within:border-white/20 rounded-tl-3xl transition-colors duration-500" />
-        <div className="absolute -top-px -right-px w-8 h-8 border-t border-r border-white/0 group-focus-within:border-white/20 rounded-tr-3xl transition-colors duration-500" />
-        <div className="absolute -bottom-px -left-px w-8 h-8 border-b border-l border-white/0 group-focus-within:border-white/20 rounded-bl-3xl transition-colors duration-500" />
-        <div className="absolute -bottom-px -right-px w-8 h-8 border-b border-r border-white/0 group-focus-within:border-white/20 rounded-br-3xl transition-colors duration-500" />
-
         <div className="relative">
           <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-white/30 group-focus-within:text-white/50 transition-colors duration-300" />
           <input

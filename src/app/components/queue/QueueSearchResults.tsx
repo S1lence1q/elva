@@ -73,13 +73,6 @@ export function QueueSearchResults({
                   onClick={() => onOpenArtist(matchedArtist)}
                   className="group w-full flex flex-col gap-5 p-6 rounded-3xl bg-[#0a0b10]/65 backdrop-blur-2xl border border-white/[0.08] hover:bg-[#13141c]/75 hover:border-white/15 transition-all duration-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_12px_40px_rgba(0,0,0,0.5)] cursor-pointer relative overflow-hidden will-change-transform"
                 >
-                  <div
-                    className="absolute -top-10 -left-10 w-28 h-28 rounded-full blur-[35px] opacity-25 pointer-events-none"
-                    style={{
-                      background:
-                        'radial-gradient(circle, var(--theme-primary) 0%, rgba(255,255,255,0) 70%)',
-                    }}
-                  />
                   <div className="flex items-center gap-5 relative z-10">
                     <div className="relative w-20 h-20 rounded-full overflow-hidden p-0.5 border border-white/15 shadow-xl shrink-0 bg-neutral-900">
                       <ArtistAvatar
