@@ -48,7 +48,7 @@ export function FavoritesTab({
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.02 }}
-              className="group flex items-center justify-between p-4 rounded-2xl bg-white/[0.015] hover:bg-white/[0.04] border border-white/[0.04] hover:border-white/10 backdrop-blur-md transition-all duration-300 shadow-md w-full"
+              className="group flex items-center justify-between p-4 rounded-2xl bg-[#13141b]/35 hover:bg-[#181a23]/60 border border-white/[0.04] hover:border-white/[0.09] transition-all duration-300 shadow-md w-full"
             >
               {/* Left: Artwork + Title/Artist */}
               <div 
@@ -89,7 +89,7 @@ export function FavoritesTab({
                 />
                 <button
                   onClick={() => onToggleFavorite(song)}
-                  className="p-2.5 rounded-xl bg-white/5 hover:bg-white/15 text-red-400 hover:text-white cursor-pointer transition-all hover:scale-105"
+                  className="p-2.5 rounded-xl bg-white/[0.03] border border-white/[0.05] hover:bg-white/[0.08] text-red-400 hover:text-white cursor-pointer transition-all hover:scale-105"
                   title="Remove from favorites"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -99,7 +99,7 @@ export function FavoritesTab({
           ))}
         </div>
       ) : (
-        <div className="rounded-3xl border border-white/5 bg-[#0f0f12]/15 p-16 text-center flex flex-col items-center justify-center select-none">
+        <div className="rounded-3xl border border-white/[0.07] bg-[#0c0d10]/95 p-16 text-center flex flex-col items-center justify-center select-none shadow-[0_12px_40px_rgba(0,0,0,0.6)]">
           <Heart className="w-8 h-8 text-white/20 mb-3" />
           <p className="text-white/50 text-sm font-medium">No favorite songs yet</p>
           <p className="text-white/30 text-xs mt-1.5 font-light max-w-[280px]">

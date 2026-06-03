@@ -71,7 +71,7 @@ export function QueueSearchResults({
                 <motion.div
                   variants={searchArtistCardItem}
                   onClick={() => onOpenArtist(matchedArtist)}
-                  className="group w-full flex flex-col gap-5 p-6 rounded-3xl bg-gradient-to-br from-[#1c1c1f]/80 via-[#0e0e10]/60 to-black/40 border border-white/10 hover:border-white/20 hover:from-white/[0.04] hover:to-white/[0.01] transition-colors duration-300 shadow-2xl cursor-pointer relative overflow-hidden backdrop-blur-xl will-change-transform"
+                  className="group w-full flex flex-col gap-5 p-6 rounded-3xl bg-[#0c0d10]/95 border border-white/[0.08] hover:bg-[#121319]/96 hover:border-white/15 transition-all duration-300 shadow-[0_12px_40px_rgba(0,0,0,0.6)] cursor-pointer relative overflow-hidden will-change-transform"
                 >
                   <div
                     className="absolute -top-10 -left-10 w-28 h-28 rounded-full blur-[35px] opacity-25 pointer-events-none"
