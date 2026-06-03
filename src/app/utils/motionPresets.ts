@@ -34,18 +34,16 @@ export const listItemEnter = (index: number) => ({
 
 /** Search panel phase swap (recents ↔ loading ↔ results) — transform only, no layout prop */
 export const searchPhaseMotion = {
-  initial: { opacity: 0, y: 16, filter: 'blur(10px)' },
+  initial: { opacity: 0, y: 12 },
   animate: {
     opacity: 1,
     y: 0,
-    filter: 'blur(0px)',
-    transition: { duration: 0.5, ease: EASE_PREMIUM },
+    transition: { duration: 0.35, ease: EASE_PREMIUM },
   },
   exit: {
     opacity: 0,
-    y: -12,
-    filter: 'blur(8px)',
-    transition: { duration: 0.34, ease: EASE_PREMIUM },
+    y: -8,
+    transition: { duration: 0.24, ease: EASE_PREMIUM },
   },
 };
 

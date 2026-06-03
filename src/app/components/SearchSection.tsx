@@ -56,7 +56,7 @@ function SearchArtistCard({
     <motion.div
       variants={searchArtistCardItem}
       onClick={onOpen}
-      className={`relative overflow-hidden p-6 rounded-3xl bg-[#0d0e15]/90 border transition-all duration-300 mb-4 flex items-center justify-between gap-6 group shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_12px_40px_rgba(0,0,0,0.5)] cursor-pointer w-full min-h-[108px] will-change-transform ${
+      className={`relative overflow-hidden p-6 rounded-3xl bg-[#0d0e15]/90 border transition-all duration-300 mb-4 flex items-center justify-between gap-6 group shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_12px_40px_rgba(0,0,0,0.5)] cursor-pointer w-full min-h-[108px] ${
         isFocused
           ? 'border-white/25 bg-[#161824]/95'
           : 'border-white/[0.08] hover:border-white/15 hover:bg-[#12131c]/90'
