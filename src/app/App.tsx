@@ -119,10 +119,6 @@ export default function App() {
     return (localStorage.getItem('elva_bg_style') as 'default' | 'particles' | 'liquid' | 'mesh') || 'mesh';
   });
 
-  const [themePreset, setThemePreset] = useState<'dynamic' | 'cyberpunk' | 'obsidian' | 'aurora' | 'sunset'>(() => {
-    return (localStorage.getItem('elva_theme_preset') as 'dynamic' | 'cyberpunk' | 'obsidian' | 'aurora' | 'sunset') || 'dynamic';
-  });
-
   const [zenMode, setZenMode] = useState(() => {
     return localStorage.getItem('elva_zen_mode') === 'true';
   });
@@ -142,6 +138,47 @@ export default function App() {
   const [enableCustomLyrics, setEnableCustomLyrics] = useState(() => {
     return localStorage.getItem('elva_enable_custom_lyrics') === 'true';
   });
+
+  const [showVisualizer, setShowVisualizer] = useState(() => {
+    return localStorage.getItem('elva_show_visualizer') !== 'false';
+  });
+
+  // Sync settings to localStorage on change
+  useEffect(() => {
+    localStorage.setItem('elva_accent_color', accentColor);
+  }, [accentColor]);
+
+  useEffect(() => {
+    localStorage.setItem('elva_texture_style', textureStyle);
+  }, [textureStyle]);
+
+  useEffect(() => {
+    localStorage.setItem('elva_bg_style', backgroundStyle);
+  }, [backgroundStyle]);
+
+  useEffect(() => {
+    localStorage.setItem('elva_zen_mode', zenMode ? 'true' : 'false');
+  }, [zenMode]);
+
+  useEffect(() => {
+    localStorage.setItem('elva_volume_slider', showVolumeSlider ? 'true' : 'false');
+  }, [showVolumeSlider]);
+
+  useEffect(() => {
+    localStorage.setItem('elva_3d_tilt', enable3DTilt ? 'true' : 'false');
+  }, [enable3DTilt]);
+
+  useEffect(() => {
+    localStorage.setItem('elva_show_settings_btn', showSettingsButton ? 'true' : 'false');
+  }, [showSettingsButton]);
+
+  useEffect(() => {
+    localStorage.setItem('elva_enable_custom_lyrics', enableCustomLyrics ? 'true' : 'false');
+  }, [enableCustomLyrics]);
+
+  useEffect(() => {
+    localStorage.setItem('elva_show_visualizer', showVisualizer ? 'true' : 'false');
+  }, [showVisualizer]);
 
   // Onboarding Tour State
   const [tourType, setTourType] = useState<'landing' | 'player' | null>(null);
@@ -944,6 +981,21 @@ export default function App() {
             handleFileSelect={handleFileSelect}
             handleSearch={searchLogic.handleSearch}
             setArtistTracks={searchLogic.setArtistTracks}
+            onAccentColorChange={setAccentColor}
+            textureStyle={textureStyle}
+            onTextureStyleChange={setTextureStyle}
+            backgroundStyle={backgroundStyle}
+            onBackgroundStyleChange={setBackgroundStyle}
+            zenMode={zenMode}
+            onZenModeChange={setZenMode}
+            showVolumeSlider={showVolumeSlider}
+            onShowVolumeSliderChange={setShowVolumeSlider}
+            enable3DTilt={enable3DTilt}
+            onEnable3DTiltChange={setEnable3DTilt}
+            showSettingsButton={showSettingsButton}
+            onShowSettingsButtonChange={setShowSettingsButton}
+            enableCustomLyrics={enableCustomLyrics}
+            onEnableCustomLyricsChange={setEnableCustomLyrics}
           />
           </ErrorBoundary>
         )}
@@ -1020,8 +1072,8 @@ export default function App() {
               onTextureStyleChange={setTextureStyle}
               backgroundStyle={backgroundStyle}
               onBackgroundStyleChange={setBackgroundStyle}
-              themePreset={themePreset}
-              onThemePresetChange={setThemePreset}
+              showVisualizer={showVisualizer}
+              onShowVisualizerChange={setShowVisualizer}
               zenMode={zenMode}
               onZenModeChange={setZenMode}
               showVolumeSlider={showVolumeSlider}
@@ -1081,8 +1133,8 @@ export default function App() {
             onTextureStyleChange={setTextureStyle}
             backgroundStyle={backgroundStyle}
             onBackgroundStyleChange={setBackgroundStyle}
-            themePreset={themePreset}
-            onThemePresetChange={setThemePreset}
+            showVisualizer={showVisualizer}
+            onShowVisualizerChange={setShowVisualizer}
             zenMode={zenMode}
             onZenModeChange={setZenMode}
             showVolumeSlider={showVolumeSlider}

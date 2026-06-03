@@ -60,10 +60,8 @@ interface MusicPlayerProps {
   onAccentColorChange?: (color: AccentColor) => void;
   textureStyle?: 'paper' | 'dots' | 'none';
   onTextureStyleChange?: (style: 'paper' | 'dots' | 'none') => void;
-  backgroundStyle?: 'default' | 'particles' | 'liquid' | 'mesh';
-  onBackgroundStyleChange?: (style: 'default' | 'particles' | 'liquid' | 'mesh') => void;
-  themePreset?: 'dynamic' | 'cyberpunk' | 'obsidian' | 'aurora' | 'sunset';
-  onThemePresetChange?: (theme: 'dynamic' | 'cyberpunk' | 'obsidian' | 'aurora' | 'sunset') => void;
+  showVisualizer?: boolean;
+  onShowVisualizerChange?: (show: boolean) => void;
   zenMode?: boolean;
   onZenModeChange?: (zen: boolean) => void;
   showVolumeSlider?: boolean;
@@ -130,8 +128,8 @@ export function MusicPlayer({
   onTextureStyleChange,
   backgroundStyle = 'mesh',
   onBackgroundStyleChange,
-  themePreset = 'dynamic',
-  onThemePresetChange,
+  showVisualizer = true,
+  onShowVisualizerChange,
   zenMode = false,
   onZenModeChange,
   showVolumeSlider = true,
@@ -257,21 +255,12 @@ export function MusicPlayer({
     }
   }, [appState]);
 
-  const [dominantColors, setDominantColors] = useState(() => songColors || getDynamicFallbackColors(songData.title || '', songData.artist || ''));
-  const [targetColors, setTargetColors] = useState(() => songColors || getDynamicFallbackColors(songData.title || '', songData.artist || ''));
   const extractedColors = songColors || getDynamicFallbackColors(songData.title || '', songData.artist || '');
+  const [dominantColors, setDominantColors] = useState(extractedColors);
 
   useEffect(() => {
-    if (themePreset === 'dynamic') {
-      setTargetColors(extractedColors);
-    } else {
-      setTargetColors(THEME_PRESETS[themePreset]);
-    }
-  }, [themePreset, extractedColors]);
-
-  useEffect(() => {
-    setDominantColors(targetColors);
-  }, [targetColors]);
+    setDominantColors(extractedColors);
+  }, [extractedColors]);
 
   // Zen Mode Idle Tracker
   const [isUserIdle, setIsUserIdle] = useState(false);
@@ -437,8 +426,6 @@ export function MusicPlayer({
                 onClose={() => setShowSettings(false)}
                 backgroundStyle={backgroundStyle}
                 onBackgroundStyleChange={onBackgroundStyleChange}
-                themePreset={themePreset}
-                onThemePresetChange={onThemePresetChange}
                 accentColor={accentColor}
                 onAccentColorChange={onAccentColorChange}
                 zenMode={zenMode}
@@ -453,6 +440,10 @@ export function MusicPlayer({
                 onTextureStyleChange={onTextureStyleChange}
                 enableCustomLyrics={enableCustomLyrics}
                 onEnableCustomLyricsChange={onEnableCustomLyricsChange}
+                showVisualizer={showVisualizer}
+                onShowVisualizerChange={onShowVisualizerChange}
+                volume={volume}
+                onVolumeChange={handleVolumeChange}
               />
             </div>
           )}
@@ -578,6 +569,11 @@ export function MusicPlayer({
             isLargeScreen={isLargeScreen}
             appState={appState}
             accentColor={accentColor}
+            showVolumeSlider={showVolumeSlider}
+            volume={volume}
+            onVolumeChange={handleVolumeChange}
+            preMuteVolume={preMuteVolume}
+            setPreMuteVolume={setPreMuteVolume}
           />
 
           {/* Side-by-Side Lyrics Panel for desktop */}

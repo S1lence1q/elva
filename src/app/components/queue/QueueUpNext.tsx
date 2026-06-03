@@ -82,9 +82,9 @@ export function QueueUpNext({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="flex items-center gap-3.5 p-3 rounded-2xl border border-white/[0.04] bg-white/[0.005] select-none text-left min-h-[88px]"
+              className="flex items-center gap-3.5 p-4.5 rounded-2xl border border-white/[0.06] bg-[#121318]/50 select-none text-left min-h-[88px] shadow-md"
             >
-              <div className="w-16 h-16 rounded-2xl border border-white/5 bg-white/[0.02] flex items-center justify-center shrink-0">
+              <div className="w-16 h-16 rounded-2xl border border-white/[0.08] bg-[#1a1b24]/40 flex items-center justify-center shrink-0">
                 <Music className="w-5 h-5 text-white/20 animate-pulse" />
               </div>
               <div className="truncate">
@@ -115,19 +115,19 @@ export function QueueUpNext({
                   exit={{ opacity: 0, height: 0, marginBottom: 0, padding: 0 }}
                   transition={{ duration: 0.2 }}
                   onClick={() => onSelect(item.id)}
-                  className={`group w-full flex items-center justify-between p-3 rounded-2xl border transition-all duration-300 cursor-grab active:cursor-grabbing ${
+                  className={`group w-full flex items-center justify-between p-3.5 rounded-2xl border transition-all duration-300 cursor-grab active:cursor-grabbing ${
                     isDraggingItem ? 'opacity-30 border-dashed border-white/20 bg-white/5 scale-[0.98]' : ''
                   } ${
                     isCurrent
-                      ? `bg-white/[0.05] border-white/15 shadow-md shadow-black/35 ${theme.border}`
-                      : 'bg-white/[0.015] border-white/[0.03] hover:border-white/10 hover:bg-white/[0.04]'
+                      ? `bg-white/[0.06] border-white/20 shadow-[0_4px_12px_rgba(0,0,0,0.5)] ${theme.border} shadow-[0_0_12px_var(--theme-primary-fade)]`
+                      : 'bg-[#121319]/40 border-white/[0.03] hover:border-white/10 hover:bg-[#171822]/60'
                   }`}
                 >
                   <div className="flex items-center gap-2.5 truncate mr-3 flex-1">
                     <div className="text-white/20 group-hover:text-white/40 transition-colors shrink-0">
                       <GripVertical className="w-4 h-4" />
                     </div>
-                    <div className="relative w-16 h-16 rounded-2xl overflow-hidden shadow-lg shrink-0 border border-white/5 bg-white/5 z-10">
+                    <div className="relative w-16 h-16 rounded-2xl overflow-hidden shadow-lg shrink-0 border border-white/8 bg-white/5 z-10">
                       <img
                         src={item.thumbnail}
                         alt={item.title}

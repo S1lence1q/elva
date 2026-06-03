@@ -272,10 +272,10 @@ function ChartCard({
       transition={{ delay: idx * 0.1, ease: 'easeOut' }}
       whileHover={{
         y: -6,
-        borderColor: 'rgba(255, 255, 255, 0.12)',
-        backgroundColor: 'rgba(255, 255, 255, 0.02)',
+        borderColor: 'rgba(255, 255, 255, 0.15)',
+        backgroundColor: '#121319',
       }}
-      className="relative rounded-3xl border border-white/[0.04] p-7 flex items-center justify-between bg-[#0a0a0c]/60 backdrop-blur-xl h-[190px] group transition-all duration-300 shadow-md select-none cursor-pointer text-left overflow-hidden gap-6"
+      className="relative rounded-3xl border border-white/[0.07] p-7 flex items-center justify-between bg-[#0e0f14]/94 h-[190px] group transition-all duration-300 shadow-[0_12px_36px_rgba(0,0,0,0.55)] select-none cursor-pointer text-left overflow-hidden gap-6"
     >
       <div className="flex flex-col justify-between h-full flex-1 min-w-0">
         <div className="space-y-2">
@@ -355,7 +355,7 @@ function SongRow({
       initial={{ opacity: 0, x: direction === 'left' ? -10 : 10 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: idx * 0.08 }}
-      className="group flex items-center justify-between p-3.5 rounded-2xl bg-white/[0.02] hover:bg-white/[0.06] border border-white/[0.04] hover:border-white/10 backdrop-blur-md transition-all duration-300 shadow-sm cursor-pointer"
+      className="group flex items-center justify-between p-3.5 rounded-2xl bg-[#13141b]/35 hover:bg-[#181a23]/60 border border-white/[0.04] hover:border-white/[0.09] transition-all duration-300 shadow-sm cursor-pointer"
     >
       <div className="flex items-center gap-4 text-left min-w-0">
         <div className="relative w-14 h-14 rounded-xl overflow-hidden shadow-md shrink-0 bg-neutral-900 border border-white/5">

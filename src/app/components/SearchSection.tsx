@@ -56,10 +56,10 @@ function SearchArtistCard({
     <motion.div
       variants={searchArtistCardItem}
       onClick={onOpen}
-      className={`relative overflow-hidden p-6 rounded-3xl bg-gradient-to-br from-[#121214]/65 via-[#0d0d0e]/40 to-black/20 border transition-colors duration-200 mb-4 flex items-center justify-between gap-6 group shadow-lg cursor-pointer backdrop-blur-xl w-full min-h-[108px] will-change-transform ${
+      className={`relative overflow-hidden p-6 rounded-3xl bg-[#0c0d10]/95 border transition-all duration-300 mb-4 flex items-center justify-between gap-6 group shadow-[0_12px_40px_rgba(0,0,0,0.6)] cursor-pointer w-full min-h-[108px] will-change-transform ${
         isFocused
-          ? 'border-white/25 bg-white/[0.04]'
-          : 'border-white/[0.06] hover:border-white/15 hover:from-white/[0.03] hover:to-white/[0.01]'
+          ? 'border-white/25 bg-[#121318]'
+          : 'border-white/[0.08] hover:border-white/15 hover:bg-[#121319]'
       }`}
     >
       <div className="flex items-center gap-5 relative z-10 min-w-0">
@@ -241,7 +241,7 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
             autoCorrect="off"
             autoCapitalize="off"
             spellCheck="false"
-            className="w-full pl-16 pr-8 py-6 rounded-3xl bg-white/[0.02] border border-white/[0.08] text-white/90 placeholder-white/25 text-lg font-light tracking-wide focus:outline-none focus:border-white/15 focus:bg-white/[0.04] transition-colors duration-300 backdrop-blur-2xl"
+            className="w-full pl-16 pr-8 py-6 rounded-3xl bg-[#0e0f13]/90 border border-white/[0.09] text-white/90 placeholder-white/25 text-lg font-light tracking-wide focus:outline-none focus:border-white/20 focus:bg-[#121319]/95 transition-all duration-300 shadow-[inset_0_1px_2px_rgba(0,0,0,0.25)]"
           />
           <div className="absolute inset-0 rounded-3xl pointer-events-none shadow-[inset_0_1px_2px_rgba(0,0,0,0.2)]" />
         </div>
@@ -307,12 +307,12 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
                       onClick={() => {
                         if (!loadingSongId) handleSelectSong(result);
                       }}
-                      className={`group relative w-full flex items-center gap-4 p-3.5 rounded-2xl border transition-colors duration-200 backdrop-blur-xl cursor-pointer will-change-transform ${
+                      className={`group relative w-full flex items-center gap-4 p-3.5 rounded-2xl border transition-all duration-300 cursor-pointer will-change-transform ${
                         loadingSongId === result.id
-                          ? `${theme.borderActive} ${theme.bgActive}`
+                          ? `${theme.borderActive} bg-[#181a23]/60`
                           : isFocused
-                            ? 'bg-white/[0.06] border-white/20 shadow-md'
-                            : 'bg-white/[0.02] border-white/[0.06] hover:bg-white/[0.06] hover:border-white/15'
+                            ? 'bg-[#181a23]/80 border-white/20 shadow-md'
+                            : 'bg-[#111216]/50 border-white/[0.04] hover:bg-[#161720]/80 hover:border-white/10'
                       }`}
                     >
                       <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-white/0 via-white/[0.02] to-white/0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />

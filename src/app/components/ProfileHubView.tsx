@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Sparkles, Heart, ListMusic } from 'lucide-react';
+import { Sparkles, Heart, ListMusic, Sliders } from 'lucide-react';
 import { SearchResult, VerifiedArtist } from '../types';
 import { AccentColor, ACCENT_THEMES } from './themeUtils';
 import { getPrimaryArtist } from '../utils/stringUtils';
@@ -11,6 +11,7 @@ import { OverviewTab } from './profilehub/OverviewTab';
 import { FavoritesTab } from './profilehub/FavoritesTab';
 import { PlaylistsTab } from './profilehub/PlaylistsTab';
 import { ProfileCustomizerModal } from './profilehub/ProfileCustomizerModal';
+import { AdvancedSettingsTab } from './profilehub/AdvancedSettingsTab';
 
 interface Playlist {
   id: string;
@@ -37,6 +38,22 @@ interface ProfileHubViewProps {
   accentColor: AccentColor;
   onSelectArtist?: (artist: VerifiedArtist | null) => void;
   onPlayNext?: (song: SearchResult) => void;
+
+  onAccentColorChange?: (color: AccentColor) => void;
+  textureStyle: 'paper' | 'dots' | 'none';
+  onTextureStyleChange?: (style: 'paper' | 'dots' | 'none') => void;
+  backgroundStyle: 'default' | 'particles' | 'liquid' | 'mesh';
+  onBackgroundStyleChange?: (style: 'default' | 'particles' | 'liquid' | 'mesh') => void;
+  zenMode: boolean;
+  onZenModeChange?: (zen: boolean) => void;
+  showVolumeSlider: boolean;
+  onShowVolumeSliderChange?: (show: boolean) => void;
+  enable3DTilt: boolean;
+  onEnable3DTiltChange?: (enable: boolean) => void;
+  showSettingsButton: boolean;
+  onShowSettingsButtonChange?: (show: boolean) => void;
+  enableCustomLyrics: boolean;
+  onEnableCustomLyricsChange?: (enable: boolean) => void;
 }
 
 const ACTIVE_TAB_STYLES: Record<AccentColor, { border: string; glow: string; text: string }> = {
@@ -71,17 +88,34 @@ export const ProfileHubView: React.FC<ProfileHubViewProps> = ({
   accentColor,
   onSelectArtist,
   onPlayNext,
+  onAccentColorChange,
+  textureStyle,
+  onTextureStyleChange,
+  backgroundStyle,
+  onBackgroundStyleChange,
+  zenMode,
+  onZenModeChange,
+  showVolumeSlider,
+  onShowVolumeSliderChange,
+  enable3DTilt,
+  onEnable3DTiltChange,
+  showSettingsButton,
+  onShowSettingsButtonChange,
+  enableCustomLyrics,
+  onEnableCustomLyricsChange,
 }) => {
   const theme = ACCENT_THEMES[accentColor];
-  const [activeTab, setActiveTab] = useState<'overview' | 'favorites' | 'playlists'>(() => {
+  const [activeTab, setActiveTab] = useState<'overview' | 'favorites' | 'playlists' | 'settings'>(() => {
     const stored = sessionStorage.getItem('elva_hub_active_tab') || 'overview';
     sessionStorage.removeItem('elva_hub_active_tab');
     return stored as any;
   });
 
   useEffect(() => {
-    const handleScrollToHub = () => {
-      setActiveTab('playlists');
+    const handleScrollToHub = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const targetTab = customEvent.detail?.tab || 'playlists';
+      setActiveTab(targetTab);
     };
     window.addEventListener('elva-scroll-to-hub', handleScrollToHub);
     return () => window.removeEventListener('elva-scroll-to-hub', handleScrollToHub);
@@ -286,11 +320,12 @@ export const ProfileHubView: React.FC<ProfileHubViewProps> = ({
       className="w-full max-w-[898px] relative z-10 flex flex-col gap-8 px-6 pt-4 pb-24 cursor-default"
     >
       {/* 1. HIGH-FOCUS GLASSMORPHIC TABS SWITCHER (Always on top) */}
-      <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-white/[0.02] border border-white/[0.06] backdrop-blur-md w-full shrink-0 select-none">
+      <div className="flex items-center gap-1.5 p-1.5 rounded-2xl bg-[#0b0c10]/95 border border-white/[0.08] backdrop-blur-md w-full shrink-0 select-none shadow-[0_12px_40px_rgba(0,0,0,0.55)]">
         {[
           { id: 'overview', label: 'Overview', icon: Sparkles },
           { id: 'favorites', label: 'Favorites', icon: Heart },
           { id: 'playlists', label: 'Playlists', icon: ListMusic },
+          { id: 'settings', label: 'Settings', icon: Sliders },
         ].map((sub) => {
           const isSubActive = activeTab === sub.id;
           const SubIcon = sub.icon;
@@ -301,8 +336,8 @@ export const ProfileHubView: React.FC<ProfileHubViewProps> = ({
               onClick={() => setActiveTab(sub.id as any)}
               className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-[10px] font-bold tracking-widest uppercase transition-all duration-300 cursor-pointer ${
                 isSubActive
-                  ? `bg-[#09090c]/85 border ${activeStyle.border} ${activeStyle.text} ${activeStyle.glow} shadow-black/40`
-                  : 'text-white/35 hover:text-white/70 hover:bg-white/[0.01] border border-transparent'
+                  ? `bg-[#07080a] border ${activeStyle.border} ${activeStyle.text} ${activeStyle.glow} shadow-black/40`
+                  : 'text-white/35 hover:text-white/70 hover:bg-[#13141b]/35 border border-transparent'
               }`}
             >
               <SubIcon className={`w-3.5 h-3.5 ${isSubActive ? theme.text : 'text-current'}`} />
@@ -370,6 +405,27 @@ export const ProfileHubView: React.FC<ProfileHubViewProps> = ({
               onPlayNext={onPlayNext}
               onAddTrackToPlaylist={handleAddTrackToPlaylist}
               onRemoveTrackFromPlaylist={handleRemoveTrackFromPlaylist}
+            />
+          )}
+
+          {activeTab === 'settings' && (
+            <AdvancedSettingsTab
+              accentColor={accentColor}
+              onAccentColorChange={onAccentColorChange}
+              textureStyle={textureStyle}
+              onTextureStyleChange={onTextureStyleChange}
+              backgroundStyle={backgroundStyle}
+              onBackgroundStyleChange={onBackgroundStyleChange}
+              zenMode={zenMode}
+              onZenModeChange={onZenModeChange}
+              showVolumeSlider={showVolumeSlider}
+              onShowVolumeSliderChange={onShowVolumeSliderChange}
+              enable3DTilt={enable3DTilt}
+              onEnable3DTiltChange={onEnable3DTiltChange}
+              showSettingsButton={showSettingsButton}
+              onShowSettingsButtonChange={onShowSettingsButtonChange}
+              enableCustomLyrics={enableCustomLyrics}
+              onEnableCustomLyricsChange={onEnableCustomLyricsChange}
             />
           )}
         </AnimatePresence>

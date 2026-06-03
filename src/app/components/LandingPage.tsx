@@ -50,6 +50,22 @@ interface LandingPageProps {
   handleFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleSearch: (overrideQuery?: string) => void;
   setArtistTracks: (tracks: SearchResult[]) => void;
+
+  onAccentColorChange?: (color: AccentColor) => void;
+  textureStyle: 'paper' | 'dots' | 'none';
+  onTextureStyleChange?: (style: 'paper' | 'dots' | 'none') => void;
+  backgroundStyle: 'default' | 'particles' | 'liquid' | 'mesh';
+  onBackgroundStyleChange?: (style: 'default' | 'particles' | 'liquid' | 'mesh') => void;
+  zenMode: boolean;
+  onZenModeChange?: (zen: boolean) => void;
+  showVolumeSlider: boolean;
+  onShowVolumeSliderChange?: (show: boolean) => void;
+  enable3DTilt: boolean;
+  onEnable3DTiltChange?: (enable: boolean) => void;
+  showSettingsButton: boolean;
+  onShowSettingsButtonChange?: (show: boolean) => void;
+  enableCustomLyrics: boolean;
+  onEnableCustomLyricsChange?: (enable: boolean) => void;
 }
 
 export function LandingPage({
@@ -92,7 +108,22 @@ export function LandingPage({
   handleUrlSubmit,
   handleFileSelect,
   handleSearch,
-  setArtistTracks
+  setArtistTracks,
+  onAccentColorChange,
+  textureStyle,
+  onTextureStyleChange,
+  backgroundStyle,
+  onBackgroundStyleChange,
+  zenMode,
+  onZenModeChange,
+  showVolumeSlider,
+  onShowVolumeSliderChange,
+  enable3DTilt,
+  onEnable3DTiltChange,
+  showSettingsButton,
+  onShowSettingsButtonChange,
+  enableCustomLyrics,
+  onEnableCustomLyricsChange,
 }: LandingPageProps) {
   return (
     <motion.div
@@ -364,6 +395,21 @@ export function LandingPage({
             accentColor={accentColor}
             onSelectArtist={handleViewArtistProfile}
             onPlayNext={handlePlayNext}
+            onAccentColorChange={onAccentColorChange}
+            textureStyle={textureStyle}
+            onTextureStyleChange={onTextureStyleChange}
+            backgroundStyle={backgroundStyle}
+            onBackgroundStyleChange={onBackgroundStyleChange}
+            zenMode={zenMode}
+            onZenModeChange={onZenModeChange}
+            showVolumeSlider={showVolumeSlider}
+            onShowVolumeSliderChange={onShowVolumeSliderChange}
+            enable3DTilt={enable3DTilt}
+            onEnable3DTiltChange={onEnable3DTiltChange}
+            showSettingsButton={showSettingsButton}
+            onShowSettingsButtonChange={onShowSettingsButtonChange}
+            enableCustomLyrics={enableCustomLyrics}
+            onEnableCustomLyricsChange={onEnableCustomLyricsChange}
           />
         </section>
       </motion.div>

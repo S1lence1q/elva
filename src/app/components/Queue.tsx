@@ -247,17 +247,17 @@ export function Queue({
         animate={{ x: 0 }}
         exit={{ x: '100%' }}
         transition={{ type: 'spring', damping: 26, stiffness: 220 }}
-        className="fixed right-0 top-0 bottom-0 w-full max-w-[460px] bg-[#09090b]/85 border-l border-white/10 z-50 flex flex-col shadow-[-20px_0_60px_rgba(0,0,0,0.65)] pointer-events-auto overflow-hidden backdrop-blur-3xl h-full"
+        className="fixed right-0 top-0 bottom-0 w-full max-w-[460px] bg-[#07080a]/96 border-l border-white/[0.08] z-50 flex flex-col shadow-[-20px_0_60px_rgba(0,0,0,0.85)] pointer-events-auto overflow-hidden backdrop-blur-3xl h-full before:content-[''] before:absolute before:inset-y-0 before:left-0 before:w-[1px] before:bg-white/[0.04] before:pointer-events-none"
       >
         <div
-          className="absolute inset-0 opacity-10 pointer-events-none"
+          className="absolute inset-0 opacity-[0.08] pointer-events-none"
           style={{
             background:
               'radial-gradient(circle at 100% 10%, var(--theme-primary) 0%, transparent 60%), radial-gradient(circle at 100% 90%, var(--theme-secondary) 0%, transparent 60%)',
           }}
         />
 
-        <div className="relative px-6 py-5 border-b border-white/5 flex items-center justify-between shrink-0 z-10 bg-black/10 select-none min-h-[60px]">
+        <div className="relative px-6 py-5 border-b border-white/[0.06] flex items-center justify-between shrink-0 z-10 bg-[#0c0d11]/80 select-none min-h-[60px]">
           <div className="flex items-center gap-3 min-w-0">
             <div className="relative w-7 h-7 shrink-0 flex items-center justify-center">
               <AnimatePresence mode="wait" initial={false}>

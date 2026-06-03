@@ -42,6 +42,11 @@ interface ArtworkCardProps {
   isLargeScreen: boolean;
   appState: string;
   accentColor: AccentColor;
+  showVolumeSlider?: boolean;
+  volume?: number;
+  onVolumeChange?: (v: number) => void;
+  preMuteVolume?: number;
+  setPreMuteVolume?: (v: number) => void;
 }
 
 export function ArtworkCard({
@@ -73,7 +78,12 @@ export function ArtworkCard({
   enable3DTilt,
   isLargeScreen,
   appState,
-  accentColor
+  accentColor,
+  showVolumeSlider,
+  volume,
+  onVolumeChange,
+  preMuteVolume,
+  setPreMuteVolume
 }: ArtworkCardProps) {
   const theme = ACCENT_THEMES[accentColor];
 
@@ -440,6 +450,11 @@ export function ArtworkCard({
                   onToggleFavorite={onToggleFavorite}
                   onAddToPlaylist={handleAddToPlaylist}
                   onViewArtist={onViewArtist}
+                  showVolumeSlider={showVolumeSlider}
+                  volume={volume}
+                  onVolumeChange={onVolumeChange}
+                  preMuteVolume={preMuteVolume}
+                  setPreMuteVolume={setPreMuteVolume}
                 />
               </div>
             </div>

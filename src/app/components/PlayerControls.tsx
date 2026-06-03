@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Play, Pause, SkipBack, SkipForward, Heart, ListPlus } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Heart, ListPlus, Volume2, VolumeX, Volume1 } from 'lucide-react';
 import * as Slider from '@radix-ui/react-slider';
 import { SearchResult } from '../types';
 
@@ -29,6 +29,11 @@ interface PlayerControlsProps {
   onToggleFavorite?: (song: SearchResult) => void;
   onAddToPlaylist?: (playlistId: string) => void;
   onViewArtist?: (name: string, channelId?: string) => void;
+  showVolumeSlider?: boolean;
+  volume?: number;
+  onVolumeChange?: (v: number) => void;
+  preMuteVolume?: number;
+  setPreMuteVolume?: (v: number) => void;
 }
 
 export const PlayerControls: React.FC<PlayerControlsProps> = ({
@@ -48,7 +53,12 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
   favorites = [],
   onToggleFavorite,
   onAddToPlaylist,
-  onViewArtist
+  onViewArtist,
+  showVolumeSlider = false,
+  volume,
+  onVolumeChange,
+  preMuteVolume,
+  setPreMuteVolume
 }) => {
   const [showPlaylistMenu, setShowPlaylistMenu] = useState(false);
   const [playlists, setPlaylists] = useState<any[]>([]);
@@ -291,6 +301,43 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
             <SkipForward className="w-5 h-5 text-white/70 group-hover:text-white transition-colors" />
           </button>
         </div>
+
+        {/* Volume Slider - conditionally shown */}
+        {showVolumeSlider && volume !== undefined && onVolumeChange && (
+          <div className="flex items-center gap-3.5 w-44 mx-auto mt-5 select-none" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => {
+                if (volume > 0) {
+                  if (setPreMuteVolume) setPreMuteVolume(volume);
+                  onVolumeChange(0);
+                } else {
+                  onVolumeChange(preMuteVolume || 70);
+                }
+              }}
+              className="text-white/40 hover:text-white transition-colors cursor-pointer p-1 shrink-0"
+              title={volume === 0 ? "Unmute" : "Mute"}
+            >
+              {volume === 0 ? (
+                <VolumeX className="w-4 h-4" />
+              ) : volume < 50 ? (
+                <Volume1 className="w-4 h-4" />
+              ) : (
+                <Volume2 className="w-4 h-4" />
+              )}
+            </button>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={volume}
+              onChange={(e) => onVolumeChange(parseInt(e.target.value))}
+              className="flex-1 h-[3px] rounded-lg appearance-none bg-white/10 outline-none cursor-pointer accent-white"
+              style={{
+                background: `linear-gradient(to right, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.7) ${volume}%, rgba(255,255,255,0.1) ${volume}%, rgba(255,255,255,0.1) 100%)`
+              }}
+            />
+          </div>
+        )}
       </div>
     </div>
   );
