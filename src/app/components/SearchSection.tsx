@@ -57,7 +57,7 @@ function SearchArtistCard({
       variants={searchArtistCardItem}
       onClick={onOpen}
       className={`mb-0 w-full flex items-center justify-between gap-6 group cursor-pointer min-h-[110px] transition-colors duration-300 overflow-hidden rounded-2xl ${
-        isFocused ? 'bg-white/[0.05]' : 'hover:bg-white/[0.04]'
+        isFocused ? 'bg-white/[0.045]' : 'bg-transparent hover:bg-white/[0.025]'
       }`}
     >
       {/* Soft ambient glow behind the avatar — no top edge, fades before card rim */}
@@ -290,7 +290,7 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
                 variants={searchStaggerContainer}
                 initial="initial"
                 animate="animate"
-                className="space-y-2"
+                className="rounded-[28px] border border-white/[0.06] bg-[#0a0b10]/60 p-2 sm:p-3 space-y-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_40px_rgba(0,0,0,0.55)] backdrop-blur-2xl"
               >
                 {showArtistCard && verifiedArtist && (
                   <>
@@ -300,7 +300,7 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
                       onOpen={() => handleViewArtistProfile(verifiedArtist)}
                     />
                     {searchResults.length > 0 && (
-                      <div className="h-2" aria-hidden />
+                      <div className="mx-2 border-b border-white/[0.06] my-2" aria-hidden />
                     )}
                   </>
                 )}
