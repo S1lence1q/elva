@@ -104,8 +104,9 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
                     artist: songData.artist,
                     thumbnail: songData.artworkUrl,
                   });
+                  e.currentTarget.blur();
                 }}
-                className="p-2.5 rounded-xl hover:bg-white/10 text-white/40 hover:text-white cursor-pointer shrink-0 transition-all hover:scale-105 active:scale-95 duration-200 elva-focus-ring"
+                className="p-2.5 rounded-xl hover:bg-white/10 text-white/40 hover:text-white cursor-pointer shrink-0 transition-all hover:scale-105 active:scale-95 duration-200 outline-none focus:outline-none focus:ring-0"
                 aria-label={isFavorite ? 'Fjern fra favoritter' : 'Marker som favorit'}
                 title={isFavorite ? "Fjern fra favoritter" : "Marker som favorit"}
               >
@@ -127,8 +128,9 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
                 onClick={(e) => {
                   e.stopPropagation();
                   setShowPlaylistMenu(!showPlaylistMenu);
+                  e.currentTarget.blur();
                 }}
-                className={`p-2.5 rounded-xl hover:bg-white/10 text-white/40 hover:text-white cursor-pointer transition-all hover:scale-105 active:scale-95 duration-200 elva-focus-ring ${showPlaylistMenu ? 'bg-white/15 text-white' : ''}`}
+                className={`p-2.5 rounded-xl hover:bg-white/10 text-white/40 hover:text-white cursor-pointer transition-all hover:scale-105 active:scale-95 duration-200 outline-none focus:outline-none focus:ring-0 ${showPlaylistMenu ? 'bg-white/15 text-white' : ''}`}
                 aria-label="Add to playlist"
                 title="Add to playlist"
               >
@@ -255,8 +257,9 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
             onClick={(e) => {
               e.stopPropagation();
               handlePreviousSong();
+              e.currentTarget.blur();
             }}
-            className="p-3 rounded-full bg-white/5 hover:bg-white/10 active:scale-95 border border-white/10 hover:border-white/20 transition-all cursor-pointer group elva-focus-ring"
+            className="p-3 rounded-full bg-white/5 hover:bg-white/10 active:scale-95 border border-white/10 hover:border-white/20 transition-all cursor-pointer group outline-none focus:outline-none focus:ring-0"
             aria-label="Previous song"
             title="Previous Song"
           >
@@ -268,8 +271,9 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
             onClick={(e) => {
               e.stopPropagation();
               togglePlayPause();
+              e.currentTarget.blur();
             }}
-            className="relative group/button active:scale-95 transition-all cursor-pointer elva-focus-ring rounded-full"
+            className="relative group/button active:scale-95 transition-all cursor-pointer rounded-full outline-none focus:outline-none focus:ring-0"
             aria-label={isPlaying ? 'Pause' : 'Play'}
             title={isPlaying ? "Pause" : "Play"}
           >
@@ -301,8 +305,9 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
             onClick={(e) => {
               e.stopPropagation();
               handleNextSong();
+              e.currentTarget.blur();
             }}
-            className="p-3 rounded-full bg-white/5 hover:bg-white/10 active:scale-95 border border-white/10 hover:border-white/20 transition-all cursor-pointer group elva-focus-ring"
+            className="p-3 rounded-full bg-white/5 hover:bg-white/10 active:scale-95 border border-white/10 hover:border-white/20 transition-all cursor-pointer group outline-none focus:outline-none focus:ring-0"
             aria-label="Next song"
             title="Next Song"
           >

@@ -255,6 +255,14 @@ export function ArtworkCard({
     stableCenterRef.current = { x: 0, y: 0 };
   };
 
+  // Reset hover state when lyrics are toggled/slid away to prevent stuck hover states
+  useEffect(() => {
+    setIsArtworkHovered(false);
+    mouseX.set(0);
+    mouseY.set(0);
+    stableCenterRef.current = { x: 0, y: 0 };
+  }, [showLyrics]);
+
   // Track volume changes to briefly show player controls
   const [volumeChangedVisible, setVolumeChangedVisible] = useState(false);
   const lastVolumeRef = useRef(volume);
