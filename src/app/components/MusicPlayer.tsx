@@ -377,6 +377,7 @@ export function MusicPlayer({
 
   return (
     <div 
+      id="elva-player-root"
       className={`size-full relative overflow-hidden bg-transparent flex items-center justify-center transition-all bg-transition ${isUserIdle && zenMode ? 'cursor-none' : ''}`}
       style={{
         '--theme-primary': dominantColors.primary,
