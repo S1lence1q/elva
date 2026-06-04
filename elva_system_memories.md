@@ -315,3 +315,11 @@ Disse hooks er udtrukket for at holde `App.tsx` og `MusicPlayer.tsx` fokuserede 
   - **Dynamic Storefront Selector:** Profilens customizer-modal lader nu brugeren vælge deres tilknyttede musikland (fx Danmark, USA, Storbritannien, Sverige, Norge, Tyskland, Frankrig, Japan, Canada eller Australien), hvilket gemmes i localStorage under `elva_profile_country`.
   - **Event-Driven Feed Update:** Når profilen gemmes, afsendes en global `elva-profile-updated` CustomEvent. `DiscoverView.tsx` reagerer på denne ved øjeblikkeligt at genindlæse Apple Music Live Charts for det valgte land og re-labele playlists (fx "Top Hits: Norway").
   - **Personalized Header Greeting Banner:** Sektionens hovedoverskrift (`BrandingHeader.tsx`) synkroniserer ligeledes med eventet og viser en premium glassmorphic badge i toppen med tidsbaserede danske hilsner (`Godmorgen / Goddag / Godaften`), curator-avatar, profilnavn samt det valgte lands flagemoji.
+
+---
+
+### 🎯 23. Screen-Top Progress Bar Portal Positioning
+* **Filer:** [MusicPlayer.tsx](file:///Users/applemacbook/AntiGravity%20Shit/Elva.nosync/Elva/src/app/components/MusicPlayer.tsx), [ArtworkCard.tsx](file:///Users/applemacbook/AntiGravity%20Shit/Elva.nosync/Elva/src/app/components/musicplayer/ArtworkCard.tsx)
+* **Hvordan det virker:**
+  - **CSS Transform Containing Block Bug:** Når lyrics åbnes, translateres `#artwork-card` til venstre (`x: -284px`). Under CSS-specifikationer skaber en transform på en forældernode et nyt absolut/fixed koordinatsystem (containing block) for alle efterkommere. Dette medførte, at den skærm-toppede `fixed top-0 left-0 right-0` progress-linje blev trukket til venstre og beskåret.
+  - **Portal-løsning:** Afspillerens rod-container i `MusicPlayer.tsx` har nu fået tildelt id'et `elva-player-root` (som ikke har nogen layout-transformeringer, men indeholder alle farvetema-CSS-variablerne). Progress-linjen i `ArtworkCard.tsx` renderes nu via `createPortal` direkte som efterkommer af `elva-player-root`. Dette sikrer, at den altid spænder over hele viewporten, forbliver uafhængig af artworkets translationsanimationer og bibeholder adgang til farvevariablerne.
