@@ -323,3 +323,13 @@ Disse hooks er udtrukket for at holde `App.tsx` og `MusicPlayer.tsx` fokuserede 
 * **Hvordan det virker:**
   - **CSS Transform Containing Block Bug:** Når lyrics åbnes, translateres `#artwork-card` til venstre (`x: -284px`). Under CSS-specifikationer skaber en transform på en forældernode et nyt absolut/fixed koordinatsystem (containing block) for alle efterkommere. Dette medførte, at den skærm-toppede `fixed top-0 left-0 right-0` progress-linje blev trukket til venstre og beskåret.
   - **Portal-løsning:** Afspillerens rod-container i `MusicPlayer.tsx` har nu fået tildelt id'et `elva-player-root` (som ikke har nogen layout-transformeringer, men indeholder alle farvetema-CSS-variablerne). Progress-linjen i `ArtworkCard.tsx` renderes nu via `createPortal` direkte som efterkommer af `elva-player-root`. Dette sikrer, at den altid spænder over hele viewporten, forbliver uafhængig af artworkets translationsanimationer og bibeholder adgang til farvevariablerne.
+
+---
+
+### 🎯 24. Heavy Bass Oscilloscope Audio Visualizer
+* **Filer:** [VisualizerCanvas.tsx](file:///Users/applemacbook/AntiGravity%20Shit/Elva.nosync/Elva/src/app/components/VisualizerCanvas.tsx), [MusicPlayer.tsx](file:///Users/applemacbook/AntiGravity%20Shit/Elva.nosync/Elva/src/app/components/MusicPlayer.tsx)
+* **Hvordan det virker:**
+  - **Oscilloscope Waveform Drawing:** Den tidligere inaktive `VisualizerCanvas` er blevet implementeret og monteret som en baggrunds-canvas i `MusicPlayer.tsx` (placeret bag albumcoveret og teksterne). I stedet for traditionelle frekvenssøjler tegner den en hardware-lignende oscilloskop-bølge (`getByteTimeDomainData`).
+  - **Trap/Hardstyle Beat Synthesizer:** Ved afspilning af YouTube-streams (hvor CORS-sandboxing blokerer direkte iframe-audiomåling) syntetiserer canvasen en yderst overbevisende og aggressiv waveform-strøm i realtid. Den simulerer en tung 138-BPM bas-puls (fast decay), sub-bass rumble, 16. dels trap hi-hat rolls samt forvrængede savtaks-leads.
+  - **Bass Shake & Glow Ticks:** Kraftige bas-slag (både fra ægte AudioAPI-frekvenser og den interne synthesizer) udløser et dynamisk viewport-rystelses-matrix (`translate` på canvasen), forstørrer kurvens amplitude, og øger gløden på linjens endepunkter og hardware-skala-tringitteret.
+  - **Motion Blur Trails:** For at bevare baggrundens gennemsigtighed (så WebGL-canvasen kan ses igennem), undgås fuld farve-overtegning. I stedet gemmes en historik over de seneste 7 frames af bølgebaner, som renderes med aftagende gennemsigtighed og tykkelse, hvilket skaber en jævn og lynhurtig eftergløds-effekt (motion blur).
