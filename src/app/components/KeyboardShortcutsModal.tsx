@@ -19,7 +19,11 @@ export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div 
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0, pointerEvents: 'none' }}
+          transition={{ duration: 0.25 }}
           className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-2xl pointer-events-auto cursor-default"
           onClick={onClose}
         >
@@ -87,7 +91,7 @@ export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({
               <span className="text-[10px] text-white/30 font-light tracking-widest uppercase">Press ? or Esc to close at any time</span>
             </div>
           </motion.div>
-        </div>
+        </motion.div>
       )}
     </AnimatePresence>
   );
