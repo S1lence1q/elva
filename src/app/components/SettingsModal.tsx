@@ -253,6 +253,7 @@ export function SettingsModal({
           onClick={() => {
             onClose();
             // Close player if open by firing home, wait, then scroll to hub
+            sessionStorage.setItem('elva_hub_active_tab', 'settings');
             window.dispatchEvent(new CustomEvent('elva-scroll-to-hub', { detail: { tab: 'settings' } }));
           }}
           className="w-full py-3.5 rounded-2xl bg-white/5 border border-white/8 hover:bg-white/10 hover:border-white/12 transition-all font-bold text-[10px] uppercase tracking-[0.18em] text-white/80 hover:text-white flex items-center justify-center gap-2 cursor-pointer select-none"

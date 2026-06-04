@@ -649,7 +649,12 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const handleScrollToHub = () => {
+    const handleScrollToHub = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const targetTab = customEvent.detail?.tab;
+      if (targetTab) {
+        sessionStorage.setItem('elva_hub_active_tab', targetTab);
+      }
       setAppState('landing');
       searchLogic.setSelectedArtist(null);
       setSelectedPlaylist(null);
