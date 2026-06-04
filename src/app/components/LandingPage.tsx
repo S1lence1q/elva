@@ -67,7 +67,9 @@ interface LandingPageProps {
   showSettingsButton: boolean;
   onShowSettingsButtonChange?: (show: boolean) => void;
   enableCustomLyrics: boolean;
-  onEnableCustomLyricsChange?: (enable: boolean) => void;
+  onEnableCustomLyricsChange: (enable: boolean) => void;
+  peekProgressStyle: 'none' | 'line' | 'border';
+  onPeekProgressStyleChange: (style: 'none' | 'line' | 'border') => void;
 }
 
 export function LandingPage({
@@ -126,6 +128,8 @@ export function LandingPage({
   onShowSettingsButtonChange,
   enableCustomLyrics,
   onEnableCustomLyricsChange,
+  peekProgressStyle,
+  onPeekProgressStyleChange
 }: LandingPageProps) {
   return (
     <motion.div
@@ -349,6 +353,8 @@ export function LandingPage({
             onShowSettingsButtonChange={onShowSettingsButtonChange}
             enableCustomLyrics={enableCustomLyrics}
             onEnableCustomLyricsChange={onEnableCustomLyricsChange}
+            peekProgressStyle={peekProgressStyle}
+            onPeekProgressStyleChange={onPeekProgressStyleChange}
           />
         </section>
       </motion.div>

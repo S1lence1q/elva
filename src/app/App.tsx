@@ -143,6 +143,11 @@ export default function App() {
     return localStorage.getItem('elva_show_visualizer') !== 'false';
   });
 
+  const [peekProgressStyle, setPeekProgressStyle] = useState<'none' | 'line' | 'border'>(() => {
+    return (localStorage.getItem('elva_peek_progress_style') as 'none' | 'line' | 'border') || 'border';
+  });
+
+
   // Sync settings to localStorage on change
   useEffect(() => {
     localStorage.setItem('elva_accent_color', accentColor);
@@ -179,6 +184,11 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('elva_show_visualizer', showVisualizer ? 'true' : 'false');
   }, [showVisualizer]);
+
+  useEffect(() => {
+    localStorage.setItem('elva_peek_progress_style', peekProgressStyle);
+  }, [peekProgressStyle]);
+
 
   // Onboarding Tour State
   const [tourType, setTourType] = useState<'landing' | 'player' | null>(null);
@@ -996,6 +1006,8 @@ export default function App() {
             onShowSettingsButtonChange={setShowSettingsButton}
             enableCustomLyrics={enableCustomLyrics}
             onEnableCustomLyricsChange={setEnableCustomLyrics}
+            peekProgressStyle={peekProgressStyle}
+            onPeekProgressStyleChange={setPeekProgressStyle}
           />
           </ErrorBoundary>
         )}
@@ -1085,6 +1097,8 @@ export default function App() {
               enableCustomLyrics={enableCustomLyrics}
               onEnableCustomLyricsChange={setEnableCustomLyrics}
               onPlayingStateChange={setIsMiniPlaying}
+              peekProgressStyle={peekProgressStyle}
+              onPeekProgressStyleChange={setPeekProgressStyle}
               onFileSelect={(file) => {
                 if (appState === 'ready') {
                   setSongData({
@@ -1145,6 +1159,8 @@ export default function App() {
             onShowSettingsButtonChange={setShowSettingsButton}
             enableCustomLyrics={enableCustomLyrics}
             onEnableCustomLyricsChange={setEnableCustomLyrics}
+            peekProgressStyle={peekProgressStyle}
+            onPeekProgressStyleChange={setPeekProgressStyle}
           />
         )}
       </AnimatePresence>
@@ -1208,7 +1224,7 @@ export default function App() {
       />
 
       <GlobalVolumeHUD
-        visible={showGlobalVolumeHUD}
+        visible={showGlobalVolumeHUD && !showVolumeSlider}
         volume={globalVolume}
         accentColor={accentColor}
       />

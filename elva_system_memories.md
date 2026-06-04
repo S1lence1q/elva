@@ -245,6 +245,14 @@ Dette dokument er den urokkelige kilde til sandhed (Source of Truth) for Elvas k
 * **Vigtigt:** Lokal `npm run dev` ≠ live site før push. Test charts/queue-fixes på dev-server eller efter deploy.
 * **`elva_resolved_video_ids`:** Stadig simpel `trackId → videoId` map i localStorage (rigere cache med `resolvedAt` er **ikke** implementeret — kun tilføj hvis reel smerte).
 
+### 🎯 20. Aim & Shoot Charging Volume Indicator (Hidden UX Game)
+* **Filer:** [BottomBarControls.tsx](file:///Users/applemacbook/AntiGravity%20Shit/Elva.nosync/Elva/src/app/components/musicplayer/BottomBarControls.tsx)
+* **Hvordan det virker:**
+  - **Hold-to-Charge & Aim:** Ved at holde pointeren nede på højttaler-ikonet starter en 60fps tidsbaseret opladningscyklus, der ping-ponger volumenværdien op og ned (0% ➔ 100% ➔ 0%) over 2,4 sekunder. Samtidig roterer ikonet fysisk opad (mod uret fra 0° til -35°) for at angive kastevinklen.
+  - **Uforstyrret Lydstyrkebar:** Under opladningen forbliver selve volumen-slideren og procentvisningen (f.eks. `70%`) helt statiske. Slider-knappen (thumb) er synlig under opladning for at vise nuværende niveau, men skjules under skudflyvningen.
+  - **Glow Projectile & Parabolsk Fysik:** Når knappen slippes, skydes et høj-synligt, lysende hvidt projektil (18px med tema-farvet border og dobbelt skygge-glow) ud af højttalerikonet. Det flyver i en matematisk korrekt parabolsk bane og lander præcist på slider-sporet for at indstille den nye lydstyrke.
+  - **Fokusring- & Spacebar-sikring:** Alle knapper i bunden er sikret med `outline-none focus:outline-none focus:ring-0` og `.blur()` ved tryk, hvilket forhindrer browserens standard-fokusringe og blokerer Spacebar i at fejlagtigt genaktivere volumenknappen i stedet for at afspille/pause musikken.
+
 ---
 
 ## 📁 19. Modulopbygget Kodebase

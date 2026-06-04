@@ -20,7 +20,10 @@ interface AdvancedSettingsTabProps {
   onShowSettingsButtonChange?: (show: boolean) => void;
   enableCustomLyrics: boolean;
   onEnableCustomLyricsChange?: (enable: boolean) => void;
+  peekProgressStyle: 'none' | 'line' | 'border';
+  onPeekProgressStyleChange: (style: 'none' | 'line' | 'border') => void;
 }
+
 
 function SettingsToggle({
   checked,
@@ -79,6 +82,8 @@ export const AdvancedSettingsTab: React.FC<AdvancedSettingsTabProps> = ({
   onShowSettingsButtonChange,
   enableCustomLyrics,
   onEnableCustomLyricsChange,
+  peekProgressStyle,
+  onPeekProgressStyleChange
 }) => {
   const theme = ACCENT_THEMES[accentColor];
 
@@ -204,6 +209,34 @@ export const AdvancedSettingsTab: React.FC<AdvancedSettingsTabProps> = ({
                     }`}
                   >
                     {style === 'paper' ? 'Grain' : style === 'dots' ? 'Dots' : 'Off'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between p-4 rounded-2xl bg-[#111216]/50 border border-white/[0.04] hover:bg-[#161720]/80 hover:border-white/10 transition-all duration-300 select-none">
+              <div className="text-left pr-4">
+                <span className="text-xs font-semibold text-white/90 block">Progress Indicator</span>
+                <span className="text-[10px] text-white/40 font-light mt-1 block leading-normal">
+                  Style of the progress bar shown on the artwork card when controls are hidden.
+                </span>
+              </div>
+              <div className="flex items-center gap-1 bg-[#09090c] border border-white/5 rounded-xl p-1 shrink-0">
+                {([
+                  { value: 'none', label: 'Off' },
+                  { value: 'line', label: 'Classic' },
+                  { value: 'border', label: 'Glowing' }
+                ] as const).map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => onPeekProgressStyleChange?.(opt.value)}
+                    className={`px-3 py-1.5 rounded-lg text-[9px] uppercase tracking-wider font-extrabold transition-all cursor-pointer ${
+                      peekProgressStyle === opt.value
+                        ? 'bg-white/10 text-white border border-white/10 shadow-sm'
+                        : 'text-white/30 hover:text-white/60 border border-transparent'
+                    }`}
+                  >
+                    {opt.label}
                   </button>
                 ))}
               </div>

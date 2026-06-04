@@ -78,7 +78,10 @@ interface MusicPlayerProps {
   onEnableCustomLyricsChange?: (enable: boolean) => void;
   onPlayingStateChange?: (playing: boolean) => void;
   appState?: string;
+  peekProgressStyle?: 'none' | 'line' | 'border';
+  onPeekProgressStyleChange?: (style: 'none' | 'line' | 'border') => void;
 }
+
 
 const THEME_PRESETS = {
   cyberpunk: {
@@ -145,7 +148,9 @@ export function MusicPlayer({
   enableCustomLyrics = false,
   onEnableCustomLyricsChange,
   onPlayingStateChange,
-  appState = 'ready'
+  appState = 'ready',
+  peekProgressStyle = 'border',
+  onPeekProgressStyleChange
 }: MusicPlayerProps) {
   const theme = ACCENT_THEMES[accentColor];
 
@@ -445,6 +450,8 @@ export function MusicPlayer({
                 onShowVisualizerChange={onShowVisualizerChange}
                 volume={volume}
                 onVolumeChange={handleVolumeChange}
+                peekProgressStyle={peekProgressStyle}
+                onPeekProgressStyleChange={onPeekProgressStyleChange}
               />
             </div>
           )}
@@ -538,7 +545,7 @@ export function MusicPlayer({
         className="relative z-10 flex flex-col items-center px-8 w-full"
         style={{ maxWidth: 1152 }}
       >
-        <div className={isLargeScreen ? 'relative w-full h-[550px] flex items-center justify-center' : 'flex flex-col items-center justify-center w-full'}>
+        <div className={isLargeScreen ? 'relative w-full h-[550px] flex items-center justify-center' : 'flex flex-col items-center justify-center w-full pb-20'}>
           {/* Extracted 3D Artwork Card */}
           <ArtworkCard
             songData={songData}
@@ -575,6 +582,9 @@ export function MusicPlayer({
             onVolumeChange={handleVolumeChange}
             preMuteVolume={preMuteVolume}
             setPreMuteVolume={setPreMuteVolume}
+            peekProgressStyle={peekProgressStyle}
+            zenMode={zenMode}
+            isUserIdle={isUserIdle}
           />
 
           {/* Side-by-Side Lyrics Panel for desktop */}
@@ -611,7 +621,6 @@ export function MusicPlayer({
           </AnimatePresence>
         </div>
 
-        {/* Extracted Bottom Bar Controls */}
         <BottomBarControls
           showQueue={showQueue}
           setShowQueue={setShowQueue}
@@ -626,6 +635,11 @@ export function MusicPlayer({
           zenMode={zenMode}
           showLyrics={showLyrics}
           isLargeScreen={isLargeScreen}
+          showVolumeSlider={showVolumeSlider}
+          volume={volume}
+          onVolumeChange={handleVolumeChange}
+          preMuteVolume={preMuteVolume}
+          setPreMuteVolume={setPreMuteVolume}
         />
       </motion.div>
 

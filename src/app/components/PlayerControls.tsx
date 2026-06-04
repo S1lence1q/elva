@@ -78,22 +78,6 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
   const progressPct = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
 
   return (
-    <>
-      {/* Peek progress — visible while playing and full controls are hidden */}
-      {isPlaying && duration > 0 && !controlsVisible && (
-        <div
-          className="absolute bottom-0 left-0 right-0 z-[25] pointer-events-none"
-          aria-hidden
-        >
-          <div className="h-[2px] w-full bg-white/[0.04]">
-            <div
-              className="h-full bg-white/30 transition-[width] duration-[250ms] ease-linear"
-              style={{ width: `${progressPct}%` }}
-            />
-          </div>
-        </div>
-      )}
-
     <div 
       className={`absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-black/20 transition-all duration-300 z-20 ${
         controlsVisible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
@@ -325,50 +309,7 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
             <SkipForward className="w-5 h-5 text-white/70 group-hover:text-white transition-colors" />
           </button>
         </div>
-
-        {/* Volume Slider - conditionally shown */}
-        {showVolumeSlider && volume !== undefined && onVolumeChange && (
-          <div 
-            className="flex items-center gap-3 w-60 mx-auto mt-6 px-3.5 py-2 rounded-full bg-white/[0.03] border border-white/[0.05] shadow-[inset_0_1px_0_rgba(255,255,255,0.02),0_4px_12px_rgba(0,0,0,0.2)] select-none" 
-            onClick={(e) => e.stopPropagation()}
-            onPointerDown={(e) => e.stopPropagation()}
-          >
-            <button
-              onClick={() => {
-                if (volume > 0) {
-                  if (setPreMuteVolume) setPreMuteVolume(volume);
-                  onVolumeChange(0);
-                } else {
-                  onVolumeChange(preMuteVolume || 70);
-                }
-              }}
-              className="text-white/40 hover:text-white transition-colors cursor-pointer p-0.5 shrink-0 flex items-center justify-center"
-              title={volume === 0 ? "Unmute" : "Mute"}
-            >
-              {volume === 0 ? (
-                <VolumeX className="w-3.5 h-3.5" />
-              ) : volume < 50 ? (
-                <Volume1 className="w-3.5 h-3.5" />
-              ) : (
-                <Volume2 className="w-3.5 h-3.5" />
-              )}
-            </button>
-            <Slider.Root
-              value={[volume]}
-              max={100}
-              step={1}
-              onValueChange={(val) => onVolumeChange?.(val[0])}
-              className="relative flex items-center w-full h-4 cursor-pointer group/volume"
-            >
-              <Slider.Track className="relative h-[2.5px] w-full bg-white/10 rounded-full overflow-hidden">
-                <Slider.Range className="absolute h-full bg-white/60" />
-              </Slider.Track>
-              <Slider.Thumb className="block w-2.5 h-2.5 rounded-full bg-white opacity-0 group-hover/volume:opacity-100 transition-opacity duration-150 focus:outline-none focus:opacity-100" />
-            </Slider.Root>
-          </div>
-        )}
       </div>
     </div>
-    </>
   );
 };

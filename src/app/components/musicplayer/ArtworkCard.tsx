@@ -5,6 +5,7 @@ import { LyricsPanel } from '../LyricsPanel';
 import { AccentColor, ACCENT_THEMES } from '../themeUtils';
 import { loadCustomLyrics } from '../../utils/lyricsUtils';
 
+
 interface ArtworkCardProps {
   songData: {
     title: string;
@@ -47,7 +48,12 @@ interface ArtworkCardProps {
   onVolumeChange?: (v: number) => void;
   preMuteVolume?: number;
   setPreMuteVolume?: (v: number) => void;
+  peekProgressStyle?: 'none' | 'line' | 'border';
+  zenMode?: boolean;
+  isUserIdle?: boolean;
 }
+
+
 
 export function ArtworkCard({
   songData,
@@ -83,7 +89,10 @@ export function ArtworkCard({
   volume,
   onVolumeChange,
   preMuteVolume,
-  setPreMuteVolume
+  setPreMuteVolume,
+  peekProgressStyle = 'border',
+  zenMode = false,
+  isUserIdle = false
 }: ArtworkCardProps) {
   const theme = ACCENT_THEMES[accentColor];
 
@@ -245,6 +254,25 @@ export function ArtworkCard({
     mouseY.set(0);
     stableCenterRef.current = { x: 0, y: 0 };
   };
+
+  // Track volume changes to briefly show player controls
+  const [volumeChangedVisible, setVolumeChangedVisible] = useState(false);
+  const lastVolumeRef = useRef(volume);
+
+  useEffect(() => {
+    if (volume !== undefined && lastVolumeRef.current !== undefined && volume !== lastVolumeRef.current) {
+      setVolumeChangedVisible(true);
+      const timer = setTimeout(() => setVolumeChangedVisible(false), 2000);
+      lastVolumeRef.current = volume;
+      return () => clearTimeout(timer);
+    }
+    lastVolumeRef.current = volume;
+  }, [volume]);
+
+  const isControlsVisible = isArtworkHovered || volumeChangedVisible || !isPlaying || (tourType !== null && currentStep === 1);
+
+  const progressPct = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
+
 
   return (
     <motion.div 
@@ -458,6 +486,18 @@ export function ArtworkCard({
                   preMuteVolume={preMuteVolume}
                   setPreMuteVolume={setPreMuteVolume}
                 />
+
+                {/* Classic line progress bar inside the card so it follows the rounded corners and is clipped */}
+                {isPlaying && !isControlsVisible && peekProgressStyle === 'line' && (
+                  <div className="absolute bottom-0 left-0 right-0 z-[19] pointer-events-none" aria-hidden>
+                    <div className="h-[2.5px] w-full bg-white/[0.04]">
+                      <div
+                        className="h-full bg-white/40 transition-[width] duration-[250ms] ease-linear"
+                        style={{ width: `${progressPct}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -479,6 +519,19 @@ export function ArtworkCard({
           </motion.div>
         </motion.div>
       </div>
+
+      {isPlaying && !isControlsVisible && peekProgressStyle === 'border' && (
+        <div className="fixed top-0 left-0 right-0 h-[2.5px] z-[100] pointer-events-none bg-white/[0.04]" aria-hidden>
+          <div 
+            className="h-full transition-[width] duration-[250ms] ease-linear"
+            style={{ 
+              width: `${progressPct}%`,
+              background: 'linear-gradient(to right, var(--theme-primary), var(--theme-accent), var(--theme-secondary))'
+            }}
+          />
+        </div>
+      )}
     </motion.div>
   );
 }
+

@@ -27,6 +27,8 @@ interface SettingsModalProps {
   onVolumeChange?: (v: number) => void;
 }
 
+
+
 function QuickToggle({ 
   checked, 
   onChange, 

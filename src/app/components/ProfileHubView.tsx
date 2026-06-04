@@ -54,7 +54,10 @@ interface ProfileHubViewProps {
   onShowSettingsButtonChange?: (show: boolean) => void;
   enableCustomLyrics: boolean;
   onEnableCustomLyricsChange?: (enable: boolean) => void;
+  peekProgressStyle: 'none' | 'line' | 'border';
+  onPeekProgressStyleChange: (style: 'none' | 'line' | 'border') => void;
 }
+
 
 const ACTIVE_TAB_STYLES: Record<AccentColor, { border: string; glow: string; text: string }> = {
   emerald: {
@@ -103,6 +106,8 @@ export const ProfileHubView: React.FC<ProfileHubViewProps> = ({
   onShowSettingsButtonChange,
   enableCustomLyrics,
   onEnableCustomLyricsChange,
+  peekProgressStyle,
+  onPeekProgressStyleChange
 }) => {
   const theme = ACCENT_THEMES[accentColor];
   const [activeTab, setActiveTab] = useState<'overview' | 'favorites' | 'playlists' | 'settings'>(() => {
@@ -426,6 +431,8 @@ export const ProfileHubView: React.FC<ProfileHubViewProps> = ({
               onShowSettingsButtonChange={onShowSettingsButtonChange}
               enableCustomLyrics={enableCustomLyrics}
               onEnableCustomLyricsChange={onEnableCustomLyricsChange}
+              peekProgressStyle={peekProgressStyle}
+              onPeekProgressStyleChange={onPeekProgressStyleChange}
             />
           )}
         </AnimatePresence>
