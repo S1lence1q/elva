@@ -443,6 +443,18 @@ export function useSearchLogic({
     if (cached) {
       setSelectedArtist(null);
       setArtistTracks([]);
+      if (shouldShowArtistCard(query)) {
+        const candidate = getArtistName(query, cached);
+        if (candidate) {
+          const handPicked = getHandPickedImage(candidate.name);
+          setVerifiedArtist({
+            name: candidate.name,
+            thumbnail: handPicked || candidate.thumbnail,
+            channelId: candidate.channelId,
+            isTopic: candidate.isTopic
+          });
+        }
+      }
       setSearchResults([...cached]);
       setLastSearchedQuery(query);
       return;
@@ -458,6 +470,18 @@ export function useSearchLogic({
 
     if (results.length > 0) {
       setCachedSearch(query, results);
+      if (shouldShowArtistCard(query)) {
+        const candidate = getArtistName(query, results);
+        if (candidate) {
+          const handPicked = getHandPickedImage(candidate.name);
+          setVerifiedArtist({
+            name: candidate.name,
+            thumbnail: handPicked || candidate.thumbnail,
+            channelId: candidate.channelId,
+            isTopic: candidate.isTopic
+          });
+        }
+      }
       setSearchResults(results);
       setLastSearchedQuery(query);
     } else {
