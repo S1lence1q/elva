@@ -237,6 +237,7 @@ Dette dokument er den urokkelige kilde til sandhed (Source of Truth) for Elvas k
   - **ALDRIG `layout` prop** på søge-/queue-containere der skifter indholdshøjde — det giver “vokse/skubbe”-effekt.
   - Landing search: faser `recents | loading | results` med `AnimatePresence mode="wait"`; resultatrækker **stagger** via `searchStaggerContainer` / `searchStaggerItem`.
   - Recents vises indtil **`lastSearchedQuery`** (ikke debounced `searchQuery` alene).
+  - Søgeresultater på landing page er samlet i én elegant glasramme (`rounded-[28px] border border-white/[0.06] bg-[#0a0b10]/60 shadow-[...] backdrop-blur-2xl`) for både kunstner-kort og sange, mens det individuelle kunstner-kort (`SearchArtistCard`) er baggrundsløst og adskilt fra sangene af en tynd divider-linje, hvilket forhindrer nested border-indpakning ("dobbelt ramme").
 
 ### 🚀 18. Deploy & Miljø
 * **Repo:** `Elva/` (GitHub: `S1lence1q/elva`)
