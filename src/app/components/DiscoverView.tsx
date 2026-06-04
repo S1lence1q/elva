@@ -5,7 +5,7 @@ import { SearchResult } from '../types';
 import { AccentColor, ACCENT_THEMES } from './themeUtils';
 import { Playlist } from './PlaylistDetailsView';
 import { SongRowOptions } from './SongRowOptions';
-import { fetchAppleMusicChart } from '../utils/chartFeeds';
+import { fetchAppleMusicChart, STOREFRONT_COUNTRIES } from '../utils/chartFeeds';
 
 import topHitsDenmark from '../../top_hits_denmark.png';
 import topHitsGlobal from '../../top_hits_global.png';
@@ -33,28 +33,42 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
 }) => {
   const theme = ACCENT_THEMES[accentColor];
 
-  const [dkHits, setDkHits] = useState<SearchResult[]>([]);
+  const [activeCountry, setActiveCountry] = useState(() => {
+    return localStorage.getItem('elva_profile_country') || 'dk';
+  });
+  const [localHits, setLocalHits] = useState<SearchResult[]>([]);
   const [globalHits, setGlobalHits] = useState<SearchResult[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [dkError, setDkError] = useState<string | null>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
   const [globalError, setGlobalError] = useState<string | null>(null);
-  const [dkFromCache, setDkFromCache] = useState(false);
+  const [localFromCache, setLocalFromCache] = useState(false);
   const [globalFromCache, setGlobalFromCache] = useState(false);
+
+  useEffect(() => {
+    const handleProfileUpdate = () => {
+      const stored = localStorage.getItem('elva_profile_country') || 'dk';
+      setActiveCountry(stored);
+    };
+    window.addEventListener('elva-profile-updated', handleProfileUpdate);
+    return () => {
+      window.removeEventListener('elva-profile-updated', handleProfileUpdate);
+    };
+  }, []);
 
   const loadCharts = useCallback(async () => {
     setIsLoading(true);
-    const [dk, global] = await Promise.all([
-      fetchAppleMusicChart('dk'),
+    const [local, global] = await Promise.all([
+      fetchAppleMusicChart(activeCountry),
       fetchAppleMusicChart('us'),
     ]);
-    setDkHits(dk.tracks);
+    setLocalHits(local.tracks);
     setGlobalHits(global.tracks);
-    setDkError(dk.error ?? (dk.tracks.length === 0 ? 'Chart unavailable' : null));
+    setLocalError(local.error ?? (local.tracks.length === 0 ? 'Chart unavailable' : null));
     setGlobalError(global.error ?? (global.tracks.length === 0 ? 'Chart unavailable' : null));
-    setDkFromCache(dk.fromCache);
+    setLocalFromCache(local.fromCache);
     setGlobalFromCache(global.fromCache);
     setIsLoading(false);
-  }, []);
+  }, [activeCountry]);
 
   useEffect(() => {
     void loadCharts();
@@ -68,12 +82,14 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
 
   const isFavorite = (songId: string) => favorites.some((fav) => fav.id === songId);
 
+  const activeCountryData = STOREFRONT_COUNTRIES.find(c => c.code === activeCountry) || { name: 'Denmark', flag: '🇩🇰' };
+
   const playlistsConfig: Playlist[] = [
     {
       id: 'dk_hits',
-      name: 'Top Hits: Denmark',
-      description: 'The most popular tracks in Denmark right now (Apple Music).',
-      tracks: dkHits,
+      name: `Top Hits: ${activeCountryData.name}`,
+      description: `The most popular tracks in ${activeCountryData.name} right now (Apple Music).`,
+      tracks: localHits,
       thumbnail: topHitsDenmark,
       accent: 'wine',
     },
@@ -87,7 +103,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
     },
   ];
 
-  const trendingList = dkHits.slice(0, 4);
+  const trendingList = localHits.slice(0, 4);
   const dailyPicks = globalHits.slice(0, 4);
 
   const ChartLoadError = ({
@@ -132,7 +148,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
               Featured Charts
             </h3>
           </div>
-          {!isLoading && (dkFromCache || globalFromCache) && (
+          {!isLoading && (localFromCache || globalFromCache) && (
             <span className="text-[9px] uppercase tracking-wider text-white/35">Cached chart data</span>
           )}
         </div>
@@ -155,7 +171,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
             ))
           ) : (
             <>
-              {dkHits.length > 0 ? (
+              {localHits.length > 0 ? (
                 <ChartCard
                   chart={playlistsConfig[0]}
                   idx={0}
@@ -163,7 +179,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                   onPlayChart={handlePlayChart}
                 />
               ) : (
-                <ChartLoadError message={dkError ?? 'Unknown error'} onRetry={() => void loadCharts()} />
+                <ChartLoadError message={localError ?? 'Unknown error'} onRetry={() => void loadCharts()} />
               )}
 
               {globalHits.length > 0 ? (
@@ -266,7 +282,7 @@ function ChartCard({
   onSelectPlaylist: (playlist: Playlist) => void;
   onPlayChart: (e: React.MouseEvent, name: string, tracks: SearchResult[]) => void;
 }) {
-  const isDk = chart.id === 'dk_hits';
+  const isLocal = chart.id === 'dk_hits';
   return (
     <motion.div
       key={chart.id}
@@ -290,7 +306,7 @@ function ChartCard({
       {/* Subtle color tint per chart */}
       <div
         className="absolute inset-0 opacity-30 mix-blend-color"
-        style={{ background: isDk ? 'rgba(220,38,38,0.5)' : 'rgba(79,70,229,0.5)' }}
+        style={{ background: isLocal ? 'rgba(220,38,38,0.5)' : 'rgba(79,70,229,0.5)' }}
       />
 
       {/* Content sits at the bottom */}
@@ -298,7 +314,7 @@ function ChartCard({
         {/* Live chart label */}
         <span
           className="text-[10px] font-bold tracking-[0.35em] uppercase w-fit"
-          style={{ color: isDk ? '#fda4af' : '#a5b4fc' }}
+          style={{ color: isLocal ? '#fda4af' : '#a5b4fc' }}
         >
           ✦ Live Chart
         </span>
@@ -318,9 +334,9 @@ function ChartCard({
             onClick={(e) => onPlayChart(e, chart.name, chart.tracks)}
             className="flex items-center gap-2 px-4 py-2 rounded-full text-white text-xs font-bold tracking-wide transition-all duration-150 cursor-pointer hover:brightness-110 active:scale-95"
             style={{
-              background: isDk ? 'rgba(220,38,38,0.6)' : 'rgba(79,70,229,0.6)',
+              background: isLocal ? 'rgba(220,38,38,0.6)' : 'rgba(79,70,229,0.6)',
               backdropFilter: 'blur(8px)',
-              boxShadow: isDk ? '0 2px 10px rgba(220,38,38,0.12)' : '0 2px 10px rgba(79,70,229,0.12)'
+              boxShadow: isLocal ? '0 2px 10px rgba(220,38,38,0.12)' : '0 2px 10px rgba(79,70,229,0.12)'
             }}
           >
             <Play className="w-3 h-3 fill-current" />

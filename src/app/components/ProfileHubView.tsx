@@ -138,9 +138,13 @@ export const ProfileHubView: React.FC<ProfileHubViewProps> = ({
     }
     return 'initials';
   });
+  const [country, setCountry] = useState(() => {
+    return localStorage.getItem('elva_profile_country') || 'dk';
+  });
   const [isCustomizing, setIsCustomizing] = useState(false);
   const [tempName, setTempName] = useState(username);
   const [tempAvatar, setTempAvatar] = useState(avatar);
+  const [tempCountry, setTempCountry] = useState(country);
 
   // Recently Played State
   const [recentlyPlayed, setRecentlyPlayed] = useState<SearchResult[]>(() => {
@@ -203,9 +207,12 @@ export const ProfileHubView: React.FC<ProfileHubViewProps> = ({
       const limited = trimmed.slice(0, 20);
       setUsername(limited);
       setAvatar(tempAvatar);
+      setCountry(tempCountry);
       localStorage.setItem('elva_profile_name', limited);
       localStorage.setItem('elva_profile_avatar', tempAvatar);
+      localStorage.setItem('elva_profile_country', tempCountry);
       setIsCustomizing(false);
+      window.dispatchEvent(new CustomEvent('elva-profile-updated'));
       showMiniHUD('Profile updated');
     }
   };
@@ -361,9 +368,11 @@ export const ProfileHubView: React.FC<ProfileHubViewProps> = ({
           totalListeningMinutes={totalListeningMinutes}
           uniqueSongsCount={uniqueSongsCount}
           totalPlayCount={totalPlayCount}
+          country={country}
           onEditProfile={() => {
             setTempName(username);
             setTempAvatar(avatar);
+            setTempCountry(country);
             setIsCustomizing(true);
           }}
         />
@@ -457,6 +466,8 @@ export const ProfileHubView: React.FC<ProfileHubViewProps> = ({
                 setTempName={setTempName}
                 tempAvatar={tempAvatar}
                 setTempAvatar={setTempAvatar}
+                tempCountry={tempCountry}
+                setTempCountry={setTempCountry}
                 onSave={handleSaveProfile}
               />
             </motion.div>

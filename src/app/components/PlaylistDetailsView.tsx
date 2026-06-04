@@ -110,7 +110,9 @@ export const PlaylistDetailsView: React.FC<PlaylistDetailsViewProps> = ({
                   : 'bg-[#1e1b4b] text-indigo-100 border-t border-indigo-950'
               }`}>
                 <span className="text-xs md:text-sm font-black uppercase tracking-[0.2em] leading-none select-none block">
-                  {playlist.id === 'dk_hits' ? 'TOP HITS DK' : 'TOP HITS GLOBAL'}
+                  {playlist.id === 'dk_hits' 
+                    ? `TOP HITS ${playlist.name.replace('Top Hits: ', '').toUpperCase()}` 
+                    : 'TOP HITS GLOBAL'}
                 </span>
               </div>
 

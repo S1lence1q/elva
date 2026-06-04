@@ -1,5 +1,6 @@
 import { Edit2 } from 'lucide-react';
 import { AccentColor, ACCENT_THEMES } from '../themeUtils';
+import { STOREFRONT_COUNTRIES } from '../../utils/chartFeeds';
 
 interface ProfileHeaderProps {
   username: string;
@@ -8,6 +9,7 @@ interface ProfileHeaderProps {
   totalListeningMinutes: number;
   uniqueSongsCount: number;
   totalPlayCount: number;
+  country: string;
   onEditProfile: () => void;
 }
 
@@ -18,9 +20,11 @@ export function ProfileHeader({
   totalListeningMinutes,
   uniqueSongsCount,
   totalPlayCount,
+  country,
   onEditProfile
 }: ProfileHeaderProps) {
   const theme = ACCENT_THEMES[accentColor];
+  const activeCountryData = STOREFRONT_COUNTRIES.find(c => c.code === country) || { name: 'Denmark', flag: '🇩🇰' };
 
   return (
     <div className="rounded-3xl elva-glass-chrome backdrop-blur-2xl p-5 flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
@@ -45,7 +49,9 @@ export function ProfileHeader({
         </div>
 
         <div className="flex flex-col gap-0.5 text-left">
-          <span className="text-[9px] uppercase font-bold tracking-[0.25em] text-white/30">Music Curator</span>
+          <span className="text-[9px] uppercase font-bold tracking-[0.25em] text-white/30">
+            Music Curator • {activeCountryData.name.toUpperCase()} {activeCountryData.flag}
+          </span>
           <div className="flex items-center gap-2.5">
             <h2 
               className="text-2xl font-normal text-white/95 tracking-wide leading-tight truncate max-w-[180px] md:max-w-[240px]" 

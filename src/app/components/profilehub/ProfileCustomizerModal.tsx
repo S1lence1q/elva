@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { X } from 'lucide-react';
+import { X, ChevronDown } from 'lucide-react';
+import { STOREFRONT_COUNTRIES } from '../../utils/chartFeeds';
 
 interface ProfileCustomizerModalProps {
   onClose: () => void;
@@ -8,6 +9,8 @@ interface ProfileCustomizerModalProps {
   setTempName: (name: string) => void;
   tempAvatar: string;
   setTempAvatar: (avatar: string) => void;
+  tempCountry: string;
+  setTempCountry: (country: string) => void;
   onSave: () => void;
 }
 
@@ -25,6 +28,8 @@ export function ProfileCustomizerModal({
   setTempName,
   tempAvatar,
   setTempAvatar,
+  tempCountry,
+  setTempCountry,
   onSave
 }: ProfileCustomizerModalProps) {
   return (
@@ -98,6 +103,25 @@ export function ProfileCustomizerModal({
           spellCheck="false"
           className="bg-white/5 border border-white/10 text-white rounded-2xl px-4 py-3 text-sm focus:outline-none focus:border-white/25 transition-all font-medium"
         />
+      </div>
+
+      {/* Edit Storefront Country */}
+      <div className="flex flex-col gap-3">
+        <span className="text-[10px] uppercase font-bold tracking-[0.2em] text-white/40">Music Storefront Country</span>
+        <div className="relative">
+          <select
+            value={tempCountry}
+            onChange={(e) => setTempCountry(e.target.value)}
+            className="w-full bg-white/5 border border-white/10 text-white rounded-2xl px-4 py-3 text-sm focus:outline-none focus:border-white/25 transition-all font-medium appearance-none cursor-pointer"
+          >
+            {STOREFRONT_COUNTRIES.map((c) => (
+              <option key={c.code} value={c.code} className="bg-[#09090c] text-white">
+                {c.flag} {c.name} ({c.code.toUpperCase()})
+              </option>
+            ))}
+          </select>
+          <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-white/40" />
+        </div>
       </div>
 
       {/* Action Buttons */}

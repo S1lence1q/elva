@@ -1,6 +1,7 @@
-import { useRef } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { AccentColor, ACCENT_THEMES } from './themeUtils';
+import { STOREFRONT_COUNTRIES } from '../utils/chartFeeds';
 
 interface BrandingHeaderProps {
   accentColor: AccentColor;
@@ -34,6 +35,38 @@ export function BrandingHeader({
   hasSelectedArtist
 }: BrandingHeaderProps) {
   const theme = ACCENT_THEMES[accentColor];
+  
+  const [profile, setProfile] = useState(() => {
+    return {
+      username: localStorage.getItem('elva_profile_name') || 'Music Lover',
+      avatar: localStorage.getItem('elva_profile_avatar') || 'initials',
+      country: localStorage.getItem('elva_profile_country') || 'dk'
+    };
+  });
+
+  useEffect(() => {
+    const handleProfileUpdate = () => {
+      setProfile({
+        username: localStorage.getItem('elva_profile_name') || 'Music Lover',
+        avatar: localStorage.getItem('elva_profile_avatar') || 'initials',
+        country: localStorage.getItem('elva_profile_country') || 'dk'
+      });
+    };
+    window.addEventListener('elva-profile-updated', handleProfileUpdate);
+    return () => {
+      window.removeEventListener('elva-profile-updated', handleProfileUpdate);
+    };
+  }, []);
+
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour >= 5 && hour < 12) return 'Godmorgen';
+    if (hour >= 12 && hour < 18) return 'Goddag';
+    return 'Godaften';
+  };
+
+  const greeting = getGreeting();
+  const activeCountryData = STOREFRONT_COUNTRIES.find(c => c.code === profile.country) || { name: 'Denmark', flag: '🇩🇰' };
 
   // Animated gradient orbs stagger details
   const letterVariants = {
@@ -117,6 +150,38 @@ export function BrandingHeader({
 
   return (
     <div className="flex flex-col items-center gap-6 px-6 mb-8 shrink-0 w-full">
+      {/* Personalized Greeting Banner */}
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+        className="flex items-center gap-3 px-4 py-2 rounded-full border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl shadow-lg hover:border-white/10 hover:bg-white/[0.04] transition-all duration-300 group select-none shrink-0"
+      >
+        {/* Miniature Avatar */}
+        <div className="w-6 h-6 rounded-full overflow-hidden border border-white/10 bg-gradient-to-tr shadow-sm bg-[#0f0f12] relative shrink-0">
+          {profile.avatar === 'initials' ? (
+            <div className="w-full h-full rounded-full flex items-center justify-center bg-gradient-to-tr from-white/[0.04] to-white/[0.12] backdrop-blur-md relative overflow-hidden">
+              <span className="text-[9px] font-extrabold text-white tracking-tighter">
+                {profile.username.trim() ? profile.username.trim().charAt(0).toUpperCase() : 'M'}
+              </span>
+            </div>
+          ) : (
+            <div className={`w-full h-full rounded-full bg-gradient-to-tr ${profile.avatar}`} />
+          )}
+        </div>
+        
+        <span className="text-[10px] font-medium tracking-wider text-white/80">
+          {greeting}, <span className="font-bold text-white">{profile.username}</span> 👋
+        </span>
+
+        <span 
+          className="text-[10px] opacity-80 pl-2.5 border-l border-white/10 select-none cursor-default" 
+          title={`Storefront: ${activeCountryData.name}`}
+        >
+          {activeCountryData.flag}
+        </span>
+      </motion.div>
+
       {/* Refined Elva wordmark */}
       <motion.div className="relative flex flex-col items-center">
         {/* Subtle decorative lines with color */}

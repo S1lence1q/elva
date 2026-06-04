@@ -306,3 +306,12 @@ Disse hooks er udtrukket for at holde `App.tsx` og `MusicPlayer.tsx` fokuserede 
 - **`SearchSection.tsx`** + **`SearchLoadingState.tsx`** — Landing-søg med fase-animationer.
 - **`DiscoverView.tsx`** — Live Apple charts (ingen fake fallback).
 - **`queue/QueuePanelLayer.tsx`** — Absolut crossfade-lag i queue-panelet.
+
+---
+
+### 🎯 22. Dynamic Profile Storefronts & Personalized Greetings
+* **Filer:** [chartFeeds.ts](file:///Users/applemacbook/AntiGravity%20Shit/Elva.nosync/Elva/src/app/utils/chartFeeds.ts), [ProfileCustomizerModal.tsx](file:///Users/applemacbook/AntiGravity%20Shit/Elva.nosync/Elva/src/app/components/profilehub/ProfileCustomizerModal.tsx), [ProfileHubView.tsx](file:///Users/applemacbook/AntiGravity%20Shit/Elva.nosync/Elva/src/app/components/ProfileHubView.tsx), [DiscoverView.tsx](file:///Users/applemacbook/AntiGravity%20Shit/Elva.nosync/Elva/src/app/components/DiscoverView.tsx), [BrandingHeader.tsx](file:///Users/applemacbook/AntiGravity%20Shit/Elva.nosync/Elva/src/app/components/BrandingHeader.tsx)
+* **Hvordan det virker:**
+  - **Dynamic Storefront Selector:** Profilens customizer-modal lader nu brugeren vælge deres tilknyttede musikland (fx Danmark, USA, Storbritannien, Sverige, Norge, Tyskland, Frankrig, Japan, Canada eller Australien), hvilket gemmes i localStorage under `elva_profile_country`.
+  - **Event-Driven Feed Update:** Når profilen gemmes, afsendes en global `elva-profile-updated` CustomEvent. `DiscoverView.tsx` reagerer på denne ved øjeblikkeligt at genindlæse Apple Music Live Charts for det valgte land og re-labele playlists (fx "Top Hits: Norway").
+  - **Personalized Header Greeting Banner:** Sektionens hovedoverskrift (`BrandingHeader.tsx`) synkroniserer ligeledes med eventet og viser en premium glassmorphic badge i toppen med tidsbaserede danske hilsner (`Godmorgen / Goddag / Godaften`), curator-avatar, profilnavn samt det valgte lands flagemoji.

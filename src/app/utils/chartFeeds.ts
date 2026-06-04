@@ -4,12 +4,20 @@ import { robustFetch } from './apiUtils';
 const APPLE_CHART_BASE = 'https://rss.marketingtools.apple.com';
 const CHART_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
 
-const CACHE_KEYS = {
-  dk: 'elva_apple_chart_dk_v2',
-  us: 'elva_apple_chart_us_v2',
-} as const;
+export const STOREFRONT_COUNTRIES = [
+  { code: 'dk', name: 'Denmark', flag: '🇩🇰' },
+  { code: 'us', name: 'United States', flag: '🇺🇸' },
+  { code: 'gb', name: 'United Kingdom', flag: '🇬🇧' },
+  { code: 'se', name: 'Sweden', flag: '🇸🇪' },
+  { code: 'no', name: 'Norway', flag: '🇳🇴' },
+  { code: 'de', name: 'Germany', flag: '🇩🇪' },
+  { code: 'fr', name: 'France', flag: '🇫🇷' },
+  { code: 'jp', name: 'Japan', flag: '🇯🇵' },
+  { code: 'ca', name: 'Canada', flag: '🇨🇦' },
+  { code: 'au', name: 'Australia', flag: '🇦🇺' },
+] as const;
 
-type ChartStorefront = keyof typeof CACHE_KEYS;
+type ChartStorefront = string;
 
 type ChartCacheEntry = {
   tracks: SearchResult[];
@@ -28,9 +36,13 @@ function resolveChartUrl(storefront: ChartStorefront): string {
   return `${APPLE_CHART_BASE}${path}`;
 }
 
+function getCacheKey(storefront: string): string {
+  return `elva_apple_chart_${storefront}_v2`;
+}
+
 function readChartCache(storefront: ChartStorefront, allowStale = false): SearchResult[] | null {
   try {
-    const raw = localStorage.getItem(CACHE_KEYS[storefront]);
+    const raw = localStorage.getItem(getCacheKey(storefront));
     if (!raw) return null;
     const entry: ChartCacheEntry = JSON.parse(raw);
     if (!entry?.tracks?.length) return null;
@@ -46,7 +58,7 @@ function readChartCache(storefront: ChartStorefront, allowStale = false): Search
 function writeChartCache(storefront: ChartStorefront, tracks: SearchResult[]) {
   try {
     const entry: ChartCacheEntry = { tracks, fetchedAt: Date.now() };
-    localStorage.setItem(CACHE_KEYS[storefront], JSON.stringify(entry));
+    localStorage.setItem(getCacheKey(storefront), JSON.stringify(entry));
   } catch (e) {
     console.warn('Chart cache write failed:', e);
   }
@@ -80,14 +92,14 @@ function mapAppleFeedToTracks(data: unknown, idPrefix: string): SearchResult[] {
 }
 
 /**
- * Loads Apple Music most-played chart (DK or US).
+ * Loads Apple Music most-played chart.
  * Dev: Vite proxy. Production: direct Apple URL via CORS-safe fetch.
  * Caches successful responses in localStorage; may return stale cache offline.
  */
 export async function fetchAppleMusicChart(
   storefront: ChartStorefront
 ): Promise<{ tracks: SearchResult[]; fromCache: boolean; error?: string }> {
-  const idPrefix = storefront === 'dk' ? 'apple_dk' : 'apple_global';
+  const idPrefix = `apple_${storefront}`;
 
   const fetchOnce = async (): Promise<SearchResult[]> => {
     const url = resolveChartUrl(storefront);
@@ -122,15 +134,13 @@ export async function fetchAppleMusicChart(
     return {
       tracks: [],
       fromCache: false,
-      error:
-        storefront === 'dk'
-          ? 'Could not load Top Hits Denmark from Apple Music.'
-          : 'Could not load Global Top Hits from Apple Music.',
+      error: `Could not load Top Hits ${storefront.toUpperCase()} from Apple Music.`,
     };
   }
 }
 
 export function prefetchAppleCharts() {
-  void fetchAppleMusicChart('dk');
+  const savedCountry = localStorage.getItem('elva_profile_country') || 'dk';
+  void fetchAppleMusicChart(savedCountry);
   void fetchAppleMusicChart('us');
 }
