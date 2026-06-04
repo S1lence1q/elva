@@ -6,7 +6,7 @@ Originally, the goal was to make a simple music player.
 
 Unfortunately, every time I finished a feature, I got another idea.
 
-So now it has animated WebGL backgrounds, synchronized lyrics, audio crossfading, dynamic color extraction, profile customization, and a weird volume thing I made at 2am.
+So now it has animated WebGL backgrounds, synchronized lyrics, audio crossfading, dynamic color extraction, profile customization, and a weird volume thing I made at 2am. (None original idea, just thougth the volume thing was cool)
 
 ---
 
@@ -16,7 +16,7 @@ So now it has animated WebGL backgrounds, synchronized lyrics, audio crossfading
 * **Interactive sometimes synchronized lyrics:** Cool lyrics with click-to-seek scrubbing.
 * **Smooth track crossfading:** Mathematical constant-power ($\sin/\cos$) crossfades.
 * **Dynamic album-based theming:** Subtle, muted color extraction that morphs with each track.
-* **Search and charts:** Real-time charts (very legal from Apple Music) DK & Global
+* **Search and charts:** Real-time charts (very legal from Apple Music) DK & Global, more possibly coming sometime
 * **Queue management:** Seamless sidebar search and horizontal carousels with drag/Likes.
 * **Profile customization:** Edit name and select premium custom WebGL gradient presets.
 * **YouTube and audio playback support:** Dual playback engines orchestrating HTML5 audio and YT streams.
