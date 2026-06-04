@@ -54,7 +54,7 @@ export const ArtistProfileView: React.FC<ArtistProfileViewProps> = ({
     <motion.div
       key="immersive-artist-view"
       {...panelEnter}
-      className="w-full max-w-5xl px-4 flex flex-col h-[calc(100vh-80px)] overflow-y-auto scrollbar-none z-10"
+      className="w-full max-w-5xl px-12 flex flex-col h-[calc(100vh-80px)] overflow-y-auto scrollbar-none z-10"
     >
       {/* Navigation bar above the layout */}
       <div className="flex items-center justify-between w-full pb-3 shrink-0 px-2 select-none">
@@ -82,27 +82,58 @@ export const ArtistProfileView: React.FC<ArtistProfileViewProps> = ({
       </div>
 
       {/* Immersive Widescreen Artist Hero Banner */}
-      <div className="relative w-full rounded-3xl overflow-hidden bg-white/[0.01] backdrop-blur-2xl py-4 px-6 md:py-5 md:px-8 flex flex-col md:flex-row items-center gap-6 md:gap-8 shrink-0 mt-4">
-        {/* Giant circular avatar with high-end border */}
-        <div className="relative w-36 h-36 md:w-48 md:h-48 rounded-full overflow-hidden transition-transform duration-500 hover:scale-105 shrink-0 z-10">
-          <img src={selectedArtist.thumbnail} alt={selectedArtist.name} className="w-full h-full object-cover scale-105" />
+      <div
+        className="relative w-full rounded-3xl overflow-hidden backdrop-blur-2xl py-6 px-6 md:py-8 md:px-10 flex flex-col md:flex-row items-center gap-6 md:gap-10 shrink-0 mt-4"
+        style={{
+          background: artistColors
+            ? `linear-gradient(135deg, ${artistColors.bgGlow} 0%, rgba(13,14,20,0.85) 100%)`
+            : 'rgba(255,255,255,0.018)',
+          boxShadow: artistColors
+            ? `0 8px 30px ${artistColors.rgbaGlow?.replace('0.35', '0.12') ?? 'rgba(0,0,0,0.25)'}, inset 0 1px 0 rgba(255,255,255,0.06)`
+            : 'inset 0 1px 0 rgba(255,255,255,0.04)',
+        }}
+      >
+        {/* Soft ambient glow behind avatar */}
+        {artistColors && (
+          <div
+            className="absolute left-4 top-1/2 -translate-y-1/2 w-64 h-64 rounded-full pointer-events-none blur-3xl opacity-30"
+            style={{ background: artistColors.gradient }}
+          />
+        )}
+
+        {/* Giant circular avatar */}
+        <div className="relative w-36 h-36 md:w-52 md:h-52 rounded-full shrink-0 z-10">
+          {/* Glow ring behind avatar */}
+          {artistColors && (
+            <div
+              className="absolute -inset-1.5 rounded-full blur-md opacity-50"
+              style={{ background: artistColors.gradient }}
+            />
+          )}
+          <div className="relative w-full h-full rounded-full overflow-hidden ring-1 ring-white/15">
+            <img src={selectedArtist.thumbnail} alt={selectedArtist.name} className="w-full h-full object-cover scale-105 hover:scale-110 transition-transform duration-700" />
+            {/* Inner shadow for depth */}
+            <div className="absolute inset-0 rounded-full shadow-[inset_0_0_24px_rgba(0,0,0,0.5)]" />
+          </div>
         </div>
-        
-        {/* Hero Info Text (aligned bottom-left on desktop) */}
+
+        {/* Hero Info Text */}
         <div className="flex flex-col text-center md:text-left relative z-10">
           <div className="flex items-center justify-center md:justify-start gap-2">
-            <span className="flex items-center gap-1 text-[9px] font-bold text-white/50 bg-white/5 px-2.5 py-0.5 rounded-md uppercase tracking-wider">
+            <span
+              className="flex items-center gap-1 text-[9px] font-bold text-white/40 bg-white/[0.06] border border-white/[0.08] px-2.5 py-0.5 rounded-md uppercase tracking-[0.2em]"
+            >
               ✦ {ARTIST_PROFILE_BADGE}
             </span>
           </div>
-          
-          <h2 
+
+          <h2
             className="text-5xl md:text-7xl lg:text-8xl font-normal text-white mt-3 md:mt-4 tracking-wide leading-none"
-            style={{ fontFamily: '"Kaobe", serif' }}
+            style={{ fontFamily: '"Kaobe", serif', textShadow: artistColors ? `0 4px 30px ${artistColors.rgbaGlow?.replace('0.35', '0.4') ?? 'rgba(0,0,0,0.4)'}` : 'none' }}
           >
             {selectedArtist.name}
           </h2>
-          
+
           <p className="text-[10px] md:text-xs text-white/40 font-bold tracking-[0.25em] uppercase mt-3 md:mt-4">
             {selectedArtist.name.toLowerCase().includes('kesi') || selectedArtist.name.toLowerCase().includes('kundo')
               ? 'DANISH RAPPER • DK'
@@ -131,7 +162,7 @@ export const ArtistProfileView: React.FC<ArtistProfileViewProps> = ({
           </div>
           
           {/* Spacious track list flowing naturally */}
-          <div className="w-full space-y-2 mt-4 z-10 relative">
+          <div className="w-full space-y-0.5 mt-4 z-10 relative">
             {isLoadingArtist ? (
               /* Pulsing skeleton list */
               <div className="space-y-3">
@@ -162,8 +193,8 @@ export const ArtistProfileView: React.FC<ArtistProfileViewProps> = ({
                     <motion.div
                       key={`artist-track-${track.id}`}
                       {...listItemEnter(index)}
-                      className={`group w-full flex items-center gap-4 py-4 px-3 last:border-b-0 bg-transparent transition-colors duration-200 hover:bg-white/[0.02] cursor-pointer ${
-                        isLoading ? 'bg-white/[0.03]' : isFocused ? 'bg-white/[0.04]' : ''
+                      className={`group w-full flex items-center gap-4 py-3.5 px-3 rounded-xl last:border-b-0 bg-transparent transition-colors duration-200 hover:bg-white/[0.03] cursor-pointer ${
+                        isLoading ? 'bg-white/[0.04]' : isFocused ? 'bg-white/[0.04]' : ''
                       }`}
                       onClick={() => {
                         if (!loadingSongId) handleSelectSong(track);
@@ -200,10 +231,10 @@ export const ArtistProfileView: React.FC<ArtistProfileViewProps> = ({
 
                       {/* Title & Artist */}
                       <div className="flex-1 min-w-0 text-left">
-                        <span className="text-[15px] font-semibold text-white/95 group-hover:text-white transition-colors truncate block">
+                        <span className="text-sm font-semibold text-white/90 group-hover:text-white transition-colors truncate block">
                           {track.title}
                         </span>
-                        <span className="text-[13px] text-white/60 truncate block mt-1">
+                        <span className="text-[12px] text-white/50 truncate block mt-0.5">
                           {track.artist}
                         </span>
                       </div>

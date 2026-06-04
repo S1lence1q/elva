@@ -56,24 +56,44 @@ function SearchArtistCard({
     <motion.div
       variants={searchArtistCardItem}
       onClick={onOpen}
-      className={`relative overflow-hidden p-6 rounded-3xl bg-[#0d0e15]/90 transition-all duration-300 mb-4 flex items-center justify-between gap-6 group cursor-pointer w-full min-h-[108px] ${
+      className={`relative overflow-hidden rounded-3xl mb-4 flex items-center justify-between gap-6 group cursor-pointer w-full min-h-[110px] border transition-all duration-300 ${
         isFocused
-          ? 'bg-[#161824]/95'
-          : 'hover:bg-[#12131c]/90'
+          ? 'bg-[#0c0d14]/75 border-white/15'
+          : 'bg-[#0a0b10]/60 border-white/[0.06] hover:bg-[#0c0d14]/75 hover:border-white/10'
       }`}
+      style={{
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 6px 20px rgba(0,0,0,0.35)'
+      }}
     >
-      <div className="flex items-center gap-5 relative z-10 min-w-0">
-        <div className="relative w-20 h-20 md:w-[88px] md:h-[88px] rounded-full overflow-hidden flex-shrink-0">
-          <img src={artist.thumbnail} alt={artist.name} className="w-full h-full object-cover" />
+      {/* Accent glow line at top */}
+      <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+
+      {/* Soft ambient glow behind the avatar */}
+      <div className="absolute left-0 top-0 bottom-0 w-48 bg-gradient-to-r from-white/[0.03] to-transparent pointer-events-none" />
+
+      <div className="flex items-center gap-5 relative z-10 min-w-0 p-5 flex-1">
+        {/* Avatar with subtle ring */}
+        <div className="relative w-[80px] h-[80px] md:w-[90px] md:h-[90px] rounded-full overflow-hidden flex-shrink-0 ring-1 ring-white/10 group-hover:ring-white/20 transition-all duration-300">
+          <img src={artist.thumbnail} alt={artist.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+          {/* Subtle inner shadow for depth */}
+          <div className="absolute inset-0 rounded-full shadow-[inset_0_0_16px_rgba(0,0,0,0.4)]" />
         </div>
+
         <div className="flex flex-col text-left min-w-0">
-          <span className="text-[10px] md:text-xs font-bold text-zinc-300 tracking-wider bg-zinc-800/40 px-2.5 py-0.5 rounded-md uppercase w-fit">
+          {/* Badge */}
+          <span className="text-[9px] font-bold text-white/40 bg-white/[0.06] border border-white/[0.08] px-2.5 py-0.5 rounded-md uppercase tracking-[0.2em] w-fit">
             ✦ {ARTIST_PROFILE_BADGE}
           </span>
-          <h4 className="text-base md:text-xl font-black text-white mt-1.5 group-hover:text-zinc-100 transition-colors tracking-tight leading-tight truncate">
+
+          {/* Artist name — large and prominent */}
+          <h4
+            className="text-xl md:text-2xl font-bold text-white mt-2 group-hover:text-white transition-colors tracking-tight leading-tight truncate"
+          >
             {artist.name}
           </h4>
-          <div className="min-h-[2.25rem] mt-1">
+
+          {/* Meta info */}
+          <div className="min-h-[2rem] mt-1">
             <AnimatePresence mode="wait" initial={false}>
               {hasMeta ? (
                 <motion.div
@@ -84,21 +104,21 @@ function SearchArtistCard({
                   transition={{ duration: 0.28, ease: EASE_PREMIUM }}
                 >
                   {artist.disambiguation && (
-                    <p className="text-[11px] md:text-xs text-white/60 font-semibold leading-snug">
-                      {artist.disambiguation} {artist.country && `(${artist.country})`}
+                    <p className="text-[11px] md:text-xs text-white/50 font-medium leading-snug">
+                      {artist.disambiguation} {artist.country && `• ${artist.country}`}
                     </p>
                   )}
                   {!artist.disambiguation && artist.country && (
-                    <p className="text-[11px] md:text-xs text-white/60 font-semibold">
+                    <p className="text-[11px] md:text-xs text-white/50 font-medium">
                       Artist from {artist.country}
                     </p>
                   )}
                   {artist.tags && artist.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mt-2">
+                    <div className="flex flex-wrap gap-1.5 mt-1.5">
                       {artist.tags.slice(0, 3).map((tag) => (
                         <span
                           key={tag}
-                          className="text-[10px] font-bold text-white/40 bg-white/5 px-2 py-0.5 rounded-md uppercase tracking-wider"
+                          className="text-[9px] font-semibold text-white/35 bg-white/[0.04] border border-white/[0.06] px-2 py-0.5 rounded-md uppercase tracking-wider"
                         >
                           {tag}
                         </span>
@@ -113,7 +133,7 @@ function SearchArtistCard({
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.28, ease: EASE_PREMIUM }}
-                  className="text-[11px] md:text-xs text-white/50 font-semibold uppercase tracking-wide"
+                  className="text-[11px] md:text-xs text-white/35 font-medium tracking-wide"
                 >
                   {ARTIST_SEARCH_CARD_HINT}
                 </motion.p>
@@ -122,7 +142,9 @@ function SearchArtistCard({
           </div>
         </div>
       </div>
-      <ChevronRight className="w-6 h-6 text-white/20 group-hover:text-white/45 transition-colors duration-200 shrink-0 self-center relative z-10" />
+      <div className="pr-5 shrink-0">
+        <ChevronRight className="w-5 h-5 text-white/20 group-hover:text-white/50 transition-all duration-200 group-hover:translate-x-0.5" />
+      </div>
     </motion.div>
   );
 }
@@ -236,8 +258,14 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
             autoCorrect="off"
             autoCapitalize="off"
             spellCheck="false"
-            className="w-full pl-16 pr-8 py-6 rounded-3xl bg-[#08090f]/85 text-white/90 placeholder-white/25 text-lg font-light tracking-wide focus:outline-none focus:bg-[#12131c]/90 transition-all duration-300"
-          />
+            className="w-full pl-16 pr-8 py-5 rounded-3xl bg-[#0a0b10]/60 border border-white/[0.06] text-white/90 placeholder-white/25 text-base font-light tracking-wide focus:outline-none focus:bg-[#0c0d15]/85 focus:border-white/12 transition-all duration-300"
+            style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)' }}
+            onFocus={(e) => { 
+              e.currentTarget.style.boxShadow = 'inset 0 1px 0 rgba(255,255,255,0.03), 0 0 0 1px rgba(255,255,255,0.12), 0 12px 40px rgba(0,0,0,0.55)';
+            }}
+            onBlur={(e) => { 
+              e.currentTarget.style.boxShadow = 'inset 0 1px 0 rgba(255,255,255,0.03)';
+            }}/>
         </div>
       </div>
 
@@ -270,11 +298,11 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
           )}
 
           {panelPhase === 'results' && (
-            <div className="w-full relative z-10 overflow-hidden px-1">
+            <div className="relative z-10 -mx-12 py-6 -my-6 overflow-hidden">
               <motion.div
                 key="search-phase-results"
                 {...searchPhaseMotion}
-                className="w-[calc(100%+40px)] pr-[40px] max-h-[min(60vh,520px)] overflow-y-auto scrollbar-none overscroll-contain"
+                className="w-[calc(100%+40px)] pl-12 pr-[88px] max-h-[min(60vh,520px)] overflow-y-auto scrollbar-none overscroll-contain"
               >
                 <motion.div
                   variants={searchStaggerContainer}
@@ -302,12 +330,12 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
                         onClick={() => {
                           if (!loadingSongId) handleSelectSong(result);
                         }}
-                        className={`group relative w-full flex items-center gap-4 p-3.5 rounded-2xl transition-all duration-300 cursor-pointer will-change-transform ${
+                        className={`group relative w-full flex items-center gap-4 p-3 rounded-2xl border transition-all duration-300 cursor-pointer will-change-transform ${
                           loadingSongId === result.id
-                            ? 'bg-[#181a23]/60'
+                            ? 'bg-white/[0.05] border-white/10'
                             : isFocused
-                              ? 'bg-[#181a23]/80'
-                              : 'bg-[#0a0b10]/40 hover:bg-[#13141c]/55'
+                              ? 'bg-white/[0.04] border-white/[0.08]'
+                              : 'bg-transparent border-transparent hover:bg-white/[0.025] hover:border-white/[0.05]'
                         }`}
                       >
                         <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-white/0 via-white/[0.02] to-white/0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />

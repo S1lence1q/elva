@@ -97,26 +97,28 @@ export function OverviewTab({
       transition={{ duration: 0.3 }}
       className="flex flex-col gap-8"
     >
-      {/* B. HORIZONTAL "VINYL FLIP" CAROUSEL (Recently Played) */}
-      <div className="rounded-3xl border border-white/[0.08] bg-[#0a0b10]/65 backdrop-blur-2xl p-6 flex flex-col gap-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_12px_36px_rgba(0,0,0,0.55)] w-full">
-        <div className="flex items-center gap-2 select-none">
-          <History className="w-4 h-4 text-white/30" />
-          <h3 className="text-[10px] uppercase tracking-[0.25em] font-bold text-white/40">Recently Played</h3>
+      {/* B. HORIZONTAL "VINYL FLIP" CAROUSEL (Recently Played) — PRIMARY card */}
+      <div className="rounded-3xl border border-white/[0.08] bg-[#0d0e14]/75 backdrop-blur-2xl p-6 flex flex-col gap-5 w-full"
+        style={{ boxShadow: '0 16px 48px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)' }}
+      >
+        <div className="flex items-center gap-2.5 select-none">
+          <History className={`w-4 h-4 ${theme.text}`} />
+          <h3 className="text-xs uppercase tracking-[0.25em] font-bold text-white/60">Recently Played</h3>
         </div>
 
         {recentlyPlayed.length > 0 ? (
-          <div className="flex overflow-x-auto gap-6 pb-4 scrollbar-none snap-x snap-mandatory">
+          <div className="flex overflow-x-auto gap-5 pb-4 scrollbar-none snap-x snap-mandatory">
             {recentlyPlayed.map((song) => (
-              <div 
-                key={song.id} 
+              <div
+                key={song.id}
                 onClick={() => onSelectSong(song)}
-                className="group flex flex-col gap-3 w-36 shrink-0 snap-start select-none cursor-pointer"
+                className="group flex flex-col gap-2.5 w-40 shrink-0 snap-start select-none cursor-pointer"
                 title={`Play ${song.title}`}
               >
-                <div className="relative w-36 h-36 rounded-2xl overflow-hidden shadow-lg border border-white/[0.08] bg-[#0c0d10]">
-                  <img 
-                    src={song.thumbnail} 
-                    alt={song.title} 
+                <div className="relative w-40 h-40 rounded-2xl overflow-hidden bg-[#0c0d10]">
+                  <img
+                    src={song.thumbnail}
+                    alt={song.title}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     onError={(e) => {
                       e.currentTarget.onerror = null;
@@ -129,12 +131,12 @@ export function OverviewTab({
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="text-left w-full">
-                  <h4 className="text-sm font-semibold text-white/90 truncate leading-tight tracking-wide" title={song.title}>
+                  <h4 className="text-sm font-semibold text-white/90 truncate leading-tight" title={song.title}>
                     {song.title}
                   </h4>
-                  <p className="text-[11px] text-white/45 truncate mt-1 font-medium leading-none">
+                  <p className="text-[11px] text-white/40 truncate mt-0.5 font-medium">
                     {song.artist}
                   </p>
                 </div>
@@ -142,7 +144,7 @@ export function OverviewTab({
             ))}
           </div>
         ) : (
-          <div className="rounded-2xl border border-white/[0.08] bg-[#0c0d10]/40 p-8 text-center flex flex-col items-center justify-center select-none shadow-sm">
+          <div className="rounded-2xl border border-white/[0.06] bg-[#0c0d10]/40 p-8 text-center flex flex-col items-center justify-center select-none">
             <Music className="w-6 h-6 text-white/20 mb-2" />
             <p className="text-white/40 text-[10px] font-semibold">No recent songs</p>
             <p className="text-white/20 text-[9px] mt-1 font-light max-w-[160px]">
@@ -152,8 +154,8 @@ export function OverviewTab({
         )}
       </div>
 
-      {/* C. Recently Played Artists Carousel */}
-      <div className="rounded-3xl border border-white/[0.08] bg-[#0a0b10]/65 backdrop-blur-2xl p-5 flex flex-col gap-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_12px_36px_rgba(0,0,0,0.55)] w-full">
+      {/* C. Recently Played Artists Carousel — secondary card */}
+      <div className="rounded-2xl border border-white/[0.06] bg-[#0d0e14]/50 backdrop-blur-xl p-5 flex flex-col gap-4 w-full">
         <div className="flex items-center justify-between select-none">
           <h3 className="text-[10px] uppercase tracking-[0.25em] font-bold text-white/40">Recently Played Artists</h3>
         </div>
@@ -196,8 +198,8 @@ export function OverviewTab({
         )}
       </div>
 
-      {/* D. Bottom Showcase: Playlists Horizontal Strip */}
-      <div className="rounded-3xl border border-white/[0.08] bg-[#0a0b10]/65 backdrop-blur-2xl p-5 flex flex-col gap-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_12px_36px_rgba(0,0,0,0.55)] w-full">
+      {/* D. Bottom Showcase: Playlists Horizontal Strip — secondary card */}
+      <div className="rounded-2xl border border-white/[0.06] bg-[#0d0e14]/50 backdrop-blur-xl p-5 flex flex-col gap-4 w-full">
         <div className="flex items-center justify-between select-none">
           <h3 className="text-[10px] uppercase tracking-[0.25em] font-bold text-white/40">Custom Playlists</h3>
           <button

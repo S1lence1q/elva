@@ -40,20 +40,20 @@ export function QueueUpNext({
   const theme = ACCENT_THEMES[accentColor];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="flex items-center justify-between select-none">
-        <h3 className="text-[10px] uppercase tracking-[0.25em] font-bold text-white/40">Up Next</h3>
+        <h3 className="text-[10px] uppercase tracking-[0.3em] font-bold text-white/35">Up Next</h3>
         {items.length > 0 && (
           <div className="flex items-center gap-3">
             {onShuffleQueue && (
               <>
                 <button
                   onClick={onShuffleQueue}
-                  className="text-[9px] uppercase tracking-widest text-emerald-400 hover:text-emerald-300 font-bold transition-colors cursor-pointer"
+                  className={`text-[9px] uppercase tracking-widest font-bold transition-colors cursor-pointer ${theme.text} ${theme.textHover}`}
                 >
-                  Shuffle Queue
+                  Shuffle
                 </button>
-                <span className="text-white/10 text-[9px] font-light">|</span>
+                <span className="text-white/10 text-[9px]">|</span>
               </>
             )}
             <button
@@ -65,15 +65,15 @@ export function QueueUpNext({
                   toast.info('Queue cleared');
                 }
               }}
-              className="text-[9px] uppercase tracking-widest text-red-400 hover:text-red-300 font-bold transition-colors cursor-pointer"
+              className="text-[9px] uppercase tracking-widest text-white/30 hover:text-red-400 font-bold transition-colors cursor-pointer"
             >
-              Clear Queue
+              Clear
             </button>
           </div>
         )}
       </div>
 
-      <div className="flex flex-col gap-2.5">
+      <div className="flex flex-col gap-0.5">
         <AnimatePresence mode="popLayout">
           {items.length === 0 ? (
             <motion.div
@@ -82,16 +82,14 @@ export function QueueUpNext({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="flex items-center gap-3.5 p-4.5 rounded-2xl border border-white/[0.08] bg-[#0a0b10]/40 select-none text-left min-h-[88px] shadow-md"
+              className="flex items-center gap-4 py-6 px-3 select-none text-left"
             >
-              <div className="w-16 h-16 rounded-2xl border border-white/[0.08] bg-[#1a1b24]/40 flex items-center justify-center shrink-0">
-                <Music className="w-5 h-5 text-white/20 animate-pulse" />
+              <div className="w-12 h-12 rounded-xl bg-white/[0.04] flex items-center justify-center shrink-0">
+                <Music className="w-4 h-4 text-white/20" />
               </div>
-              <div className="truncate">
-                <h4 className="text-sm font-semibold text-white/50 tracking-wide leading-tight">Your queue is empty</h4>
-                <p className="text-[10px] text-white/25 mt-1.5 leading-snug font-medium truncate max-w-[240px]">
-                  Add tracks from likes or playlists below
-                </p>
+              <div>
+                <h4 className="text-sm font-semibold text-white/40">Queue is empty</h4>
+                <p className="text-[11px] text-white/20 mt-0.5">Add tracks from below</p>
               </div>
             </motion.div>
           ) : (
@@ -112,22 +110,33 @@ export function QueueUpNext({
                   onDragOver={(e) => onDragOver(e, index)}
                   onDragEnd={onDragEnd}
                   {...listItemEnter(index)}
-                  exit={{ opacity: 0, height: 0, marginBottom: 0, padding: 0 }}
-                  transition={{ duration: 0.2 }}
+                  exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+                  transition={{ duration: 0.18 }}
                   onClick={() => onSelect(item.id)}
-                  className={`group w-full flex items-center justify-between p-3.5 rounded-2xl border transition-all duration-300 cursor-grab active:cursor-grabbing ${
-                    isDraggingItem ? 'opacity-30 border-dashed border-white/20 bg-white/5 scale-[0.98]' : ''
+                  className={`group relative w-full flex items-center justify-between py-2.5 px-3 rounded-xl transition-all duration-200 cursor-grab active:cursor-grabbing ${
+                    isDraggingItem ? 'opacity-25 scale-[0.97]' : ''
                   } ${
                     isCurrent
-                      ? `bg-white/[0.06] border-white/20 shadow-[0_4px_12px_rgba(0,0,0,0.5)] ${theme.border} shadow-[0_0_12px_var(--theme-primary-fade)]`
-                      : 'bg-[#0a0b10]/45 border-white/[0.04] hover:border-white/10 hover:bg-[#13141b]/60'
+                      ? 'bg-white/[0.05]'
+                      : 'hover:bg-white/[0.03]'
                   }`}
                 >
-                  <div className="flex items-center gap-2.5 truncate mr-3 flex-1">
-                    <div className="text-white/20 group-hover:text-white/40 transition-colors shrink-0">
-                      <GripVertical className="w-4 h-4" />
+                  {/* Left accent stripe for current song */}
+                  {isCurrent && (
+                    <div
+                      className={`absolute left-0 top-2 bottom-2 w-[3px] rounded-full ${theme.borderT} bg-current`}
+                      style={{ background: 'var(--theme-primary)' }}
+                    />
+                  )}
+
+                  <div className="flex items-center gap-3 truncate mr-2 flex-1 min-w-0">
+                    {/* Drag handle */}
+                    <div className="text-white/15 group-hover:text-white/30 transition-colors shrink-0 cursor-grab">
+                      <GripVertical className="w-3.5 h-3.5" />
                     </div>
-                    <div className="relative w-16 h-16 rounded-2xl overflow-hidden shadow-lg shrink-0 border border-white/8 bg-white/5 z-10">
+
+                    {/* Thumbnail */}
+                    <div className="relative w-11 h-11 rounded-lg overflow-hidden shrink-0 bg-white/5">
                       <img
                         src={item.thumbnail}
                         alt={item.title}
@@ -138,38 +147,41 @@ export function QueueUpNext({
                         className="w-full h-full object-cover"
                       />
                       {isCurrent ? (
-                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center gap-[2.5px] pb-1.5 z-10">
-                          <div className="eq-bar-1 w-[3px] rounded-full bg-white" style={{ height: '3px' }} />
-                          <div className="eq-bar-2 w-[3px] rounded-full bg-white" style={{ height: '8px' }} />
-                          <div className="eq-bar-3 w-[3px] rounded-full bg-white" style={{ height: '5px' }} />
+                        <div className="absolute inset-0 bg-black/55 flex items-center justify-center gap-[2.5px] z-10">
+                          <div className="eq-bar-1 w-[2.5px] rounded-full bg-white" style={{ height: '3px' }} />
+                          <div className="eq-bar-2 w-[2.5px] rounded-full bg-white" style={{ height: '8px' }} />
+                          <div className="eq-bar-3 w-[2.5px] rounded-full bg-white" style={{ height: '5px' }} />
                         </div>
                       ) : (
                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                          <Play className="w-4 h-4 text-white fill-white ml-0.5" />
+                          <Play className="w-3.5 h-3.5 text-white fill-white ml-0.5" />
                         </div>
                       )}
                     </div>
-                    <div className="text-left truncate">
+
+                    {/* Text */}
+                    <div className="text-left truncate min-w-0">
                       <h4
-                        className={`text-sm font-semibold truncate tracking-wide leading-tight transition-colors ${
-                          isCurrent ? theme.text : 'text-white/85 group-hover:text-white'
+                        className={`text-sm font-medium truncate leading-tight transition-colors ${
+                          isCurrent ? 'text-white' : 'text-white/75 group-hover:text-white/95'
                         }`}
                       >
                         {item.title}
                       </h4>
-                      <p className="text-xs text-white/40 truncate mt-1 leading-none font-medium">{item.artist}</p>
+                      <p className="text-[11px] text-white/35 truncate mt-0.5 font-normal">{item.artist}</p>
                     </div>
                   </div>
+
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       onRemove(item.id);
                       toast.info('Removed from queue');
                     }}
-                    className="opacity-0 group-hover:opacity-100 p-2 hover:bg-white/5 rounded-xl transition-all shrink-0 cursor-pointer text-white/45 hover:text-white/70"
-                    title="Remove from queue"
+                    className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-white/8 rounded-lg transition-all shrink-0 cursor-pointer text-white/35 hover:text-white/65"
+                    title="Remove"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </motion.div>
               );

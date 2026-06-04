@@ -65,6 +65,33 @@
               --theme-secondary-shadow-idle 1.5s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* ─── Elva Surface System ──────────────────────────────────────────────────
+   Three canonical surface levels to replace scattered near-identical darks.
+   surface-0 = app background layer
+   surface-1 = primary cards / panels
+   surface-2 = secondary elements, hover states, nested items
+   ───────────────────────────────────────────────────────────────────────── */
+:root {
+  --elva-surface-0: #07080c;
+  --elva-surface-1: #0d0e14;
+  --elva-surface-2: #13141c;
+  --elva-surface-hover: #181a24;
+}
+
+/* Reusable utility classes */
+.elva-surface-0 { background-color: var(--elva-surface-0); }
+.elva-surface-1 { background-color: var(--elva-surface-1); }
+.elva-surface-2 { background-color: var(--elva-surface-2); }
+
+/* Section label — used everywhere as a repeating heading pattern */
+.elva-section-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.4);
+}
+
 :root {
   --font-size: 16px;
   --background: #ffffff;

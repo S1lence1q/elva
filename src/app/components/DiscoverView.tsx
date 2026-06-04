@@ -142,11 +142,15 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
             Array.from({ length: 2 }).map((_, idx) => (
               <div
                 key={idx}
-                className="rounded-3xl border border-white/[0.07] p-7 bg-[#0e0f14]/94 h-[190px] flex flex-col justify-between animate-pulse shadow-[0_12px_36px_rgba(0,0,0,0.55)]"
+                className="rounded-3xl h-[220px] flex flex-col justify-end p-6 animate-pulse overflow-hidden relative"
+                style={{ background: 'linear-gradient(135deg, rgba(20,21,28,0.9) 0%, rgba(13,14,20,0.85) 100%)' }}
               >
-                <div className="space-y-3">
-                  <div className="h-4 bg-white/10 rounded w-[60%]" />
-                  <div className="h-3 bg-white/5 rounded w-[85%]" />
+                {/* Shimmer gradient overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+                <div className="relative z-10 space-y-3">
+                  <div className="h-2.5 bg-white/10 rounded w-[25%]" />
+                  <div className="h-6 bg-white/8 rounded w-[60%]" />
+                  <div className="h-8 bg-white/5 rounded-full w-[30%]" />
                 </div>
               </div>
             ))
@@ -263,68 +267,80 @@ function ChartCard({
   onSelectPlaylist: (playlist: Playlist) => void;
   onPlayChart: (e: React.MouseEvent, name: string, tracks: SearchResult[]) => void;
 }) {
+  const isDk = chart.id === 'dk_hits';
   return (
     <motion.div
       key={chart.id}
       onClick={() => onSelectPlaylist(chart)}
-      initial={{ opacity: 0, y: 15 }}
+      initial={{ opacity: 0, y: 18 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: idx * 0.1, ease: 'easeOut' }}
-      whileHover={{
-        y: -6,
-        backgroundColor: 'rgba(24, 26, 35, 0.85)',
-      }}
-      className="relative rounded-3xl p-7 flex items-center justify-between bg-[#0a0b10]/65 backdrop-blur-2xl h-[190px] group transition-all duration-300 select-none cursor-pointer text-left overflow-hidden gap-6"
+      whileHover={{ y: -4 }}
+      transition={{ delay: idx * 0.12, duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+      className="relative rounded-3xl h-[220px] group select-none cursor-pointer text-left overflow-hidden"
     >
-      <div className="flex flex-col justify-between h-full flex-1 min-w-0">
-        <div className="space-y-2">
-          <span
-            className={`text-[10px] font-bold tracking-[0.35em] uppercase ${
-              chart.id === 'dk_hits' ? 'text-rose-400' : 'text-indigo-400'
-            }`}
-          >
-            Live Chart
-          </span>
-          <p className="text-sm font-normal text-white/70 leading-relaxed line-clamp-3 pr-2">
-            {chart.description}
-          </p>
-        </div>
-        <div className="flex items-center gap-3.5 relative z-10">
+      {/* Hero image fills entire card */}
+      <img
+        src={chart.thumbnail}
+        alt={chart.name}
+        className="absolute inset-0 w-full h-full object-cover scale-[1.04] group-hover:scale-[1.08] transition-transform duration-700"
+      />
+
+      {/* Gradient overlay — heavy at bottom, transparent at top */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/45 to-black/10" />
+
+      {/* Subtle color tint per chart */}
+      <div
+        className="absolute inset-0 opacity-30 mix-blend-color"
+        style={{ background: isDk ? 'rgba(220,38,38,0.5)' : 'rgba(79,70,229,0.5)' }}
+      />
+
+      {/* Content sits at the bottom */}
+      <div className="absolute inset-0 flex flex-col justify-end p-6 gap-3 z-10">
+        {/* Live chart label */}
+        <span
+          className="text-[10px] font-bold tracking-[0.35em] uppercase w-fit"
+          style={{ color: isDk ? '#fda4af' : '#a5b4fc' }}
+        >
+          ✦ Live Chart
+        </span>
+
+        {/* Chart name — large and prominent */}
+        <h3
+          className="text-2xl font-semibold text-white leading-tight tracking-tight"
+          style={{ textShadow: '0 2px 12px rgba(0,0,0,0.6)' }}
+        >
+          {chart.name}
+        </h3>
+
+        {/* Bottom row: play + track count */}
+        <div className="flex items-center gap-3.5">
           <button
             type="button"
             onClick={(e) => onPlayChart(e, chart.name, chart.tracks)}
-            className="p-3 rounded-full bg-white/5 hover:bg-white text-white hover:text-black group-hover:scale-105 transition-all cursor-pointer"
+            className="flex items-center gap-2 px-4 py-2 rounded-full text-white text-xs font-bold tracking-wide transition-all duration-150 cursor-pointer hover:brightness-110 active:scale-95"
+            style={{
+              background: isDk ? 'rgba(220,38,38,0.6)' : 'rgba(79,70,229,0.6)',
+              backdropFilter: 'blur(8px)',
+              boxShadow: isDk ? '0 2px 10px rgba(220,38,38,0.12)' : '0 2px 10px rgba(79,70,229,0.12)'
+            }}
           >
-            <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
+            <Play className="w-3 h-3 fill-current" />
+            Play All
           </button>
-          <span className="text-[9px] font-semibold text-white/30 uppercase tracking-widest">
+          <span className="text-[10px] font-semibold text-white/50 uppercase tracking-widest">
             {chart.tracks.length} tracks
           </span>
         </div>
       </div>
-      <div className="w-[126px] h-[126px] rounded-2xl overflow-hidden relative select-none shrink-0 transition-all duration-500 bg-neutral-955 flex items-center justify-center">
-        <img
-          src={chart.thumbnail}
-          alt={chart.name}
-          className="w-full h-full object-cover scale-102 group-hover:scale-105 transition-transform duration-700"
-        />
-        <div
-          className={`absolute bottom-0 left-0 right-0 py-2.5 text-center z-20 ${
-            chart.id === 'dk_hits'
-              ? 'bg-[#881337] text-rose-100 border-t border-rose-950'
-              : 'bg-[#1e1b4b] text-indigo-100 border-t border-indigo-950'
-          }`}
-        >
-          <span className="text-[10px] font-black uppercase tracking-[0.16em] leading-none select-none block">
-            {chart.id === 'dk_hits' ? 'TOP HITS DK' : 'TOP HITS GLOBAL'}
-          </span>
-        </div>
-        {chart.tracks.length > 0 && (
-          <div className="absolute w-[52px] h-[52px] rounded-lg overflow-hidden z-10 rotate-[-4deg] group-hover:rotate-[2deg] group-hover:scale-105 transition-all duration-500 bg-neutral-900 -translate-y-3">
+
+      {/* Top-right: first track mini-thumb floating */}
+      {chart.tracks.length > 0 && (
+        <div className="absolute top-5 right-5 z-10">
+          <div className="w-14 h-14 rounded-xl overflow-hidden shadow-2xl ring-1 ring-white/10 rotate-[-3deg] group-hover:rotate-[2deg] group-hover:scale-105 transition-all duration-500">
             <img src={chart.tracks[0].thumbnail} alt="" className="w-full h-full object-cover" />
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </motion.div>
   );
 }
@@ -354,10 +370,10 @@ function SongRow({
       initial={{ opacity: 0, x: direction === 'left' ? -10 : 10 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: idx * 0.08 }}
-      className="group flex items-center justify-between p-3.5 rounded-2xl bg-[#13141b]/35 hover:bg-[#181a23]/60 transition-all duration-300 cursor-pointer"
+      className="group flex items-center justify-between p-4 rounded-2xl hover:bg-white/[0.04] transition-all duration-300 cursor-pointer"
     >
       <div className="flex items-center gap-4 text-left min-w-0">
-        <div className="relative w-14 h-14 rounded-xl overflow-hidden shrink-0 bg-neutral-900">
+        <div className="relative w-[56px] h-[56px] rounded-xl overflow-hidden shrink-0 bg-neutral-900">
           {song.thumbnail ? (
             <img
               src={song.thumbnail}
@@ -372,10 +388,10 @@ function SongRow({
           </div>
         </div>
         <div className="min-w-0">
-          <h4 className="text-[15px] font-semibold text-white/95 leading-snug truncate group-hover:text-white transition-colors">
+          <h4 className="text-sm font-semibold text-white/90 leading-snug truncate group-hover:text-white transition-colors">
             {song.title}
           </h4>
-          <p className="text-[13px] text-white/60 mt-1 truncate">{song.artist}</p>
+          <p className="text-[12px] text-white/50 mt-1 truncate">{song.artist}</p>
         </div>
       </div>
       <div className="flex items-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity select-none">

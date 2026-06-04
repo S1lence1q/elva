@@ -192,7 +192,7 @@ export function LandingPage({
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: 20 }}
-          className="fixed right-6 top-1/2 -translate-y-1/2 flex flex-col gap-5 z-40"
+          className="fixed right-6 top-1/2 -translate-y-1/2 flex flex-col gap-3.5 z-40 bg-[#0a0b10]/40 border border-white/[0.05] p-2 rounded-full backdrop-blur-md shadow-[0_8px_32px_rgba(0,0,0,0.4)]"
         >
           {[
             { id: 'search', label: 'Search & Home' },
@@ -222,7 +222,7 @@ export function LandingPage({
                 title={dot.label}
               >
                 {/* Label Tooltip */}
-                <span className="absolute right-8 text-[10px] font-semibold uppercase tracking-widest text-white/40 group-hover:text-white opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-2 group-hover:translate-x-0 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-md border border-white/5 whitespace-nowrap pointer-events-none select-none">
+                <span className="absolute right-10 text-[9px] font-bold uppercase tracking-[0.2em] text-white/50 group-hover:text-white/90 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-2 group-hover:translate-x-0 bg-[#0a0b10]/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/[0.06] shadow-lg whitespace-nowrap pointer-events-none select-none">
                   {dot.label}
                 </span>
                 
@@ -231,13 +231,13 @@ export function LandingPage({
                   <motion.div
                     animate={{
                       scale: isActive ? 1.25 : 1,
-                      backgroundColor: isActive ? 'rgba(255, 255, 255, 0.95)' : 'rgba(255, 255, 255, 0.15)',
+                      backgroundColor: isActive ? 'rgba(255, 255, 255, 0.95)' : 'rgba(255, 255, 255, 0.18)',
                       boxShadow: isActive 
-                        ? `0 0 15px rgba(255, 255, 255, 0.6), 0 0 5px rgba(255, 255, 255, 0.3)`
+                        ? `0 0 10px rgba(255, 255, 255, 0.45)`
                         : 'none'
                     }}
-                    transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                    className="w-2 h-2 rounded-full border border-white/10 group-hover:bg-white/40 transition-colors"
+                    transition={{ type: 'spring', stiffness: 350, damping: 25 }}
+                    className="w-1.5 h-1.5 rounded-full border border-white/10 group-hover:bg-white/45 transition-colors"
                   />
                 </div>
               </button>

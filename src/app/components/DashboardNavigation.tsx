@@ -26,7 +26,7 @@ export const DashboardNavigation: React.FC<DashboardNavigationProps> = ({
 
   return (
     <div className="flex justify-center mb-8 relative z-30 shrink-0">
-      <div className="flex items-center gap-1.5 p-1.5 rounded-full bg-white/[0.03] border border-white/10 backdrop-blur-xl shadow-[0_12px_32px_rgba(0,0,0,0.5)]">
+      <div className="flex items-center gap-1.5 p-1.5 rounded-full bg-[#0a0b10]/60 border border-white/[0.06] backdrop-blur-2xl shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_40px_rgba(0,0,0,0.55)]">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
           const Icon = tab.icon;
@@ -35,25 +35,25 @@ export const DashboardNavigation: React.FC<DashboardNavigationProps> = ({
             <button
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
-              className={`relative flex items-center gap-2.5 px-5 py-2.5 rounded-full text-xs font-medium tracking-wide uppercase cursor-pointer select-none transition-all duration-300 ${
+              className={`relative flex items-center gap-2 px-4.5 py-2.5 rounded-full text-[10px] font-bold tracking-[0.18em] uppercase cursor-pointer select-none transition-all duration-300 ${
                 isActive 
                   ? 'text-white' 
-                  : 'text-white/40 hover:text-white/70 hover:bg-white/[0.01]'
+                  : 'text-white/35 hover:text-white/65 hover:bg-white/[0.02]'
               }`}
             >
               {/* Active animated backdrop indicator */}
               {isActive && (
                 <motion.div
                   layoutId="activeTabIndicator"
-                  className={`absolute inset-0 rounded-full border border-white/10 ${theme.bg} opacity-20`}
-                  transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+                  className={`absolute inset-0 rounded-full border border-white/[0.07] ${theme.bg} opacity-[0.12] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]`}
+                  transition={{ type: 'spring', stiffness: 380, damping: 32 }}
                 />
               )}
               {isActive && (
                 <motion.div
                   layoutId="activeTabBorder"
-                  className={`absolute bottom-0 left-1/3 right-1/3 h-[2px] rounded-full ${theme.bg}`}
-                  transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+                  className="absolute bottom-0 left-1/3 right-1/3 h-[1.5px] rounded-full bg-white/40 shadow-[0_0_6px_rgba(255,255,255,0.15)]"
+                  transition={{ type: 'spring', stiffness: 380, damping: 32 }}
                 />
               )}
 

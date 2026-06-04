@@ -5,6 +5,13 @@ import { SearchResult } from '../types';
 import { AccentColor, ACCENT_THEMES } from './themeUtils';
 import { SongRowOptions } from './SongRowOptions';
 
+const ACCENT_BG: Record<AccentColor, string> = {
+  emerald: 'bg-emerald-400',
+  sand: 'bg-amber-400',
+  wine: 'bg-rose-400',
+  navy: 'bg-slate-400'
+};
+
 export interface Playlist {
   id: string;
   name: string;
@@ -58,7 +65,7 @@ export const PlaylistDetailsView: React.FC<PlaylistDetailsViewProps> = ({
       animate={{ opacity: 1, scale: 1, y: 0, filter: 'blur(0px)' }}
       exit={{ opacity: 0, scale: 0.95, y: 24, filter: 'blur(8px)' }}
       transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
-      className="w-full max-w-5xl px-4 flex flex-col h-[calc(100vh-80px)] overflow-y-auto scrollbar-none z-10"
+      className="w-full max-w-5xl px-12 flex flex-col h-[calc(100vh-80px)] overflow-y-auto scrollbar-none z-10"
     >
       {/* Navigation bar above the layout */}
       <div className="flex items-center justify-between w-full pb-3 border-b border-white/5 shrink-0 px-2 select-none">
@@ -80,12 +87,12 @@ export const PlaylistDetailsView: React.FC<PlaylistDetailsViewProps> = ({
       </div>
 
       {/* Immersive Widescreen Playlist Hero Banner */}
-      <div className="relative w-full rounded-3xl overflow-hidden bg-white/[0.01] backdrop-blur-2xl py-5 px-6 md:py-6 md:px-8 flex flex-col md:flex-row items-center gap-6 md:gap-8 shrink-0 mt-4">
+      <div className="relative w-full rounded-3xl overflow-hidden bg-[#0a0b10]/60 border border-white/[0.06] backdrop-blur-2xl py-5 px-6 md:py-6 md:px-8 flex flex-col md:flex-row items-center gap-6 md:gap-8 shrink-0 mt-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_6px_20px_rgba(0,0,0,0.35)]">
         {/* Ambient dynamic theme glow behind/inside the banner */}
         <div 
-          className="absolute top-0 right-0 w-80 h-80 rounded-full blur-[75px] opacity-40 pointer-events-none"
+          className="absolute top-0 right-0 w-80 h-80 rounded-full blur-[90px] opacity-25 pointer-events-none"
           style={{
-            background: `radial-gradient(circle, ${playlist.accent === 'wine' ? 'rgba(244, 63, 94, 0.35)' : 'rgba(56, 189, 248, 0.3)'} 0%, rgba(255,255,255,0) 70%)`
+            background: `radial-gradient(circle, ${playlist.accent === 'wine' ? 'rgba(244, 63, 94, 0.3)' : 'rgba(56, 189, 248, 0.25)'} 0%, rgba(255,255,255,0) 70%)`
           }}
         />
         
@@ -178,7 +185,7 @@ export const PlaylistDetailsView: React.FC<PlaylistDetailsViewProps> = ({
                 <p className="text-[10px] text-white/20 mt-1">Please try again in a moment.</p>
               </div>
             ) : (
-              <div className="space-y-0 flex flex-col bg-transparent">
+              <div className="space-y-1.5 flex flex-col bg-transparent">
                 {playlist.tracks.map((track, index) => {
                   const trackNumber = String(index + 1).padStart(2, '0');
                   const isLoading = loadingSongId === track.id;
@@ -188,13 +195,20 @@ export const PlaylistDetailsView: React.FC<PlaylistDetailsViewProps> = ({
                       initial={{ opacity: 0, y: 5 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.02, ease: "easeOut" }}
-                      className={`group w-full flex items-center gap-4 py-4 px-3 border-b border-white/5 last:border-b-0 bg-transparent transition-colors duration-200 hover:bg-white/[0.02] cursor-pointer ${
-                        isLoading ? 'bg-white/[0.03]' : ''
+                      className={`group relative w-full flex items-center gap-4 py-3.5 px-4 rounded-2xl border transition-all duration-300 cursor-pointer ${
+                        isLoading 
+                          ? 'bg-white/[0.05] border-white/10' 
+                          : 'bg-transparent border-transparent hover:bg-white/[0.025] hover:border-white/[0.05]'
                       }`}
                       onClick={() => {
                         if (!loadingSongId) handleSelectSong(track);
                       }}
                     >
+                      {/* Left accent indicator for current loading/active item */}
+                      {isLoading && (
+                        <div className={`absolute left-0 top-3.5 bottom-3.5 w-[3px] rounded-r-md ${ACCENT_BG[playlist.accent] || ACCENT_BG[accentColor] || 'bg-white/50'}`} />
+                      )}
+
                       {/* Song Number */}
                       <span className="text-xs font-mono text-white/35 group-hover:text-white/60 transition-colors shrink-0 w-6 text-right">
                         {trackNumber}

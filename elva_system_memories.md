@@ -67,6 +67,8 @@ Dette dokument er den urokkelige kilde til sandhed (Source of Truth) for Elvas k
 1. **Pinterest & Skandinavisk Luksus-Estetik:** Ingen støjende hjælpetekster, ingen kunstige skrigende neonfarver eller stive grænser. Alt is glassmorphic, taktilt, luftigt og roligt.
 2. **WebGL-Dominans:** Kun én enkelt, global `<FluidBackground />` kører i roden af appen. Ingen duplikerede baggrunde inde i afspilleren (for at maksimere GPU-ydeevne).
 3. **Zero-Reflow GPU Animationer:** Alle spiller-animationer (såsom lyric-paneler og kø-skift) kører via absolute hardware-accelererede GPU translations (`x`-værdier) frem for CSS margin/width-layout-reflows.
+4. **Forebyggelse af Skygge-Beskæring (Shadow Clipping):** I browsere tvinger `overflow-y: auto` (eller `scroll`) automatisk `overflow-x: hidden`, hvilket klipper vandrette skygger på elementer tæt på kanten. For at undgå hårde lodrette beskæringskanter, skal der tilføjes side-padding på scroll-containeren (fx `px-10` eller `px-12`) eller bruges et ydre negative-margin offset (`-mx-12` på ydre, `pl-12 pr-[88px]` på indre).
+5. **Tailwind Layout Strækning:** Kombiner **ALDRIG** `w-full` med negative marginer (`-mx-...`) for at strække en boks ud over sin forælders padding. `w-full` låser bredden, så boksen blot rykkes til venstre og bliver for kort i højre side. Fjern `w-full` og lad boksen strække sig naturligt via standard `width: auto` block-adfærd.
 
 ---
 

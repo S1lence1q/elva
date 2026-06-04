@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Music, X, ArrowLeft, Loader2 } from 'lucide-react';
-import { EASE_PREMIUM } from '../utils/motionPresets';
+import { X, ArrowLeft, Loader2 } from 'lucide-react';
 import { QueuePanelLayer } from './queue/QueuePanelLayer';
 import { toast } from 'sonner';
 import { AccentColor } from './themeUtils';
@@ -235,81 +234,76 @@ export function Queue({
     <>
       <motion.div
         initial={{ opacity: 0 }}
-        animate={{ opacity: 0.4 }}
+        animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        transition={{ duration: 0.35 }}
+        transition={{ duration: 0.25 }}
         onClick={onClose}
-        className="fixed inset-0 bg-black/40 backdrop-blur-[1.5px] z-40 cursor-pointer pointer-events-auto"
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 cursor-pointer pointer-events-auto"
       />
 
       <motion.div
         initial={{ x: '100%' }}
         animate={{ x: 0 }}
         exit={{ x: '100%' }}
-        transition={{ type: 'spring', damping: 26, stiffness: 220 }}
-        className="fixed right-0 top-0 bottom-0 w-full max-w-[460px] bg-[#08090c]/85 border-l border-white/[0.08] z-50 flex flex-col shadow-[-20px_0_60px_rgba(0,0,0,0.85)] pointer-events-auto overflow-hidden backdrop-blur-3xl h-full before:content-[''] before:absolute before:inset-y-0 before:left-0 before:w-[1px] before:bg-white/[0.04] before:pointer-events-none"
+        transition={{ type: 'spring', damping: 28, stiffness: 240 }}
+        className="fixed right-0 top-0 bottom-0 w-full max-w-[420px] z-50 flex flex-col pointer-events-auto overflow-hidden h-full"
+        style={{
+          background: 'linear-gradient(180deg, rgba(10,11,16,0.97) 0%, rgba(8,9,12,0.99) 100%)',
+          boxShadow: '-24px 0 80px rgba(0,0,0,0.7), -1px 0 0 rgba(255,255,255,0.05)',
+          backdropFilter: 'blur(40px) saturate(1.4)',
+        }}
       >
+        {/* Ambient theme glow */}
         <div
-          className="absolute inset-0 opacity-[0.08] pointer-events-none"
+          className="absolute inset-0 opacity-[0.06] pointer-events-none"
           style={{
             background:
-              'radial-gradient(circle at 100% 10%, var(--theme-primary) 0%, transparent 60%), radial-gradient(circle at 100% 90%, var(--theme-secondary) 0%, transparent 60%)',
+              'radial-gradient(circle at 100% 15%, var(--theme-primary) 0%, transparent 55%), radial-gradient(circle at 100% 85%, var(--theme-secondary) 0%, transparent 55%)',
           }}
         />
 
-        <div className="relative px-6 py-5 border-b border-white/[0.06] flex items-center justify-between shrink-0 z-10 bg-[#0c0d11]/80 select-none min-h-[60px]">
+        {/* ── Header ─────────────────────────────────────────────── */}
+        <div className="relative px-5 pt-6 pb-4 flex items-start justify-between shrink-0 z-10 select-none">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="relative w-7 h-7 shrink-0 flex items-center justify-center">
+            <AnimatePresence mode="wait" initial={false}>
+              {showBackButton ? (
+                <motion.button
+                  key="queue-header-back"
+                  type="button"
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -8 }}
+                  transition={{ duration: 0.18 }}
+                  onClick={() => {
+                    if (selectedArtist || selectedQueuePlaylist) {
+                      setSelectedArtist(null);
+                      setArtistTracks([]);
+                      setSelectedQueuePlaylist(null);
+                    } else {
+                      setViewMode('session');
+                    }
+                  }}
+                  className="p-2 -ml-2 hover:bg-white/8 rounded-xl text-white/40 hover:text-white/80 transition-all cursor-pointer flex items-center justify-center shrink-0"
+                  title="Back"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                </motion.button>
+              ) : null}
+            </AnimatePresence>
+
+            <div className="flex flex-col min-w-0">
               <AnimatePresence mode="wait" initial={false}>
-                {showBackButton ? (
-                  <motion.button
-                    key="queue-header-back"
-                    type="button"
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -10 }}
-                    transition={{ duration: 0.24, ease: EASE_PREMIUM }}
-                    onClick={() => {
-                      if (selectedArtist || selectedQueuePlaylist) {
-                        setSelectedArtist(null);
-                        setArtistTracks([]);
-                        setSelectedQueuePlaylist(null);
-                      } else {
-                        setViewMode('session');
-                      }
-                    }}
-                    className="absolute inset-0 p-1.5 hover:bg-white/10 rounded-lg text-white/50 hover:text-white transition-colors cursor-pointer flex items-center justify-center"
-                    title="Back"
-                  >
-                    <ArrowLeft className="w-4 h-4" />
-                  </motion.button>
-                ) : (
-                  <motion.div
-                    key="queue-header-music"
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -10 }}
-                    transition={{ duration: 0.24, ease: EASE_PREMIUM }}
-                    className="absolute inset-0 flex items-center justify-center"
-                  >
-                    <Music className="w-4 h-4 text-white/40" />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-            <div className="flex items-baseline gap-1.5 min-w-0">
-              <AnimatePresence mode="wait" initial={false}>
-                <motion.span
+                <motion.h2
                   key={headerLabel}
-                  initial={{ opacity: 0, y: 6 }}
+                  initial={{ opacity: 0, y: 5 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -6 }}
-                  transition={{ duration: 0.26, ease: EASE_PREMIUM }}
-                  className="text-lg font-normal tracking-wide text-white/95 truncate"
+                  exit={{ opacity: 0, y: -5 }}
+                  transition={{ duration: 0.2 }}
+                  className="text-xl font-normal tracking-wide text-white/95 truncate leading-tight"
                   style={{ fontFamily: '"Kaobe", serif' }}
                 >
                   {headerLabel}
-                </motion.span>
+                </motion.h2>
               </AnimatePresence>
               <AnimatePresence initial={false}>
                 {showSessionSearch && !searchQuery.trim() && (
@@ -318,10 +312,10 @@ export function Queue({
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    transition={{ duration: 0.22, ease: EASE_PREMIUM }}
-                    className="text-[10px] text-white/30 font-normal tracking-wider lowercase whitespace-nowrap"
+                    transition={{ duration: 0.2 }}
+                    className="text-[11px] text-white/30 font-normal tracking-wide mt-0.5"
                   >
-                    ({items.length} {items.length === 1 ? 'song' : 'songs'})
+                    {items.length} {items.length === 1 ? 'song' : 'songs'} queued
                   </motion.span>
                 )}
               </AnimatePresence>
@@ -331,21 +325,21 @@ export function Queue({
           {!selectedArtist && !selectedQueuePlaylist && (
             <button
               onClick={onClose}
-              className="p-2 hover:bg-white/10 rounded-full transition-colors cursor-pointer"
-              title="Close Panel"
+              className="p-2 -mr-1 hover:bg-white/8 rounded-xl transition-colors cursor-pointer shrink-0 mt-0.5"
+              title="Close"
             >
-              <X className="w-4 h-4 text-white/40 hover:text-white/60" />
+              <X className="w-4 h-4 text-white/35 hover:text-white/65" />
             </button>
           )}
         </div>
 
+        {/* ── Search Bar ─────────────────────────────────────────── */}
         <div
-          className={`grid shrink-0 transition-[grid-template-rows] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-            showSessionSearch ? 'border-b border-white/5' : ''
+          className={`shrink-0 transition-[max-height,opacity] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] overflow-hidden ${
+            showSessionSearch ? 'max-h-24 opacity-100' : 'max-h-0 opacity-0'
           }`}
-          style={{ gridTemplateRows: showSessionSearch ? '1fr' : '0fr' }}
         >
-          <div className="min-h-0 overflow-hidden">
+          <div className="px-5 pb-4">
             <QueueSearchBar
               searchQuery={searchQuery}
               onSearchQueryChange={setSearchQuery}
@@ -357,6 +351,10 @@ export function Queue({
             />
           </div>
         </div>
+
+        {/* Thin divider */}
+        <div className="h-px bg-white/[0.05] shrink-0 mx-5" />
+
 
         <div className="relative flex-1 min-h-0 overflow-hidden z-10">
           <AnimatePresence mode="wait" initial={false}>
