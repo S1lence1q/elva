@@ -85,9 +85,9 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
           className="absolute bottom-0 left-0 right-0 z-[25] pointer-events-none"
           aria-hidden
         >
-          <div className="h-[3px] w-full bg-white/[0.08]">
+          <div className="h-[2px] w-full bg-white/[0.04]">
             <div
-              className="h-full bg-white/40 transition-[width] duration-150 ease-linear"
+              className="h-full bg-white/30 transition-[width] duration-[250ms] ease-linear"
               style={{ width: `${progressPct}%` }}
             />
           </div>
@@ -328,7 +328,11 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
 
         {/* Volume Slider - conditionally shown */}
         {showVolumeSlider && volume !== undefined && onVolumeChange && (
-          <div className="flex items-center gap-3.5 w-44 mx-auto mt-5 select-none" onClick={(e) => e.stopPropagation()}>
+          <div 
+            className="flex items-center gap-3 w-60 mx-auto mt-6 px-3.5 py-2 rounded-full bg-white/[0.03] border border-white/[0.05] shadow-[inset_0_1px_0_rgba(255,255,255,0.02),0_4px_12px_rgba(0,0,0,0.2)] select-none" 
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
             <button
               onClick={() => {
                 if (volume > 0) {
@@ -338,28 +342,29 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
                   onVolumeChange(preMuteVolume || 70);
                 }
               }}
-              className="text-white/40 hover:text-white transition-colors cursor-pointer p-1 shrink-0"
+              className="text-white/40 hover:text-white transition-colors cursor-pointer p-0.5 shrink-0 flex items-center justify-center"
               title={volume === 0 ? "Unmute" : "Mute"}
             >
               {volume === 0 ? (
-                <VolumeX className="w-4 h-4" />
+                <VolumeX className="w-3.5 h-3.5" />
               ) : volume < 50 ? (
-                <Volume1 className="w-4 h-4" />
+                <Volume1 className="w-3.5 h-3.5" />
               ) : (
-                <Volume2 className="w-4 h-4" />
+                <Volume2 className="w-3.5 h-3.5" />
               )}
             </button>
-            <input
-              type="range"
-              min="0"
-              max="100"
-              value={volume}
-              onChange={(e) => onVolumeChange(parseInt(e.target.value))}
-              className="flex-1 h-[3px] rounded-lg appearance-none bg-white/10 outline-none cursor-pointer accent-white"
-              style={{
-                background: `linear-gradient(to right, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.7) ${volume}%, rgba(255,255,255,0.1) ${volume}%, rgba(255,255,255,0.1) 100%)`
-              }}
-            />
+            <Slider.Root
+              value={[volume]}
+              max={100}
+              step={1}
+              onValueChange={(val) => onVolumeChange?.(val[0])}
+              className="relative flex items-center w-full h-4 cursor-pointer group/volume"
+            >
+              <Slider.Track className="relative h-[2.5px] w-full bg-white/10 rounded-full overflow-hidden">
+                <Slider.Range className="absolute h-full bg-white/60" />
+              </Slider.Track>
+              <Slider.Thumb className="block w-2.5 h-2.5 rounded-full bg-white opacity-0 group-hover/volume:opacity-100 transition-opacity duration-150 focus:outline-none focus:opacity-100" />
+            </Slider.Root>
           </div>
         )}
       </div>
