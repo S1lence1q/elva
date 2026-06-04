@@ -13,13 +13,13 @@ So now it has animated WebGL backgrounds, synchronized lyrics, audio crossfading
 ## Features
 
 * **Fullscreen immersive music experience:** Beautiful, glassmorphic layout.
-* **Interactive synchronized lyrics:** Apple Music-style lyrics with click-to-seek scrubbing.
+* **Interactive sometimes synchronized lyrics:** Cool lyrics with click-to-seek scrubbing.
 * **Smooth track crossfading:** Mathematical constant-power ($\sin/\cos$) crossfades.
 * **Dynamic album-based theming:** Subtle, muted color extraction that morphs with each track.
-* **Search and charts:** Real-time Apple Music charts (DK & Global) and official audio search ranking.
+* **Search and charts:** Real-time charts (very legal from Apple Music) DK & Global
 * **Queue management:** Seamless sidebar search and horizontal carousels with drag/Likes.
 * **Profile customization:** Edit name and select premium custom WebGL gradient presets.
-* **YouTube and audio playback support:** Dual playback engines orchestrating HTML5 audio and Inv/YT streams.
+* **YouTube and audio playback support:** Dual playback engines orchestrating HTML5 audio and YT streams.
 * **Overengineered volume controls:** Hold to charge and shoot volume levels as a physics projectile dot in a parabolic trajectory.
 
 ---
@@ -47,7 +47,7 @@ Works on my machine 👍
 
 ## About
 
-I was supposed to stop adding features months ago.
+Don't know what im doing but it's pretty cool and stuff
 
 ---
 
