@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from 'react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { AccentColor, ACCENT_THEMES } from './themeUtils';
 import { STOREFRONT_COUNTRIES } from '../utils/chartFeeds';
 
@@ -44,28 +44,60 @@ export function BrandingHeader({
     };
   });
 
+  const [isVisible, setIsVisible] = useState(true);
+
   useEffect(() => {
+    let timer: NodeJS.Timeout;
+    const resetTimer = () => {
+      setIsVisible(true);
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        setIsVisible(false);
+      }, 5500);
+    };
+
+    resetTimer();
+
     const handleProfileUpdate = () => {
       setProfile({
         username: localStorage.getItem('elva_profile_name') || 'Music Lover',
         avatar: localStorage.getItem('elva_profile_avatar') || 'initials',
         country: localStorage.getItem('elva_profile_country') || 'dk'
       });
+      resetTimer();
     };
+
     window.addEventListener('elva-profile-updated', handleProfileUpdate);
     return () => {
       window.removeEventListener('elva-profile-updated', handleProfileUpdate);
+      if (timer) clearTimeout(timer);
     };
   }, []);
 
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour >= 5 && hour < 12) return 'Godmorgen';
-    if (hour >= 12 && hour < 18) return 'Goddag';
-    return 'Godaften';
+  const COUNTRY_GREETINGS: Record<string, { morning: string; afternoon: string; evening: string; emoji: string }> = {
+    dk: { morning: 'Godmorgen', afternoon: 'Goddag', evening: 'Godaften', emoji: '👋' },
+    us: { morning: 'Good morning', afternoon: 'Good afternoon', evening: 'Good evening', emoji: '👋' },
+    gb: { morning: 'Good morning', afternoon: 'Good afternoon', evening: 'Good evening', emoji: '👋' },
+    ca: { morning: 'Good morning', afternoon: 'Good afternoon', evening: 'Good evening', emoji: '👋' },
+    au: { morning: 'G\'day', afternoon: 'Good afternoon', evening: 'Good evening', emoji: '👋' },
+    se: { morning: 'God morgon', afternoon: 'God dag', evening: 'God kväll', emoji: '👋' },
+    no: { morning: 'God morgen', afternoon: 'God dag', evening: 'God kveld', emoji: '👋' },
+    de: { morning: 'Guten Morgen', afternoon: 'Guten Tag', evening: 'Guten Abend', emoji: '👋' },
+    fr: { morning: 'Bonjour', afternoon: 'Bonjour', evening: 'Bonsoir', emoji: '👋' },
+    jp: { morning: 'おはようございます', afternoon: 'こんにちは', evening: 'こんばんは', emoji: '👋' }
   };
 
-  const greeting = getGreeting();
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    const countryKey = profile.country || 'dk';
+    const greetings = COUNTRY_GREETINGS[countryKey] || COUNTRY_GREETINGS.dk;
+    
+    if (hour >= 5 && hour < 12) return { text: greetings.morning, emoji: greetings.emoji };
+    if (hour >= 12 && hour < 18) return { text: greetings.afternoon, emoji: greetings.emoji };
+    return { text: greetings.evening, emoji: greetings.emoji };
+  };
+
+  const { text: greetingText, emoji: greetingEmoji } = getGreeting();
   const activeCountryData = STOREFRONT_COUNTRIES.find(c => c.code === profile.country) || { name: 'Denmark', flag: '🇩🇰' };
 
   // Animated gradient orbs stagger details
@@ -149,38 +181,44 @@ export function BrandingHeader({
   };
 
   return (
-    <div className="flex flex-col items-center gap-6 px-6 mb-8 shrink-0 w-full">
+    <div className="flex flex-col items-center gap-6 px-6 mb-8 shrink-0 w-full relative">
       {/* Personalized Greeting Banner */}
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-        className="flex items-center gap-3 px-4 py-2 rounded-full border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl shadow-lg hover:border-white/10 hover:bg-white/[0.04] transition-all duration-300 group select-none shrink-0"
-      >
-        {/* Miniature Avatar */}
-        <div className="w-6 h-6 rounded-full overflow-hidden border border-white/10 bg-gradient-to-tr shadow-sm bg-[#0f0f12] relative shrink-0">
-          {profile.avatar === 'initials' ? (
-            <div className="w-full h-full rounded-full flex items-center justify-center bg-gradient-to-tr from-white/[0.04] to-white/[0.12] backdrop-blur-md relative overflow-hidden">
-              <span className="text-[9px] font-extrabold text-white tracking-tighter">
-                {profile.username.trim() ? profile.username.trim().charAt(0).toUpperCase() : 'M'}
-              </span>
+      <AnimatePresence>
+        {isVisible && (
+          <motion.div
+            initial={{ opacity: 0, y: -15, scale: 0.92 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -15, scale: 0.92 }}
+            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+            onClick={() => setIsVisible(false)}
+            className="absolute -top-12 flex items-center gap-3 px-4 py-2 rounded-full border border-white/[0.06] bg-[#0c0d12]/70 backdrop-blur-xl shadow-xl hover:border-white/10 hover:bg-[#0c0d12]/90 transition-all duration-300 group shrink-0 cursor-pointer z-50"
+          >
+            {/* Miniature Avatar */}
+            <div className="w-6 h-6 rounded-full overflow-hidden border border-white/10 bg-gradient-to-tr shadow-sm bg-[#0f0f12] relative shrink-0">
+              {profile.avatar === 'initials' ? (
+                <div className="w-full h-full rounded-full flex items-center justify-center bg-gradient-to-tr from-white/[0.04] to-white/[0.12] backdrop-blur-md relative overflow-hidden">
+                  <span className="text-[9px] font-extrabold text-white tracking-tighter">
+                    {profile.username.trim() ? profile.username.trim().charAt(0).toUpperCase() : 'M'}
+                  </span>
+                </div>
+              ) : (
+                <div className={`w-full h-full rounded-full bg-gradient-to-tr ${profile.avatar}`} />
+              )}
             </div>
-          ) : (
-            <div className={`w-full h-full rounded-full bg-gradient-to-tr ${profile.avatar}`} />
-          )}
-        </div>
-        
-        <span className="text-[10px] font-medium tracking-wider text-white/80">
-          {greeting}, <span className="font-bold text-white">{profile.username}</span> 👋
-        </span>
+            
+            <span className="text-[10px] font-medium tracking-wider text-white/80">
+              {greetingText}, <span className="font-bold text-white">{profile.username}</span> {greetingEmoji}
+            </span>
 
-        <span 
-          className="text-[10px] opacity-80 pl-2.5 border-l border-white/10 select-none cursor-default" 
-          title={`Storefront: ${activeCountryData.name}`}
-        >
-          {activeCountryData.flag}
-        </span>
-      </motion.div>
+            <span 
+              className="text-[10px] opacity-80 pl-2.5 border-l border-white/10 select-none cursor-default" 
+              title={`Storefront: ${activeCountryData.name}`}
+            >
+              {activeCountryData.flag}
+            </span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Refined Elva wordmark */}
       <motion.div className="relative flex flex-col items-center">
