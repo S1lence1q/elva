@@ -56,14 +56,14 @@ function SearchArtistCard({
     <motion.div
       variants={searchArtistCardItem}
       onClick={onOpen}
-      className={`relative overflow-hidden p-6 rounded-3xl bg-[#0d0e15]/90 transition-all duration-300 mb-4 flex items-center justify-between gap-6 group shadow-[0_12px_40px_rgba(0,0,0,0.5)] cursor-pointer w-full min-h-[108px] ${
+      className={`relative overflow-hidden p-6 rounded-3xl bg-[#0d0e15]/90 transition-all duration-300 mb-4 flex items-center justify-between gap-6 group cursor-pointer w-full min-h-[108px] ${
         isFocused
-          ? 'bg-[#161824]/95 shadow-[0_0_15px_rgba(255,255,255,0.05)]'
+          ? 'bg-[#161824]/95'
           : 'hover:bg-[#12131c]/90'
       }`}
     >
       <div className="flex items-center gap-5 relative z-10 min-w-0">
-        <div className="relative w-20 h-20 md:w-[88px] md:h-[88px] rounded-full overflow-hidden flex-shrink-0 shadow-xl">
+        <div className="relative w-20 h-20 md:w-[88px] md:h-[88px] rounded-full overflow-hidden flex-shrink-0">
           <img src={artist.thumbnail} alt={artist.name} className="w-full h-full object-cover" />
         </div>
         <div className="flex flex-col text-left min-w-0">
@@ -236,9 +236,8 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
             autoCorrect="off"
             autoCapitalize="off"
             spellCheck="false"
-            className="w-full pl-16 pr-8 py-6 rounded-3xl bg-[#08090f]/85 border border-white/[0.08] text-white/90 placeholder-white/25 text-lg font-light tracking-wide focus:outline-none focus:border-white/20 focus:bg-[#12131c]/90 transition-all duration-300 shadow-[inset_0_1px_2px_rgba(0,0,0,0.25)]"
+            className="w-full pl-16 pr-8 py-6 rounded-3xl bg-[#08090f]/85 text-white/90 placeholder-white/25 text-lg font-light tracking-wide focus:outline-none focus:bg-[#12131c]/90 transition-all duration-300"
           />
-          <div className="absolute inset-0 rounded-3xl pointer-events-none shadow-[inset_0_1px_2px_rgba(0,0,0,0.2)]" />
         </div>
       </div>
 
@@ -271,11 +270,11 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
           )}
 
           {panelPhase === 'results' && (
-            <div className="w-full overflow-hidden px-1">
+            <div className="w-full relative z-10 overflow-hidden px-1">
               <motion.div
                 key="search-phase-results"
                 {...searchPhaseMotion}
-                className="w-[calc(100%+24px)] pr-[24px] max-h-[min(60vh,520px)] overflow-y-auto scrollbar-none overscroll-contain"
+                className="w-[calc(100%+40px)] pr-[40px] max-h-[min(60vh,520px)] overflow-y-auto scrollbar-none overscroll-contain"
               >
                 <motion.div
                   variants={searchStaggerContainer}
@@ -303,12 +302,12 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
                         onClick={() => {
                           if (!loadingSongId) handleSelectSong(result);
                         }}
-                        className={`group relative w-full flex items-center gap-4 p-3.5 rounded-2xl border transition-all duration-300 cursor-pointer will-change-transform ${
+                        className={`group relative w-full flex items-center gap-4 p-3.5 rounded-2xl transition-all duration-300 cursor-pointer will-change-transform ${
                           loadingSongId === result.id
-                            ? `${theme.borderActive} bg-[#181a23]/60`
+                            ? 'bg-[#181a23]/60'
                             : isFocused
-                              ? 'bg-[#181a23]/80 border-white/20 shadow-md'
-                              : 'bg-[#0a0b10]/40 border-white/[0.05] hover:bg-[#13141c]/55 hover:border-white/10'
+                              ? 'bg-[#181a23]/80'
+                              : 'bg-[#0a0b10]/40 hover:bg-[#13141c]/55'
                         }`}
                       >
                         <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-white/0 via-white/[0.02] to-white/0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />

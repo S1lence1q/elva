@@ -80,7 +80,7 @@ export const PlaylistDetailsView: React.FC<PlaylistDetailsViewProps> = ({
       </div>
 
       {/* Immersive Widescreen Playlist Hero Banner */}
-      <div className="relative w-full rounded-3xl overflow-hidden border border-white/[0.06] bg-white/[0.01] backdrop-blur-2xl shadow-2xl py-5 px-6 md:py-6 md:px-8 flex flex-col md:flex-row items-center gap-6 md:gap-8 shrink-0 mt-4">
+      <div className="relative w-full rounded-3xl overflow-hidden bg-white/[0.01] backdrop-blur-2xl py-5 px-6 md:py-6 md:px-8 flex flex-col md:flex-row items-center gap-6 md:gap-8 shrink-0 mt-4">
         {/* Ambient dynamic theme glow behind/inside the banner */}
         <div 
           className="absolute top-0 right-0 w-80 h-80 rounded-full blur-[75px] opacity-40 pointer-events-none"
@@ -89,8 +89,8 @@ export const PlaylistDetailsView: React.FC<PlaylistDetailsViewProps> = ({
           }}
         />
         
-        {/* Giant square cover art with high-end border */}
-        <div className="relative w-36 h-36 md:w-44 md:h-44 rounded-2xl overflow-hidden border border-white/10 shadow-2xl transition-transform duration-500 hover:scale-105 shrink-0 z-10 bg-neutral-950 flex items-center justify-center">
+        {/* Giant square cover art */}
+        <div className="relative w-36 h-36 md:w-44 md:h-44 rounded-2xl overflow-hidden transition-transform duration-500 hover:scale-105 shrink-0 z-10 bg-neutral-955 flex items-center justify-center">
           {playlist.id === 'dk_hits' || playlist.id === 'global_hits' ? (
             <div className="w-full h-full relative flex items-center justify-center">
               {/* Background graphic */}
@@ -99,8 +99,8 @@ export const PlaylistDetailsView: React.FC<PlaylistDetailsViewProps> = ({
               {/* Sleek, solid, high-contrast, extremely readable text banner at the bottom */}
               <div className={`absolute bottom-0 left-0 right-0 py-3 md:py-3.5 text-center z-20 ${
                 playlist.id === 'dk_hits' 
-                  ? 'bg-[#881337] text-rose-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.15)] border-t border-rose-950' 
-                  : 'bg-[#1e1b4b] text-indigo-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.15)] border-t border-indigo-950'
+                  ? 'bg-[#881337] text-rose-100 border-t border-rose-950' 
+                  : 'bg-[#1e1b4b] text-indigo-100 border-t border-indigo-950'
               }`}>
                 <span className="text-xs md:text-sm font-black uppercase tracking-[0.2em] leading-none select-none block">
                   {playlist.id === 'dk_hits' ? 'TOP HITS DK' : 'TOP HITS GLOBAL'}
@@ -109,7 +109,7 @@ export const PlaylistDetailsView: React.FC<PlaylistDetailsViewProps> = ({
 
               {/* Dynamic Album Art Overlay (The #1 song's thumbnail in the center-top!) */}
               {playlist.tracks && playlist.tracks.length > 0 && (
-                <div className="absolute w-[54%] h-[54%] rounded-xl overflow-hidden border border-white/15 shadow-[0_10px_30px_rgba(0,0,0,0.85)] z-10 bg-neutral-950 transition-transform duration-500 hover:scale-105 hover:rotate-[2deg] -translate-y-4">
+                <div className="absolute w-[54%] h-[54%] rounded-xl overflow-hidden z-10 bg-neutral-955 transition-transform duration-500 hover:scale-105 hover:rotate-[2deg] -translate-y-4">
                   <img 
                     src={playlist.tracks[0].thumbnail} 
                     alt="" 
@@ -201,7 +201,7 @@ export const PlaylistDetailsView: React.FC<PlaylistDetailsViewProps> = ({
                       </span>
 
                       {/* Song Thumbnail */}
-                      <div className="relative w-13 h-13 rounded-xl overflow-hidden flex-shrink-0 bg-neutral-900 border border-white/5 shadow-md">
+                      <div className="relative w-13 h-13 rounded-xl overflow-hidden flex-shrink-0 bg-neutral-900">
                         <img 
                           src={track.thumbnail} 
                           alt={track.title} 

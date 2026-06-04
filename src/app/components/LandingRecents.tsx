@@ -105,10 +105,10 @@ export const LandingRecents: React.FC<LandingRecentsProps> = ({
                     key={song.id}
                     whileHover={{ y: -4 }}
                     onClick={() => onPlaySong(song)}
-                    className="group snap-start flex-shrink-0 w-[170px] flex flex-col gap-3 p-3.5 rounded-2xl bg-[#0d0e15]/90 hover:bg-[#13141c]/75 transition-all duration-300 cursor-pointer relative overflow-hidden shadow-[0_8px_30px_rgba(0,0,0,0.5)]"
+                    className="group snap-start flex-shrink-0 w-[170px] flex flex-col gap-3 p-3.5 rounded-2xl bg-[#0d0e15]/90 hover:bg-[#13141c]/75 transition-all duration-300 cursor-pointer relative overflow-hidden"
                   >
                     {/* Cover Artwork Container */}
-                    <div className="relative aspect-square w-full rounded-xl overflow-hidden bg-neutral-955 shadow-[0_8px_20px_rgba(0,0,0,0.5)]">
+                    <div className="relative aspect-square w-full rounded-xl overflow-hidden bg-neutral-955">
                       <img
                         src={song.thumbnail}
                         alt={song.title}
@@ -163,10 +163,10 @@ export const LandingRecents: React.FC<LandingRecentsProps> = ({
                   key={artist.name}
                   whileHover={{ y: -4 }}
                   onClick={() => onViewArtist(artist)}
-                  className="group snap-start flex-shrink-0 w-[140px] flex flex-col items-center gap-3 p-3.5 rounded-2xl bg-[#0d0e15]/90 hover:bg-[#13141c]/75 transition-all duration-300 cursor-pointer relative overflow-hidden shadow-[0_8px_30px_rgba(0,0,0,0.5)]"
+                  className="group snap-start flex-shrink-0 w-[140px] flex flex-col items-center gap-3 p-3.5 rounded-2xl bg-[#0d0e15]/90 hover:bg-[#13141c]/75 transition-all duration-300 cursor-pointer relative overflow-hidden"
                 >
                   {/* circular profile avatar */}
-                  <div className="relative w-24 h-24 rounded-full overflow-hidden flex-shrink-0 bg-neutral-955 shadow-[0_8px_20px_rgba(0,0,0,0.5)] transition-colors duration-300">
+                  <div className="relative w-24 h-24 rounded-full overflow-hidden flex-shrink-0 bg-neutral-955 transition-colors duration-300">
                     <img
                       src={artist.thumbnail}
                       alt={artist.name}

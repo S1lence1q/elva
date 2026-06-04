@@ -123,7 +123,7 @@
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.396 0.141 25.723);
   --destructive-foreground: oklch(0.637 0.237 25.331);
-  --border: oklch(0.269 0 0);
+  --border: transparent;
   --input: oklch(0.269 0 0);
   --ring: oklch(0.439 0 0);
   --font-weight-medium: 500;
@@ -203,7 +203,8 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    border-color: var(--border);
+    outline-color: rgba(var(--ring), 0.5);
   }
 
   body {
@@ -280,11 +281,14 @@
   animation: grain-jitter 0.6s steps(10) infinite;
 }
 
-/* Hide scrollbar completely and seamlessly across Chrome, Safari, Firefox, Edge, IE */
-.scrollbar-none {
+/* Hide scrollbar completely and seamlessly across all elements */
+*, .scrollbar-none {
   -ms-overflow-style: none !important;  /* IE and Edge */
   scrollbar-width: none !important;  /* Firefox */
 }
+*::-webkit-scrollbar,
+*::-webkit-scrollbar-track,
+*::-webkit-scrollbar-thumb,
 .scrollbar-none::-webkit-scrollbar,
 .scrollbar-none::-webkit-scrollbar-track,
 .scrollbar-none::-webkit-scrollbar-thumb {

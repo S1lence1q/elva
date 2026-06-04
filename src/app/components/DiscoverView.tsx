@@ -272,10 +272,9 @@ function ChartCard({
       transition={{ delay: idx * 0.1, ease: 'easeOut' }}
       whileHover={{
         y: -6,
-        borderColor: 'rgba(255, 255, 255, 0.18)',
         backgroundColor: 'rgba(24, 26, 35, 0.85)',
       }}
-      className="relative rounded-3xl border border-white/[0.08] p-7 flex items-center justify-between bg-[#0a0b10]/65 backdrop-blur-2xl h-[190px] group transition-all duration-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_12px_36px_rgba(0,0,0,0.55)] select-none cursor-pointer text-left overflow-hidden gap-6"
+      className="relative rounded-3xl p-7 flex items-center justify-between bg-[#0a0b10]/65 backdrop-blur-2xl h-[190px] group transition-all duration-300 select-none cursor-pointer text-left overflow-hidden gap-6"
     >
       <div className="flex flex-col justify-between h-full flex-1 min-w-0">
         <div className="space-y-2">
@@ -294,7 +293,7 @@ function ChartCard({
           <button
             type="button"
             onClick={(e) => onPlayChart(e, chart.name, chart.tracks)}
-            className="p-3 rounded-full bg-white/5 hover:bg-white text-white hover:text-black border border-white/10 group-hover:scale-105 shadow-xl transition-all cursor-pointer"
+            className="p-3 rounded-full bg-white/5 hover:bg-white text-white hover:text-black group-hover:scale-105 transition-all cursor-pointer"
           >
             <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
           </button>
@@ -303,7 +302,7 @@ function ChartCard({
           </span>
         </div>
       </div>
-      <div className="w-[126px] h-[126px] rounded-2xl overflow-hidden border border-white/[0.08] shadow-2xl relative select-none shrink-0 group-hover:border-white/20 transition-all duration-500 bg-neutral-950 flex items-center justify-center">
+      <div className="w-[126px] h-[126px] rounded-2xl overflow-hidden relative select-none shrink-0 transition-all duration-500 bg-neutral-955 flex items-center justify-center">
         <img
           src={chart.thumbnail}
           alt={chart.name}
@@ -312,8 +311,8 @@ function ChartCard({
         <div
           className={`absolute bottom-0 left-0 right-0 py-2.5 text-center z-20 ${
             chart.id === 'dk_hits'
-              ? 'bg-[#881337] text-rose-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.15)] border-t border-rose-950'
-              : 'bg-[#1e1b4b] text-indigo-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.15)] border-t border-indigo-950'
+              ? 'bg-[#881337] text-rose-100 border-t border-rose-950'
+              : 'bg-[#1e1b4b] text-indigo-100 border-t border-indigo-950'
           }`}
         >
           <span className="text-[10px] font-black uppercase tracking-[0.16em] leading-none select-none block">
@@ -321,7 +320,7 @@ function ChartCard({
           </span>
         </div>
         {chart.tracks.length > 0 && (
-          <div className="absolute w-[52px] h-[52px] rounded-lg overflow-hidden border border-white/15 shadow-[0_8px_20px_rgba(0,0,0,0.85)] z-10 rotate-[-4deg] group-hover:rotate-[2deg] group-hover:scale-105 transition-all duration-500 bg-neutral-900 -translate-y-3">
+          <div className="absolute w-[52px] h-[52px] rounded-lg overflow-hidden z-10 rotate-[-4deg] group-hover:rotate-[2deg] group-hover:scale-105 transition-all duration-500 bg-neutral-900 -translate-y-3">
             <img src={chart.tracks[0].thumbnail} alt="" className="w-full h-full object-cover" />
           </div>
         )}
@@ -355,10 +354,10 @@ function SongRow({
       initial={{ opacity: 0, x: direction === 'left' ? -10 : 10 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: idx * 0.08 }}
-      className="group flex items-center justify-between p-3.5 rounded-2xl bg-[#13141b]/35 hover:bg-[#181a23]/60 border border-white/[0.04] hover:border-white/[0.09] transition-all duration-300 shadow-sm cursor-pointer"
+      className="group flex items-center justify-between p-3.5 rounded-2xl bg-[#13141b]/35 hover:bg-[#181a23]/60 transition-all duration-300 cursor-pointer"
     >
       <div className="flex items-center gap-4 text-left min-w-0">
-        <div className="relative w-14 h-14 rounded-xl overflow-hidden shadow-md shrink-0 bg-neutral-900 border border-white/5">
+        <div className="relative w-14 h-14 rounded-xl overflow-hidden shrink-0 bg-neutral-900">
           {song.thumbnail ? (
             <img
               src={song.thumbnail}
