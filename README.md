@@ -1,82 +1,73 @@
-# 🌌 Elva — Premium Fullscreen Immersive Music Experience
+# Elva
 
-Elva is a premium, glassmorphic fullscreen music player built with a tactile, Scandinavian retro-paper aesthetic. It features an endless fluid scroll canvas, WebGL background morphing, high-performance audio crossfading, interactive synchronized lyrics, and a playful Aim & Shoot volume charging game.
+A fullscreen music player built through a dangerous combination of curiosity, poor impulse control, and vibe coding.
 
----
+Originally, the goal was to make a simple music player.
 
-## ✨ Core Features & Design Highlights
+Unfortunately, every time I finished a feature, I got another idea.
 
-### 🎨 Premium Scandinavian Aesthetics
-* **Glassmorphic Minimalism:** Sleek, borderless controls with subtle gradients, natural light refraction, and premium typography.
-* **Mercury-Silver Theme Morphing:** The background shifts dynamically between polished mercury-silver, muted slate, and warm ashes as you scroll through Search, Charts, and My Hub.
-* **Bioluminescent Cover Tinting:** Image color extraction automatically limits saturation (clamped to a mild 8% - 22% range) to keep the WebGL canvas elegant, while adding a warm luminance floor for extremely dark covers.
-* **Double-Image Artwork Crossfader:** Eliminates black blinks during track changes by rendering a fading background node behind the incoming front cover.
-
-### 🔊 High-Fidelity Audio Engineering
-* **Dual-Engine (A/B) Orchestrator:** Parallel engines pre-load incoming audio streams (both HTML5 and YouTube audio tracks) for seamless transitions.
-* **Constant-Power Crossfade:** A mathematical equal-power transition curve ($\sin/\cos$) prevents volume dips during track handovers (adjustable from 0s to 12s).
-* **Buffer Synchronization:** Overlaps start only after the upcoming engine resolves its `playPromise`, preventing silence gaps.
-* **Volume Persistence:** Automatically preserves player volume and mute state in `localStorage` across page updates.
-
-### 🎮 Hidden Aim & Shoot Volume Game
-* **Hold-to-Aim Charging:** Hold down the volume icon to initiate a 60fps charging meter that ping-pongs between 0% and 100% over 2.4s. The speaker icon rotates visually up to $-35^\circ$ to aim.
-* **Parabolic Physics Projectile:** Releasing the pointer launches a glowing, theme-colored white projectile in a calculated physics arc. It lands directly on the volume track to set your level.
-* **Spacebar Lock:** Native focus rings are removed, and spacebar default behavior is intercepted on controls, preventing accidental activations during key playback controls.
-
-### 🎤 Apple Music-Style "Floating Lyrics"
-* **Interactive Lyric Scrubbing:** Floating, translucent lyrics slide in from the side as the cover shifts. Clicking on any line immediately updates the song's playhead position (absolute scrubbing).
-* **Flimmer-Free Transitions:** Hover states and 3D tilts on the artwork card are fully decoupled and paused during the sliding transition to avoid stuck pointer highlights.
+So now it has animated WebGL backgrounds, synchronized lyrics, audio crossfading, dynamic color extraction, profile customization, and a weird volume thing I made at 2am.
 
 ---
 
-## 🛠️ Architecture & Modularity
+## Features
 
-Elva's codebase is designed with modular React hooks and focused presentational components to maintain scalability and prevent regression bugs.
+* **Fullscreen immersive music experience:** Beautiful, glassmorphic layout.
+* **Interactive synchronized lyrics:** Apple Music-style lyrics with click-to-seek scrubbing.
+* **Smooth track crossfading:** Mathematical constant-power ($\sin/\cos$) crossfades.
+* **Dynamic album-based theming:** Subtle, muted color extraction that morphs with each track.
+* **Search and charts:** Real-time Apple Music charts (DK & Global) and official audio search ranking.
+* **Queue management:** Seamless sidebar search and horizontal carousels with drag/Likes.
+* **Profile customization:** Edit name and select premium custom WebGL gradient presets.
+* **YouTube and audio playback support:** Dual playback engines orchestrating HTML5 audio and Inv/YT streams.
+* **Overengineered volume controls:** Hold to charge and shoot volume levels as a physics projectile dot in a parabolic trajectory.
 
-```
+---
+
+## Technical stuff
+
+Somehow includes:
+
+* Dual playback engines
+* Audio preloading
+* Constant-power crossfades
+* WebGL effects
+* Custom React hooks
+* Color extraction
+* Scroll-based animations
+* Probably a few things I forgot I added
+
+---
+
+## Stability
+
+Works on my machine 👍
+
+---
+
+## About
+
+I was supposed to stop adding features months ago.
+
+---
+
+## Project structure
+
+```text
 src/app/
-├── components/          # React Presentation Layers
-│   ├── musicplayer/     # ArtworkCard, BottomBarControls
-│   ├── queue/           # Absolute layers, QueuePanel, QueueSearchBar
-│   └── profilehub/      # ProfileCustomizerModal, ProfileHubView
-├── hooks/               # Decoupled Feature State Hooks
-│   ├── usePlaybackCore  # Dual Engine lifecycle & Crossfader
-│   ├── useFadeVolume    # Trigonometric volume curves
-│   ├── useLyrics        # LRC parsing & interactive seeker
-│   └── useScrollTracking# WebGL scroll velocity listener
-└── utils/               # Helper Methods
-    ├── playerColorUtils # Downsampled color extraction & grayscales
-    ├── lyricsUtils      # LRC parsers
-    └── api/             # Search ranking and prefetch concurrent queues
+├── components/
+├── hooks/
+├── utils/
+├── things that should probably be refactored/
+└── code that works so nobody is allowed to touch it
 ```
 
 ---
 
-## 🚀 Running the Project
+## Disclaimer
 
-### Prerequisites
-* **NodeJS** (v18+ recommended)
-* **npm** or **pnpm**
+If you find a bug, then that sucks lol
 
-### Installation
-Clone the repository and install all dependencies:
-```bash
-npm install
-```
+Maybe it will get fixed.
 
-### Start Development Server
-Run Vite's rapid dev server:
-```bash
-npm run dev
-```
-
-### Production Build
-Create an optimized production bundle:
-```bash
-npm run build
-```
-
----
-
-## 🌐 Deployment
-Pushes to the `main` branch trigger a GitHub Actions pipeline (`deploy.yml`) which automatically compiles the codebase and deploys the bundle to GitHub Pages.
+The application is currently held together by React, determination, and whatever dark magic powers CSS animations.
