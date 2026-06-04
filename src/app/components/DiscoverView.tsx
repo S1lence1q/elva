@@ -128,7 +128,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             <Compass className={`w-4 h-4 ${theme.text}`} />
-            <h3 className="text-xs uppercase tracking-[0.25em] font-semibold text-white/55">
+            <h3 className="elva-section-label text-white/55 font-semibold">
               Featured Charts
             </h3>
           </div>
@@ -142,8 +142,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
             Array.from({ length: 2 }).map((_, idx) => (
               <div
                 key={idx}
-                className="rounded-3xl h-[220px] flex flex-col justify-end p-6 animate-pulse overflow-hidden relative"
-                style={{ background: 'linear-gradient(135deg, rgba(20,21,28,0.9) 0%, rgba(13,14,20,0.85) 100%)' }}
+                className="rounded-3xl h-[220px] flex flex-col justify-end p-6 animate-pulse overflow-hidden relative bg-white/[0.04]"
               >
                 {/* Shimmer gradient overlay */}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
@@ -189,14 +188,14 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
         <section className="flex flex-col gap-4">
           <div className="flex items-center gap-2 mb-2">
             <Flame className={`w-4 h-4 ${theme.text}`} />
-            <h3 className="text-xs uppercase tracking-[0.25em] font-semibold text-white/55">Trending Now</h3>
+            <h3 className="elva-section-label text-white/55 font-semibold">Trending Now</h3>
           </div>
           <div className="space-y-3.5">
             {isLoading ? (
               Array.from({ length: 4 }).map((_, idx) => (
                 <div
                   key={idx}
-                  className="flex items-center justify-between p-3.5 rounded-2xl bg-[#13141b]/20 border border-white/[0.04] h-[74px] animate-pulse"
+                  className="rounded-2xl bg-white/[0.03] h-[74px] animate-pulse"
                 />
               ))
             ) : trendingList.length > 0 ? (
@@ -222,14 +221,14 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
         <section className="flex flex-col gap-4">
           <div className="flex items-center gap-2 mb-2">
             <Sparkles className={`w-4 h-4 ${theme.text}`} />
-            <h3 className="text-xs uppercase tracking-[0.25em] font-semibold text-white/55">Daily Picks</h3>
+            <h3 className="elva-section-label text-white/55 font-semibold">Daily Picks</h3>
           </div>
           <div className="space-y-3.5">
             {isLoading ? (
               Array.from({ length: 4 }).map((_, idx) => (
                 <div
                   key={idx}
-                  className="flex items-center justify-between p-3.5 rounded-2xl bg-[#13141b]/20 border border-white/[0.04] h-[74px] animate-pulse"
+                  className="rounded-2xl bg-white/[0.03] h-[74px] animate-pulse"
                 />
               ))
             ) : dailyPicks.length > 0 ? (
@@ -370,7 +369,7 @@ function SongRow({
       initial={{ opacity: 0, x: direction === 'left' ? -10 : 10 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: idx * 0.08 }}
-      className="group flex items-center justify-between p-4 rounded-2xl hover:bg-white/[0.04] transition-all duration-300 cursor-pointer"
+      className="group flex items-center justify-between p-4 rounded-2xl border-0 bg-transparent hover:bg-white/[0.04] transition-colors duration-300 cursor-pointer"
     >
       <div className="flex items-center gap-4 text-left min-w-0">
         <div className="relative w-[56px] h-[56px] rounded-xl overflow-hidden shrink-0 bg-neutral-900">

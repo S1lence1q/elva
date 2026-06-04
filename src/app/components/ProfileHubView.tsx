@@ -320,7 +320,7 @@ export const ProfileHubView: React.FC<ProfileHubViewProps> = ({
       className="w-full max-w-[898px] relative z-10 flex flex-col gap-8 px-6 pt-4 pb-24 cursor-default"
     >
       {/* 1. HIGH-FOCUS GLASSMORPHIC TABS SWITCHER (Always on top) */}
-      <div className="flex items-center gap-1.5 p-1.5 rounded-2xl bg-[#0a0b10]/65 border border-white/[0.08] backdrop-blur-2xl w-full shrink-0 select-none shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_12px_40px_rgba(0,0,0,0.55)]">
+      <div className="flex items-center gap-1.5 p-1.5 rounded-2xl elva-glass-chrome w-full shrink-0 select-none">
         {[
           { id: 'overview', label: 'Overview', icon: Sparkles },
           { id: 'favorites', label: 'Favorites', icon: Heart },
@@ -336,7 +336,7 @@ export const ProfileHubView: React.FC<ProfileHubViewProps> = ({
               onClick={() => setActiveTab(sub.id as any)}
               className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-[10px] font-bold tracking-widest uppercase transition-all duration-300 cursor-pointer ${
                 isSubActive
-                  ? `bg-[#07080a] border ${activeStyle.border} ${activeStyle.text} ${activeStyle.glow} shadow-black/40`
+                  ? `elva-chip-active border ${activeStyle.border} ${activeStyle.text} ${activeStyle.glow} shadow-black/40`
                   : 'text-white/35 hover:text-white/70 hover:bg-[#13141b]/35 border border-transparent'
               }`}
             >

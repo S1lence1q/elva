@@ -23,7 +23,7 @@ export function QueueArtistSubview({
 
   return (
     <div className="space-y-6 text-left">
-      <div className="relative w-full rounded-3xl overflow-hidden bg-[#0a0b10]/65 backdrop-blur-2xl py-6 px-6 flex items-center gap-5 shrink-0">
+      <div className="relative w-full rounded-3xl overflow-hidden bg-white/[0.04] py-6 px-6 flex items-center gap-5 shrink-0">
         <div className="relative w-24 h-24 rounded-full overflow-hidden transition-transform duration-500 hover:scale-105 shrink-0 z-10 bg-neutral-900">
           <img src={artist.thumbnail} alt={artist.name} className="w-full h-full object-cover scale-105" />
         </div>

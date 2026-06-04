@@ -26,7 +26,7 @@ export const DashboardNavigation: React.FC<DashboardNavigationProps> = ({
 
   return (
     <div className="flex justify-center mb-8 relative z-30 shrink-0">
-      <div className="flex items-center gap-1.5 p-1.5 rounded-full bg-[#0a0b10]/60 border border-white/[0.06] backdrop-blur-2xl shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_40px_rgba(0,0,0,0.55)]">
+      <div className="flex items-center gap-1.5 p-1.5 rounded-full elva-glass-chrome">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
           const Icon = tab.icon;
@@ -35,7 +35,7 @@ export const DashboardNavigation: React.FC<DashboardNavigationProps> = ({
             <button
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
-              className={`relative flex items-center gap-2 px-4.5 py-2.5 rounded-full text-[10px] font-bold tracking-[0.18em] uppercase cursor-pointer select-none transition-all duration-300 ${
+              className={`relative flex items-center gap-2 px-4.5 py-2.5 rounded-full elva-label-xs tracking-[0.18em] cursor-pointer select-none transition-all duration-300 elva-focus-ring ${
                 isActive 
                   ? 'text-white' 
                   : 'text-white/35 hover:text-white/65 hover:bg-white/[0.02]'

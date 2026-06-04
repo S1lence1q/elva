@@ -40,7 +40,7 @@ export function QueueSearchBar({
           autoCorrect="off"
           autoCapitalize="off"
           spellCheck={false}
-          className="w-full pl-11 pr-9 py-2.5 rounded-xl bg-white/[0.05] border border-white/[0.07] hover:border-white/[0.12] focus:border-white/[0.18] focus:bg-white/[0.07] text-white placeholder-white/25 text-sm focus:outline-none transition-all duration-200"
+          className="w-full pl-11 pr-9 py-2.5 rounded-xl elva-input border-0 text-white placeholder-white/25 text-sm elva-focus-ring transition-colors duration-200"
         />
         {searchQuery && (
           <button
@@ -54,7 +54,7 @@ export function QueueSearchBar({
 
       <button
         onClick={onUploadClick}
-        className="w-10 h-10 p-0 rounded-xl bg-white/[0.05] hover:bg-white/[0.08] border border-white/[0.07] hover:border-white/[0.12] active:scale-95 transition-all text-white/35 hover:text-white/65 shrink-0 cursor-pointer flex items-center justify-center"
+        className="w-10 h-10 p-0 rounded-xl bg-white/[0.05] hover:bg-white/[0.08] border-0 active:scale-95 transition-colors text-white/35 hover:text-white/65 shrink-0 cursor-pointer flex items-center justify-center elva-focus-ring"
         title="Upload audio file"
       >
         <Upload className="w-3.5 h-3.5" />

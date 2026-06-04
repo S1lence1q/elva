@@ -19,7 +19,7 @@ export function QueuePlaylistSubview({
 
   return (
     <div className="space-y-6 text-left">
-      <div className="relative w-full h-44 overflow-hidden select-none shrink-0 bg-[#0c0c0f] border-b border-white/[0.08] flex flex-col justify-end p-6">
+      <div className="relative w-full h-44 overflow-hidden select-none shrink-0 bg-white/[0.04] flex flex-col justify-end p-6">
         <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${playlist.color}`} />
         <span className="text-[9px] uppercase font-bold tracking-[0.2em] text-white/30">Playlist</span>
         <h2

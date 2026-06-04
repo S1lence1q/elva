@@ -54,7 +54,7 @@ export const ArtistProfileView: React.FC<ArtistProfileViewProps> = ({
     <motion.div
       key="immersive-artist-view"
       {...panelEnter}
-      className="w-full max-w-5xl px-12 flex flex-col h-[calc(100vh-80px)] overflow-y-auto scrollbar-none z-10"
+      className="w-full flex flex-col flex-1 min-h-0 overflow-y-auto scrollbar-none z-10 px-4 sm:px-8 md:px-12"
     >
       {/* Navigation bar above the layout */}
       <div className="flex items-center justify-between w-full pb-3 shrink-0 px-2 select-none">
@@ -83,14 +83,11 @@ export const ArtistProfileView: React.FC<ArtistProfileViewProps> = ({
 
       {/* Immersive Widescreen Artist Hero Banner */}
       <div
-        className="relative w-full rounded-3xl overflow-hidden backdrop-blur-2xl py-6 px-6 md:py-8 md:px-10 flex flex-col md:flex-row items-center gap-6 md:gap-10 shrink-0 mt-4"
+        className="relative w-full rounded-3xl overflow-hidden py-6 px-6 md:py-8 md:px-10 flex flex-col md:flex-row items-center gap-6 md:gap-10 shrink-0 mt-4"
         style={{
           background: artistColors
-            ? `linear-gradient(135deg, ${artistColors.bgGlow} 0%, rgba(13,14,20,0.85) 100%)`
-            : 'rgba(255,255,255,0.018)',
-          boxShadow: artistColors
-            ? `0 8px 30px ${artistColors.rgbaGlow?.replace('0.35', '0.12') ?? 'rgba(0,0,0,0.25)'}, inset 0 1px 0 rgba(255,255,255,0.06)`
-            : 'inset 0 1px 0 rgba(255,255,255,0.04)',
+            ? `linear-gradient(135deg, ${artistColors.bgGlow} 0%, rgba(255,255,255,0.04) 100%)`
+            : 'rgba(255,255,255,0.04)',
         }}
       >
         {/* Soft ambient glow behind avatar */}
@@ -121,7 +118,7 @@ export const ArtistProfileView: React.FC<ArtistProfileViewProps> = ({
         <div className="flex flex-col text-center md:text-left relative z-10">
           <div className="flex items-center justify-center md:justify-start gap-2">
             <span
-              className="flex items-center gap-1 text-[9px] font-bold text-white/40 bg-white/[0.06] border border-white/[0.08] px-2.5 py-0.5 rounded-md uppercase tracking-[0.2em]"
+              className="flex items-center gap-1 text-[9px] font-bold text-white/40 bg-white/[0.06] px-2.5 py-0.5 rounded-md uppercase tracking-[0.2em]"
             >
               ✦ {ARTIST_PROFILE_BADGE}
             </span>
@@ -155,8 +152,8 @@ export const ArtistProfileView: React.FC<ArtistProfileViewProps> = ({
         <div className="w-full flex flex-col relative">
 
           <div className="flex items-center justify-between pb-3 shrink-0 z-10 relative">
-            <span className="text-[10px] text-white/40 font-bold uppercase tracking-wider">{ARTIST_TRACKS_SECTION_LABEL}</span>
-            <span className="text-[10px] text-white/30 font-medium uppercase tracking-wider bg-white/5 px-2.5 py-0.5 rounded-md">
+            <span className="elva-section-label">{ARTIST_TRACKS_SECTION_LABEL}</span>
+            <span className="elva-label-xs text-white/30 font-medium bg-white/[0.05] px-2.5 py-0.5 rounded-md normal-case tracking-wider">
               {artistTracks.length} tracks
             </span>
           </div>
@@ -193,8 +190,8 @@ export const ArtistProfileView: React.FC<ArtistProfileViewProps> = ({
                     <motion.div
                       key={`artist-track-${track.id}`}
                       {...listItemEnter(index)}
-                      className={`group w-full flex items-center gap-4 py-3.5 px-3 rounded-xl last:border-b-0 bg-transparent transition-colors duration-200 hover:bg-white/[0.03] cursor-pointer ${
-                        isLoading ? 'bg-white/[0.04]' : isFocused ? 'bg-white/[0.04]' : ''
+                      className={`group w-full flex items-center gap-4 py-3.5 px-3 rounded-xl border-0 bg-transparent transition-colors duration-200 hover:bg-white/[0.03] cursor-pointer ${
+                        isLoading || isFocused ? 'bg-white/[0.04]' : ''
                       }`}
                       onClick={() => {
                         if (!loadingSongId) handleSelectSong(track);

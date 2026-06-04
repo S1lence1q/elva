@@ -73,11 +73,30 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
   }, [showPlaylistMenu]);
 
   const isFavorite = favorites.some(fav => fav.id === (songData.videoId || songData.audioUrl));
+  const controlsVisible =
+    isArtworkHovered || !isPlaying || (tourType !== null && currentStep === 1) || showPlaylistMenu;
+  const progressPct = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
 
   return (
+    <>
+      {/* Peek progress — visible while playing and full controls are hidden */}
+      {isPlaying && duration > 0 && !controlsVisible && (
+        <div
+          className="absolute bottom-0 left-0 right-0 z-[25] pointer-events-none"
+          aria-hidden
+        >
+          <div className="h-[3px] w-full bg-white/[0.08]">
+            <div
+              className="h-full bg-white/40 transition-[width] duration-150 ease-linear"
+              style={{ width: `${progressPct}%` }}
+            />
+          </div>
+        </div>
+      )}
+
     <div 
       className={`absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-black/20 transition-all duration-300 z-20 ${
-        (isArtworkHovered || !isPlaying || (tourType !== null && currentStep === 1) || showPlaylistMenu) ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        controlsVisible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
       }`}
     >
       {/* Song info - top */}
@@ -102,7 +121,8 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
                     thumbnail: songData.artworkUrl,
                   });
                 }}
-                className="p-2.5 rounded-xl hover:bg-white/10 text-white/40 hover:text-white cursor-pointer shrink-0 transition-all hover:scale-105 active:scale-95 duration-200"
+                className="p-2.5 rounded-xl hover:bg-white/10 text-white/40 hover:text-white cursor-pointer shrink-0 transition-all hover:scale-105 active:scale-95 duration-200 elva-focus-ring"
+                aria-label={isFavorite ? 'Fjern fra favoritter' : 'Marker som favorit'}
                 title={isFavorite ? "Fjern fra favoritter" : "Marker som favorit"}
               >
                 <Heart className={`w-[21px] h-[21px] ${isFavorite ? 'text-red-500 fill-red-500' : ''}`} />
@@ -124,7 +144,8 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
                   e.stopPropagation();
                   setShowPlaylistMenu(!showPlaylistMenu);
                 }}
-                className={`p-2.5 rounded-xl hover:bg-white/10 text-white/40 hover:text-white cursor-pointer transition-all hover:scale-105 active:scale-95 duration-200 ${showPlaylistMenu ? 'bg-white/15 text-white' : ''}`}
+                className={`p-2.5 rounded-xl hover:bg-white/10 text-white/40 hover:text-white cursor-pointer transition-all hover:scale-105 active:scale-95 duration-200 elva-focus-ring ${showPlaylistMenu ? 'bg-white/15 text-white' : ''}`}
+                aria-label="Add to playlist"
                 title="Add to playlist"
               >
                 <ListPlus className="w-[21px] h-[21px]" />
@@ -251,7 +272,8 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
               e.stopPropagation();
               handlePreviousSong();
             }}
-            className="p-3 rounded-full bg-white/5 hover:bg-white/10 active:scale-95 border border-white/10 hover:border-white/20 transition-all cursor-pointer group"
+            className="p-3 rounded-full bg-white/5 hover:bg-white/10 active:scale-95 border border-white/10 hover:border-white/20 transition-all cursor-pointer group elva-focus-ring"
+            aria-label="Previous song"
             title="Previous Song"
           >
             <SkipBack className="w-5 h-5 text-white/70 group-hover:text-white transition-colors" />
@@ -263,7 +285,8 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
               e.stopPropagation();
               togglePlayPause();
             }}
-            className="relative group/button active:scale-95 transition-all cursor-pointer"
+            className="relative group/button active:scale-95 transition-all cursor-pointer elva-focus-ring rounded-full"
+            aria-label={isPlaying ? 'Pause' : 'Play'}
             title={isPlaying ? "Pause" : "Play"}
           >
             <div className="relative px-12 py-4 rounded-full bg-white/10 hover:bg-white/15 border border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.3)] overflow-hidden transition-all">
@@ -295,7 +318,8 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
               e.stopPropagation();
               handleNextSong();
             }}
-            className="p-3 rounded-full bg-white/5 hover:bg-white/10 active:scale-95 border border-white/10 hover:border-white/20 transition-all cursor-pointer group"
+            className="p-3 rounded-full bg-white/5 hover:bg-white/10 active:scale-95 border border-white/10 hover:border-white/20 transition-all cursor-pointer group elva-focus-ring"
+            aria-label="Next song"
             title="Next Song"
           >
             <SkipForward className="w-5 h-5 text-white/70 group-hover:text-white transition-colors" />
@@ -340,5 +364,6 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
         )}
       </div>
     </div>
+    </>
   );
 };

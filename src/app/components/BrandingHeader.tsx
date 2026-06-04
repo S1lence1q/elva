@@ -171,7 +171,7 @@ export function BrandingHeader({
         variants={taglineVariants}
         initial="initial"
         animate="animate"
-        className="text-[10px] text-white/30 tracking-[0.4em] uppercase font-light"
+        className="elva-section-label tracking-[0.4em] font-light opacity-75"
       >
         Listen Deeper
       </motion.p>

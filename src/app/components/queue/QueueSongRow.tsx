@@ -14,7 +14,7 @@ export function QueueSongRow({ song, onPlay, onAddToQueue, rowKey }: QueueSongRo
     <div
       key={rowKey}
       onClick={onPlay}
-      className="group w-full flex items-center justify-between p-3.5 rounded-2xl bg-[#0a0b10]/45 hover:bg-[#13141c]/60 transition-all duration-300 cursor-pointer"
+      className="group w-full flex items-center justify-between p-3.5 rounded-2xl bg-white/[0.04] hover:bg-white/[0.06] border-0 transition-colors duration-300 cursor-pointer"
     >
       <div className="flex items-center gap-3.5 truncate mr-3 flex-1">
         <div className="relative w-14 h-14 rounded-2xl overflow-hidden shrink-0 bg-white/5">

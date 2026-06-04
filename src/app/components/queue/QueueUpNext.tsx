@@ -42,7 +42,7 @@ export function QueueUpNext({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between select-none">
-        <h3 className="text-[10px] uppercase tracking-[0.3em] font-bold text-white/35">Up Next</h3>
+        <h3 className="elva-section-label tracking-[0.3em]">Up Next</h3>
         {items.length > 0 && (
           <div className="flex items-center gap-3">
             {onShuffleQueue && (

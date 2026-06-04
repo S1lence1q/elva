@@ -8,6 +8,8 @@ import { DiscoverView } from './DiscoverView';
 import { ProfileHubView } from './ProfileHubView';
 import { ArtistProfileView } from './ArtistProfileView';
 import { PlaylistDetailsView } from './PlaylistDetailsView';
+import { DetailOverlay } from './DetailOverlay';
+import { LandingSectionNav } from './LandingSectionNav';
 
 interface LandingPageProps {
   isIntroActive: boolean;
@@ -186,76 +188,19 @@ export function LandingPage({
         </motion.div>
       )}
 
-      {/* Floating Dot Navigator */}
       {selectedArtist === null && selectedPlaylist === null && (
-        <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: 20 }}
-          className="fixed right-6 top-1/2 -translate-y-1/2 flex flex-col gap-3.5 z-40 bg-[#0a0b10]/40 border border-white/[0.05] p-2 rounded-full backdrop-blur-md shadow-[0_8px_32px_rgba(0,0,0,0.4)]"
-        >
-          {[
-            { id: 'search', label: 'Search & Home' },
-            { id: 'discover', label: 'Discover Charts' },
-            { id: 'myhub', label: 'My Hub Profile' }
-          ].map((dot, index) => {
-            let isActive = false;
-            if (index === 0 && scrollProgress < 0.25) isActive = true;
-            else if (index === 1 && scrollProgress >= 0.25 && scrollProgress < 0.75) isActive = true;
-            else if (index === 2 && scrollProgress >= 0.75) isActive = true;
-
-            const handleDotClick = () => {
-              const container = scrollContainerRef.current;
-              if (container) {
-                container.scrollTo({
-                  top: index * container.clientHeight,
-                  behavior: 'smooth'
-                });
-              }
-            };
-
-            return (
-              <button
-                key={dot.id}
-                onClick={handleDotClick}
-                className="group relative flex items-center justify-end cursor-pointer focus:outline-none bg-transparent border-none p-0"
-                title={dot.label}
-              >
-                {/* Label Tooltip */}
-                <span className="absolute right-10 text-[9px] font-bold uppercase tracking-[0.2em] text-white/50 group-hover:text-white/90 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-2 group-hover:translate-x-0 bg-[#0a0b10]/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/[0.06] shadow-lg whitespace-nowrap pointer-events-none select-none">
-                  {dot.label}
-                </span>
-                
-                {/* Interactive Dot */}
-                <div className="relative flex items-center justify-center w-6 h-6">
-                  <motion.div
-                    animate={{
-                      scale: isActive ? 1.25 : 1,
-                      backgroundColor: isActive ? 'rgba(255, 255, 255, 0.95)' : 'rgba(255, 255, 255, 0.18)',
-                      boxShadow: isActive 
-                        ? `0 0 10px rgba(255, 255, 255, 0.45)`
-                        : 'none'
-                    }}
-                    transition={{ type: 'spring', stiffness: 350, damping: 25 }}
-                    className="w-1.5 h-1.5 rounded-full border border-white/10 group-hover:bg-white/45 transition-colors"
-                  />
-                </div>
-              </button>
-            );
-          })}
-        </motion.div>
+        <LandingSectionNav
+          scrollProgress={scrollProgress}
+          scrollContainerRef={scrollContainerRef}
+          accentColor={accentColor}
+          isFirstVisit={isFirstVisit}
+        />
       )}
 
       {/* Immersive Widescreen Overlay Details Views */}
       <AnimatePresence>
         {selectedArtist && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.35 }}
-            className="fixed inset-0 z-30 bg-[#0a0b10]/35 backdrop-blur-xl flex flex-col items-center justify-center pt-8 pb-12"
-          >
+          <DetailOverlay>
             <ArtistProfileView
               selectedArtist={selectedArtist}
               artistColors={artistColors}
@@ -272,17 +217,11 @@ export function LandingPage({
               onToggleFavorite={handleToggleFavorite}
               onPlayNext={handlePlayNext}
             />
-          </motion.div>
+          </DetailOverlay>
         )}
 
         {selectedPlaylist && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.35 }}
-            className="fixed inset-0 z-30 bg-[#0a0a0c]/90 backdrop-blur-2xl flex flex-col items-center justify-center pt-8 pb-12"
-          >
+          <DetailOverlay>
             <PlaylistDetailsView
               playlist={selectedPlaylist}
               onClose={() => setSelectedPlaylist(null)}
@@ -295,7 +234,7 @@ export function LandingPage({
               onPlayNext={handlePlayNext}
               accentColor={accentColor}
             />
-          </motion.div>
+          </DetailOverlay>
         )}
       </AnimatePresence>
 
@@ -317,7 +256,7 @@ export function LandingPage({
       >
         {/* SECTION 1: Search & Home */}
         <section className="w-full h-full snap-start shrink-0 flex flex-col items-center justify-start relative px-0 pt-16 pb-24 overflow-y-auto scrollbar-none">
-          <div className="w-full flex flex-col items-center overflow-hidden shrink-0">
+          <div className="w-full flex flex-col items-center shrink-0">
             <div className="h-6 md:h-10 shrink-0 w-full" />
             <BrandingHeader
               accentColor={accentColor}
@@ -383,7 +322,7 @@ export function LandingPage({
             <h2 className="text-2xl font-normal tracking-[0.08em] bg-clip-text text-transparent bg-gradient-to-r from-white via-white/80 to-white/60" style={{ fontFamily: '"Kaobe", serif' }}>
               My Hub
             </h2>
-            <span className="text-[10px] text-white/30 font-bold uppercase tracking-[0.2em]">Your Personal Vibe</span>
+            <span className="elva-section-label">Your Personal Vibe</span>
           </div>
 
           <ProfileHubView

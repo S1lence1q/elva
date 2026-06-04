@@ -65,10 +65,10 @@ export const PlaylistDetailsView: React.FC<PlaylistDetailsViewProps> = ({
       animate={{ opacity: 1, scale: 1, y: 0, filter: 'blur(0px)' }}
       exit={{ opacity: 0, scale: 0.95, y: 24, filter: 'blur(8px)' }}
       transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
-      className="w-full max-w-5xl px-12 flex flex-col h-[calc(100vh-80px)] overflow-y-auto scrollbar-none z-10"
+      className="w-full flex flex-col flex-1 min-h-0 overflow-y-auto scrollbar-none z-10 px-4 sm:px-8 md:px-12"
     >
       {/* Navigation bar above the layout */}
-      <div className="flex items-center justify-between w-full pb-3 border-b border-white/5 shrink-0 px-2 select-none">
+      <div className="flex items-center justify-between w-full pb-3 shrink-0 px-2 select-none">
         <button
           onClick={onClose}
           className="flex items-center gap-1.5 text-white/50 hover:text-white transition-all cursor-pointer group/back text-xs font-semibold py-1 px-3 rounded-full hover:bg-white/5 -ml-3"
@@ -87,7 +87,7 @@ export const PlaylistDetailsView: React.FC<PlaylistDetailsViewProps> = ({
       </div>
 
       {/* Immersive Widescreen Playlist Hero Banner */}
-      <div className="relative w-full rounded-3xl overflow-hidden bg-[#0a0b10]/60 border border-white/[0.06] backdrop-blur-2xl py-5 px-6 md:py-6 md:px-8 flex flex-col md:flex-row items-center gap-6 md:gap-8 shrink-0 mt-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_6px_20px_rgba(0,0,0,0.35)]">
+      <div className="relative w-full rounded-3xl overflow-hidden bg-white/[0.04] py-5 px-6 md:py-6 md:px-8 flex flex-col md:flex-row items-center gap-6 md:gap-8 shrink-0 mt-4">
         {/* Ambient dynamic theme glow behind/inside the banner */}
         <div 
           className="absolute top-0 right-0 w-80 h-80 rounded-full blur-[90px] opacity-25 pointer-events-none"
@@ -170,9 +170,9 @@ export const PlaylistDetailsView: React.FC<PlaylistDetailsViewProps> = ({
       {/* Playlist Tracklist Table */}
       <div className="flex flex-col gap-6 mt-6 pb-24 w-full max-w-4xl mx-auto">
         <div className="w-full flex flex-col relative">
-          <div className="flex items-center justify-between pb-3 border-b border-white/5 shrink-0 z-10 relative">
-            <span className="text-[10px] text-white/40 font-bold uppercase tracking-wider">Tracks in Chart</span>
-            <span className="text-[10px] text-white/30 font-medium uppercase tracking-wider bg-white/5 border border-white/5 px-2.5 py-0.5 rounded-md">
+          <div className="flex items-center justify-between pb-3 shrink-0 z-10 relative">
+            <span className="elva-section-label">Tracks in Chart</span>
+            <span className="elva-label-xs text-white/30 font-medium bg-white/[0.05] px-2.5 py-0.5 rounded-md normal-case tracking-wider">
               Updated Daily
             </span>
           </div>
@@ -195,10 +195,8 @@ export const PlaylistDetailsView: React.FC<PlaylistDetailsViewProps> = ({
                       initial={{ opacity: 0, y: 5 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.02, ease: "easeOut" }}
-                      className={`group relative w-full flex items-center gap-4 py-3.5 px-4 rounded-2xl border transition-all duration-300 cursor-pointer ${
-                        isLoading 
-                          ? 'bg-white/[0.05] border-white/10' 
-                          : 'bg-transparent border-transparent hover:bg-white/[0.025] hover:border-white/[0.05]'
+                      className={`group relative w-full flex items-center gap-4 py-3.5 px-4 rounded-2xl border-0 transition-colors duration-300 cursor-pointer ${
+                        isLoading ? 'bg-white/[0.05]' : 'bg-transparent hover:bg-white/[0.03]'
                       }`}
                       onClick={() => {
                         if (!loadingSongId) handleSelectSong(track);

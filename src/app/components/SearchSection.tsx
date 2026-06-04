@@ -56,20 +56,12 @@ function SearchArtistCard({
     <motion.div
       variants={searchArtistCardItem}
       onClick={onOpen}
-      className={`relative overflow-hidden rounded-3xl mb-4 flex items-center justify-between gap-6 group cursor-pointer w-full min-h-[110px] border transition-all duration-300 ${
-        isFocused
-          ? 'bg-[#0c0d14]/75 border-white/15'
-          : 'bg-[#0a0b10]/60 border-white/[0.06] hover:bg-[#0c0d14]/75 hover:border-white/10'
+      className={`mb-0 w-full flex items-center justify-between gap-6 group cursor-pointer min-h-[110px] transition-colors duration-300 overflow-hidden rounded-2xl ${
+        isFocused ? 'bg-white/[0.05]' : 'hover:bg-white/[0.04]'
       }`}
-      style={{
-        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 6px 20px rgba(0,0,0,0.35)'
-      }}
     >
-      {/* Accent glow line at top */}
-      <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-transparent via-white/20 to-transparent" />
-
-      {/* Soft ambient glow behind the avatar */}
-      <div className="absolute left-0 top-0 bottom-0 w-48 bg-gradient-to-r from-white/[0.03] to-transparent pointer-events-none" />
+      {/* Soft ambient glow behind the avatar — no top edge, fades before card rim */}
+      <div className="absolute left-0 top-2 bottom-2 w-44 bg-gradient-to-r from-white/[0.025] to-transparent pointer-events-none rounded-l-3xl" />
 
       <div className="flex items-center gap-5 relative z-10 min-w-0 p-5 flex-1">
         {/* Avatar with subtle ring */}
@@ -142,7 +134,7 @@ function SearchArtistCard({
           </div>
         </div>
       </div>
-      <div className="pr-5 shrink-0">
+      <div className="pr-5 shrink-0 relative z-10">
         <ChevronRight className="w-5 h-5 text-white/20 group-hover:text-white/50 transition-all duration-200 group-hover:translate-x-0.5" />
       </div>
     </motion.div>
@@ -224,7 +216,7 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
       variants={searchInputVariants}
       initial="initial"
       animate="animate"
-      className="w-full max-w-2xl px-6 space-y-4"
+      className={`w-full max-w-2xl px-6 ${panelPhase === 'results' ? 'space-y-3' : 'space-y-4'}`}
     >
       <div className="relative group">
         <div className="relative">
@@ -258,22 +250,13 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
             autoCorrect="off"
             autoCapitalize="off"
             spellCheck="false"
-            className="w-full pl-16 pr-8 py-5 rounded-3xl bg-[#0a0b10]/60 border border-white/[0.06] text-white/90 placeholder-white/25 text-base font-light tracking-wide focus:outline-none focus:bg-[#0c0d15]/85 focus:border-white/12 transition-all duration-300"
-            style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)' }}
-            onFocus={(e) => { 
-              e.currentTarget.style.boxShadow = 'inset 0 1px 0 rgba(255,255,255,0.03), 0 0 0 1px rgba(255,255,255,0.12), 0 12px 40px rgba(0,0,0,0.55)';
-            }}
-            onBlur={(e) => { 
-              e.currentTarget.style.boxShadow = 'inset 0 1px 0 rgba(255,255,255,0.03)';
-            }}/>
+            className="w-full pl-16 pr-8 py-5 rounded-3xl border-0 bg-white/[0.05] text-white/90 placeholder-white/25 text-base font-light tracking-wide elva-focus-ring transition-colors duration-300 focus-visible:bg-white/[0.07]"
+          />
         </div>
       </div>
 
       {/* Fixed slot: crossfade phases without layout-driven push */}
-      <div
-        className="relative w-full"
-        style={{ contain: 'layout style' }}
-      >
+      <div className="relative w-full">
         <AnimatePresence mode="wait" initial={false}>
           {panelPhase === 'recents' && (
             <motion.div
@@ -298,27 +281,31 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
           )}
 
           {panelPhase === 'results' && (
-            <div className="relative z-10 -mx-12 py-6 -my-6 overflow-hidden">
+            <motion.div
+              key="search-phase-results"
+              {...searchPhaseMotion}
+              className="w-full will-change-transform"
+            >
               <motion.div
-                key="search-phase-results"
-                {...searchPhaseMotion}
-                className="w-[calc(100%+40px)] pl-12 pr-[88px] max-h-[min(60vh,520px)] overflow-y-auto scrollbar-none overscroll-contain"
+                variants={searchStaggerContainer}
+                initial="initial"
+                animate="animate"
+                className="space-y-2"
               >
-                <motion.div
-                  variants={searchStaggerContainer}
-                  initial="initial"
-                  animate="animate"
-                  className="space-y-2 pr-1"
-                >
-                  {showArtistCard && verifiedArtist && (
+                {showArtistCard && verifiedArtist && (
+                  <>
                     <SearchArtistCard
                       artist={verifiedArtist}
                       isFocused={focusedResultIndex === 0}
                       onOpen={() => handleViewArtistProfile(verifiedArtist)}
                     />
-                  )}
+                    {searchResults.length > 0 && (
+                      <div className="h-2" aria-hidden />
+                    )}
+                  </>
+                )}
 
-                  {searchResults.map((result, index) => {
+                {searchResults.map((result, index) => {
                     const hasArtistCard = showArtistCard;
                     const actualIndex = hasArtistCard ? index + 1 : index;
                     const isFocused = focusedResultIndex === actualIndex;
@@ -330,12 +317,12 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
                         onClick={() => {
                           if (!loadingSongId) handleSelectSong(result);
                         }}
-                        className={`group relative w-full flex items-center gap-4 p-3 rounded-2xl border transition-all duration-300 cursor-pointer will-change-transform ${
+                        className={`group relative w-full flex items-center gap-4 p-3 rounded-2xl border-0 transition-colors duration-300 cursor-pointer will-change-transform ${
                           loadingSongId === result.id
-                            ? 'bg-white/[0.05] border-white/10'
+                            ? 'bg-white/[0.05]'
                             : isFocused
-                              ? 'bg-white/[0.04] border-white/[0.08]'
-                              : 'bg-transparent border-transparent hover:bg-white/[0.025] hover:border-white/[0.05]'
+                              ? 'bg-white/[0.045]'
+                              : 'bg-transparent hover:bg-white/[0.03]'
                         }`}
                       >
                         <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-white/0 via-white/[0.02] to-white/0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
@@ -374,7 +361,7 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
                           <p className="text-white/35 text-xs truncate mt-1">{result.artist}</p>
                         </div>
 
-                        <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 shrink-0">
+                        <div className="relative z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200 shrink-0">
                           <SongRowOptions
                             track={result}
                             onPlayNext={handlePlayNext}
@@ -384,9 +371,8 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
                       </motion.div>
                     );
                   })}
-                </motion.div>
               </motion.div>
-            </div>
+            </motion.div>
           )}
         </AnimatePresence>
       </div>

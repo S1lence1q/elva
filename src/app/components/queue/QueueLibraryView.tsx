@@ -31,7 +31,7 @@ export function QueueLibraryView({
           <h3 className="text-[10px] uppercase tracking-[0.25em] font-bold text-white/40">Playlists</h3>
         </div>
         {localPlaylists.length === 0 ? (
-          <div className="py-8 text-center text-white/30 border border-dashed border-white/[0.08] bg-[#0c0d10]/40 rounded-2xl">
+          <div className="py-8 text-center text-white/30 elva-empty-state">
             <p className="text-[11px] font-medium leading-relaxed">No playlists found. Create them in My Hub!</p>
           </div>
         ) : (
@@ -40,7 +40,7 @@ export function QueueLibraryView({
               <div
                 key={`lib-plist-${playlist.id}`}
                 onClick={() => onSelectPlaylist(playlist)}
-                className="group w-full flex items-center justify-between p-3.5 rounded-2xl bg-[#0a0b10]/45 hover:bg-[#13141b]/60 border border-white/[0.04] hover:border-white/[0.09] transition-all duration-300 cursor-pointer"
+                className="group w-full flex items-center justify-between p-3.5 rounded-2xl bg-white/[0.04] hover:bg-white/[0.06] border-0 transition-colors duration-300 cursor-pointer"
               >
                 <div className="flex items-center gap-3.5 min-w-0 flex-1">
                   <div className="relative w-12 h-12 rounded-xl overflow-hidden bg-neutral-900 border border-white/5 flex items-center justify-center shrink-0">
@@ -71,7 +71,7 @@ export function QueueLibraryView({
           <h3 className="text-[10px] uppercase tracking-[0.25em] font-bold text-white/40">Favorite Artists</h3>
         </div>
         {artistBubbles.length === 0 ? (
-          <div className="py-6 text-center text-white/30 border border-dashed border-white/[0.08] bg-[#0c0d10]/40 rounded-2xl">
+          <div className="py-6 text-center text-white/30 elva-empty-state">
             <p className="text-[11px] font-medium leading-relaxed">No artists resolved yet.</p>
           </div>
         ) : (
@@ -105,7 +105,7 @@ export function QueueLibraryView({
           <h3 className="text-[10px] uppercase tracking-[0.25em] font-bold text-white/40">All Likes</h3>
         </div>
         {localFavorites.length === 0 ? (
-          <div className="py-8 text-center text-white/30 border border-dashed border-white/[0.08] bg-[#0c0d10]/40 rounded-2xl">
+          <div className="py-8 text-center text-white/30 elva-empty-state">
             <p className="text-[11px] font-medium leading-relaxed">No favorites saved yet.</p>
           </div>
         ) : (
