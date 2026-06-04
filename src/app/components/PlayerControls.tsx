@@ -94,7 +94,15 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
           {onToggleFavorite && (
             <div className="absolute left-0 top-1/2 -translate-y-1/2">
               <button
-                onPointerDown={(e) => e.stopPropagation()}
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                  e.currentTarget.blur();
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === ' ') {
+                    e.preventDefault();
+                  }
+                }}
                 onClick={(e) => {
                   e.stopPropagation();
                   onToggleFavorite({
@@ -124,7 +132,15 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
           {onAddToPlaylist && (
             <div className="absolute right-0 top-1/2 -translate-y-1/2" onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
               <button
-                onPointerDown={(e) => e.stopPropagation()}
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                  e.currentTarget.blur();
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === ' ') {
+                    e.preventDefault();
+                  }
+                }}
                 onClick={(e) => {
                   e.stopPropagation();
                   setShowPlaylistMenu(!showPlaylistMenu);
@@ -183,11 +199,21 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
           )}
         </div>
         <button
+          onPointerDown={(e) => {
+            e.stopPropagation();
+            e.currentTarget.blur();
+          }}
+          onKeyDown={(e) => {
+            if (e.key === ' ') {
+              e.preventDefault();
+            }
+          }}
           onClick={(e) => {
             e.stopPropagation();
             if (onViewArtist) onViewArtist(songData.artist, songData.channelId);
+            e.currentTarget.blur();
           }}
-          className="text-sm text-white/55 hover:text-white/90 hover:underline hover:underline-offset-4 decoration-white/20 tracking-wide mt-1.5 transition-all cursor-pointer select-none active:scale-95 duration-200"
+          className="text-sm text-white/55 hover:text-white/90 hover:underline hover:underline-offset-4 decoration-white/20 tracking-wide mt-1.5 transition-all cursor-pointer select-none active:scale-95 duration-200 outline-none focus:outline-none focus:ring-0"
           style={{ letterSpacing: '0.02em' }}
         >
           {songData.artist}
@@ -254,6 +280,15 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
         <div id="music-controls" className="flex items-center justify-center gap-4" onClick={(e) => e.stopPropagation()}>
           {/* Previous song */}
           <button
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              e.currentTarget.blur();
+            }}
+            onKeyDown={(e) => {
+              if (e.key === ' ') {
+                e.preventDefault();
+              }
+            }}
             onClick={(e) => {
               e.stopPropagation();
               handlePreviousSong();
@@ -268,6 +303,15 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
 
           {/* Play/Pause button */}
           <button
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              e.currentTarget.blur();
+            }}
+            onKeyDown={(e) => {
+              if (e.key === ' ') {
+                e.preventDefault();
+              }
+            }}
             onClick={(e) => {
               e.stopPropagation();
               togglePlayPause();
@@ -302,6 +346,15 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
 
           {/* Next song */}
           <button
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              e.currentTarget.blur();
+            }}
+            onKeyDown={(e) => {
+              if (e.key === ' ') {
+                e.preventDefault();
+              }
+            }}
             onClick={(e) => {
               e.stopPropagation();
               handleNextSong();

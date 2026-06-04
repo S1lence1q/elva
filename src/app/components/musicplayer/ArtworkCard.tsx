@@ -207,6 +207,7 @@ export function ArtworkCard({
 
   // 3D Tilt states & handlers
   const [isArtworkHovered, setIsArtworkHovered] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
   const artworkRef = useRef<HTMLDivElement>(null);
   const stableCenterRef = useRef({ x: 0, y: 0 });
   const mouseX = useMotionValue(0);
@@ -216,6 +217,7 @@ export function ArtworkCard({
   const rotateY = useSpring(useTransform(mouseX, [-300, 300], [-2, 2]), { stiffness: 150, damping: 20 });
 
   const handleMouseEnter = () => {
+    if (isTransitioning) return;
     setIsArtworkHovered(true);
     if (!artworkRef.current) return;
     const rect = artworkRef.current.getBoundingClientRect();
@@ -226,6 +228,7 @@ export function ArtworkCard({
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (isTransitioning) return;
     if (!stableCenterRef.current.x) {
       handleMouseEnter();
     }
@@ -257,10 +260,17 @@ export function ArtworkCard({
 
   // Reset hover state when lyrics are toggled/slid away to prevent stuck hover states
   useEffect(() => {
+    setIsTransitioning(true);
     setIsArtworkHovered(false);
     mouseX.set(0);
     mouseY.set(0);
     stableCenterRef.current = { x: 0, y: 0 };
+
+    const timer = setTimeout(() => {
+      setIsTransitioning(false);
+    }, 800);
+
+    return () => clearTimeout(timer);
   }, [showLyrics]);
 
   // Track volume changes to briefly show player controls
@@ -301,7 +311,10 @@ export function ArtworkCard({
         id="artwork-card"
         ref={artworkRef}
         className="relative cursor-pointer w-[520px] h-[520px]"
-        style={{ perspective: 1200 }}
+        style={{ 
+          perspective: 1200,
+          pointerEvents: isTransitioning ? 'none' : 'auto'
+        }}
       >
         <motion.div
           className="w-full h-full relative"
