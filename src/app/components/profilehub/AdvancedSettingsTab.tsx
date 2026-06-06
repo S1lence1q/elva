@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Sliders, Layers, Maximize2, Volume2, Edit3, Settings, RefreshCw, Keyboard, Check } from 'lucide-react';
-import { AccentColor, ACCENT_THEMES } from '../themeUtils';
+import { AccentColor, ACCENT_THEMES, ACCENT_SWATCH } from '../themeUtils';
 
 interface AdvancedSettingsTabProps {
   accentColor: AccentColor;
@@ -22,6 +22,8 @@ interface AdvancedSettingsTabProps {
   onEnableCustomLyricsChange?: (enable: boolean) => void;
   peekProgressStyle: 'none' | 'line' | 'border';
   onPeekProgressStyleChange: (style: 'none' | 'line' | 'border') => void;
+  showVisualizer: boolean;
+  onShowVisualizerChange?: (show: boolean) => void;
 }
 
 
@@ -83,7 +85,9 @@ export const AdvancedSettingsTab: React.FC<AdvancedSettingsTabProps> = ({
   enableCustomLyrics,
   onEnableCustomLyricsChange,
   peekProgressStyle,
-  onPeekProgressStyleChange
+  onPeekProgressStyleChange,
+  showVisualizer,
+  onShowVisualizerChange
 }) => {
   const theme = ACCENT_THEMES[accentColor];
 
@@ -242,6 +246,16 @@ export const AdvancedSettingsTab: React.FC<AdvancedSettingsTabProps> = ({
               </div>
             </div>
 
+            {/* Hide visualizer setting for now as requested
+            <SettingsToggle
+              checked={showVisualizer}
+              onChange={onShowVisualizerChange || (() => {})}
+              label="Audio Visualizer"
+              description="Render an organic, high-energy background oscilloscope wave during music playback."
+              accentColor={accentColor}
+            />
+            */}
+
             <SettingsToggle
               checked={enable3DTilt}
               onChange={onEnable3DTiltChange || (() => {})}
@@ -297,19 +311,7 @@ export const AdvancedSettingsTab: React.FC<AdvancedSettingsTabProps> = ({
               {(['emerald', 'sand', 'wine', 'navy'] as AccentColor[]).map((color) => {
                 const isActive = accentColor === color;
                 
-                const swatchBgs = {
-                  emerald: 'bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.35)]',
-                  sand: 'bg-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.35)]',
-                  wine: 'bg-rose-500 shadow-[0_0_12px_rgba(244,63,94,0.35)]',
-                  navy: 'bg-indigo-500 shadow-[0_0_12px_rgba(100,116,139,0.35)]'
-                };
-
-                const activeBorders = {
-                  emerald: 'border-emerald-500/40 bg-emerald-950/20',
-                  sand: 'border-amber-500/40 bg-amber-950/20',
-                  wine: 'border-rose-500/40 bg-rose-950/20',
-                  navy: 'border-slate-500/40 bg-slate-900/25'
-                };
+                const swatch = ACCENT_SWATCH[color];
 
                 return (
                   <button
@@ -317,11 +319,14 @@ export const AdvancedSettingsTab: React.FC<AdvancedSettingsTabProps> = ({
                     onClick={() => onAccentColorChange?.(color)}
                     className={`flex flex-col items-center gap-2 p-2.5 rounded-xl border transition-all duration-300 cursor-pointer ${
                       isActive
-                        ? `${activeBorders[color]} border-white/20`
+                        ? 'border-elva-accent bg-elva-accent-softer border-white/15'
                         : 'bg-white/[0.015] border-white/5 hover:bg-white/[0.04] hover:border-white/10'
                     }`}
                   >
-                    <div className={`w-4 h-4 rounded-full ${swatchBgs[color]} shrink-0`} />
+                    <div
+                      className="w-4 h-4 rounded-full shrink-0"
+                      style={{ backgroundColor: swatch.core }}
+                    />
                     <span className={`text-[9px] font-semibold truncate max-w-full tracking-wide uppercase ${isActive ? 'text-white' : 'text-white/40'}`}>
                       {color}
                     </span>

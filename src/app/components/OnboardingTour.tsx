@@ -1,15 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useLayoutEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ChevronRight, ChevronLeft, X, Sparkles } from 'lucide-react';
-import { AccentColor } from './themeUtils';
+import { ChevronRight, ChevronLeft, X } from 'lucide-react';
+import { strings } from '../constants/strings';
 
 interface OnboardingTourProps {
   tourType: 'landing' | 'player' | null;
   currentStep: number;
+  isTransitioning: boolean;
   onNext: () => void;
   onBack: () => void;
   onSkip: () => void;
-  accentColor?: AccentColor;
 }
 
 interface TourStep {
@@ -23,337 +23,247 @@ interface TourStep {
 export const tourSteps: TourStep[] = [
   {
     targetId: 'search-input',
-    title: 'Search & Stream',
-    description: 'Search for any song, artist, or paste a YouTube link here to stream music instantly. Click "Next" to preview the gorgeous player!',
+    title: strings.tour.searchTitle,
+    description: strings.tour.searchDesc,
     position: 'bottom',
-    borderRadius: '24px',
+    borderRadius: '24',
   },
   {
-    targetId: 'music-controls',
-    title: 'Playback & Controls',
-    description: 'Play, pause, skip, or drag the timeline to seek. Click the album cover to play/pause, or use Space, Arrow keys, and "M" to mute. Press ⌘, (or Ctrl+,) to open Settings anytime!',
-    position: 'top',
-    borderRadius: '24px',
+    targetId: 'tour-discover-section',
+    title: strings.tour.discoverTitle,
+    description: strings.tour.discoverDesc,
+    position: 'bottom',
+    borderRadius: '16',
   },
   {
-    targetId: 'queue-button',
-    title: 'Queue & Utilities',
-    description: 'Manage your playback queue, add music locally, or customize settings. Click "Queue" to see the redesigned centered glassmorphic queue modal!',
-    position: 'top',
-    borderRadius: '24px',
+    targetId: 'landing-section-nav',
+    title: strings.tour.navTitle,
+    description: strings.tour.navDesc,
+    position: 'left',
+    borderRadius: '20',
   },
 ];
+
+const CARD_W = 340;
+const CARD_MARGIN = 14;
+
+function computeCardPos(
+  rect: DOMRect,
+  position: TourStep['position']
+): { left: number; top: number } {
+  const CARD_H = 210;
+  let left = 0;
+  let top = 0;
+
+  switch (position) {
+    case 'bottom':
+      left = rect.left + rect.width / 2 - CARD_W / 2;
+      top = rect.bottom + CARD_MARGIN;
+      break;
+    case 'top':
+      left = rect.left + rect.width / 2 - CARD_W / 2;
+      top = rect.top - CARD_H - CARD_MARGIN;
+      break;
+    case 'left':
+      left = rect.left - CARD_W - CARD_MARGIN;
+      top = rect.top + rect.height / 2 - CARD_H / 2;
+      break;
+    case 'right':
+      left = rect.right + CARD_MARGIN;
+      top = rect.top + rect.height / 2 - CARD_H / 2;
+      break;
+    default:
+      left = window.innerWidth / 2 - CARD_W / 2;
+      top = window.innerHeight / 2 - CARD_H / 2;
+  }
+
+  left = Math.max(16, Math.min(window.innerWidth - CARD_W - 16, left));
+  top = Math.max(16, Math.min(window.innerHeight - CARD_H - 16, top));
+  return { left, top };
+}
 
 export function OnboardingTour({
   tourType,
   currentStep,
+  isTransitioning,
   onNext,
   onBack,
   onSkip,
-  accentColor = 'emerald',
 }: OnboardingTourProps) {
-  const [rect, setRect] = useState<DOMRect | null>(null);
-  const [tooltipPos, setTooltipPos] = useState({ left: 0, top: 0 });
-  const [isMounted, setIsMounted] = useState(false);
+  // pos + rect are always computed synchronously before paint via useLayoutEffect
+  const [cardPos, setCardPos] = useState({ left: 0, top: 0 });
+  const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
+  const [ready, setReady] = useState(false);
 
-  const themeSpotlightGlow = {
-    emerald: 'rgba(16, 185, 129, 0.3)',
-    sand: 'rgba(245, 158, 11, 0.3)',
-    wine: 'rgba(244, 63, 94, 0.3)',
-    navy: 'rgba(99, 102, 241, 0.3)'
-  }[accentColor];
+  const activeStep = tourSteps[currentStep];
 
-  const themeSpotlightShadow = {
-    emerald: 'rgba(16, 185, 129, 0.35)',
-    sand: 'rgba(245, 158, 11, 0.35)',
-    wine: 'rgba(244, 63, 94, 0.35)',
-    navy: 'rgba(99, 102, 241, 0.35)'
-  }[accentColor];
+  const measure = useCallback(() => {
+    if (!activeStep) return;
+    const el = document.getElementById(activeStep.targetId);
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    setTargetRect(rect);
+    setCardPos(computeCardPos(rect, activeStep.position));
+    setReady(true);
+  }, [activeStep]);
 
-  const borderClass = {
-    emerald: 'border-emerald-500/10',
-    sand: 'border-amber-500/10',
-    wine: 'border-rose-500/10',
-    navy: 'border-slate-500/15'
-  }[accentColor];
-
-  const glowBgClass = {
-    emerald: 'bg-emerald-500/10',
-    sand: 'bg-amber-500/10',
-    wine: 'bg-rose-500/10',
-    navy: 'bg-slate-500/10'
-  }[accentColor];
-
-  const iconContainerClass = {
-    emerald: 'bg-emerald-500/10 border-emerald-500/20',
-    sand: 'bg-amber-500/10 border-amber-500/20',
-    wine: 'bg-rose-500/10 border-rose-500/20',
-    navy: 'bg-slate-500/10 border-slate-500/20'
-  }[accentColor];
-
-  const iconTextClass = {
-    emerald: 'text-emerald-400',
-    sand: 'text-amber-300',
-    wine: 'text-rose-400',
-    navy: 'text-slate-400'
-  }[accentColor];
-
-  const badgeTextClass = {
-    emerald: 'text-emerald-400/80',
-    sand: 'text-amber-300/80',
-    wine: 'text-rose-300/80',
-    navy: 'text-slate-400/80'
-  }[accentColor];
-
-  const nextBtnClass = {
-    emerald: 'bg-emerald-500/10 hover:bg-emerald-500/15 border-emerald-500/20 text-emerald-300 hover:text-emerald-200',
-    sand: 'bg-amber-500/10 hover:bg-amber-500/15 border-amber-500/20 text-amber-300 hover:text-amber-200',
-    wine: 'bg-rose-500/10 hover:bg-rose-500/15 border-rose-500/20 text-rose-300 hover:text-rose-200',
-    navy: 'bg-slate-500/10 hover:bg-slate-500/15 border-slate-500/20 text-slate-300 hover:text-slate-200'
-  }[accentColor];
-
-  const activeSteps = tourSteps;
-  const activeStep = activeSteps[currentStep];
-
-  // Resize / scroll / layout listener to dynamically follow targeted elements
-  useEffect(() => {
-    if (!tourType || !activeStep) {
-      setRect(null);
-      setIsMounted(false);
+  // useLayoutEffect: runs synchronously after DOM mutations, before browser paint.
+  // This means the card is always positioned correctly on its very first render frame.
+  useLayoutEffect(() => {
+    if (!tourType || !activeStep || isTransitioning) {
+      setReady(false);
       return;
     }
 
-    const updateRect = () => {
-      const element = document.getElementById(activeStep.targetId);
-      if (element) {
-        setRect(element.getBoundingClientRect());
-        setIsMounted(true);
-      } else {
-        setRect(null);
+    // Try immediately, then retry once in case the element isn't painted yet
+    const el = document.getElementById(activeStep.targetId);
+    if (el) {
+      measure();
+    } else {
+      const id = requestAnimationFrame(measure);
+      return () => cancelAnimationFrame(id);
+    }
+  }, [currentStep, tourType, activeStep, isTransitioning, measure]);
+
+  // NOTE: do NOT return null early here — AnimatePresence needs to render its children
+  // to play exit animations. Instead we conditionally render inside AnimatePresence below.
+
+  const ring = targetRect
+    ? {
+        left: targetRect.left - 4,
+        top: targetRect.top - 4,
+        width: targetRect.width + 8,
+        height: targetRect.height + 8,
+        borderRadius: parseInt(activeStep.borderRadius, 10) + 4,
       }
-    };
+    : null;
 
-    updateRect();
-    window.addEventListener('resize', updateRect);
-    window.addEventListener('scroll', updateRect);
-
-    // Dynamic interval polling to immediately catch transitions/mounts
-    const interval = setInterval(updateRect, 200);
-
-    return () => {
-      window.removeEventListener('resize', updateRect);
-      window.removeEventListener('scroll', updateRect);
-      clearInterval(interval);
-    };
-  }, [currentStep, tourType, activeStep]);
-
-  // Tooltip positioning system with viewport boundary constraints
-  useEffect(() => {
-    if (!tourType || !activeStep) return;
-
-    const tooltipWidth = 380;
-    const tooltipHeight = 260; // accurate height to prevent bottom clipping
-    const margin = 20;
-
-    if (!rect) {
-      setTooltipPos({
-        left: window.innerWidth / 2 - tooltipWidth / 2,
-        top: window.innerHeight / 2 - tooltipHeight / 2 - 20,
-      });
-      return;
-    }
-
-    let left = 0;
-    let top = 0;
-
-    switch (activeStep.position) {
-      case 'bottom':
-        left = rect.left + rect.width / 2 - tooltipWidth / 2;
-        top = rect.bottom + margin;
-        break;
-      case 'top':
-        left = rect.left + rect.width / 2 - tooltipWidth / 2;
-        top = rect.top - tooltipHeight - margin;
-        break;
-      case 'left':
-        left = rect.left - tooltipWidth - margin;
-        top = rect.top + rect.height / 2 - tooltipHeight / 2;
-        break;
-      case 'right':
-        left = rect.right + margin;
-        top = rect.top + rect.height / 2 - tooltipHeight / 2;
-        break;
-      default:
-        left = window.innerWidth / 2 - tooltipWidth / 2;
-        top = window.innerHeight / 2 - tooltipHeight / 2;
-    }
-
-    // Viewport boundary check to prevent text cut-off on small screens
-    left = Math.max(16, Math.min(window.innerWidth - tooltipWidth - 16, left));
-    top = Math.max(16, Math.min(window.innerHeight - tooltipHeight - 16, top));
-
-    setTooltipPos({ left, top });
-  }, [rect, currentStep, tourType, activeStep]);
-
-  if (!tourType || !activeStep) return null;
+  // Guard after the ring/pos computation so we always have valid ring data before rendering
+  const isVisible = !!tourType && !!activeStep;
 
   return (
-    <div className="fixed inset-0 z-[100] pointer-events-none">
-      {/* SVG-based Spotlight Overlay - perfect under zoom, zero GPU/flicker artifacts */}
+    <>
+      {/* 1. Persistent dimmed backdrop — no blur so the highlighted element stays crisp */}
       <AnimatePresence>
-        {rect && (
-          <motion.svg 
+        {isVisible && (
+          <motion.div
+            key="tour-dim"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.35 }}
-            className="fixed inset-0 w-full h-full pointer-events-none z-[90]"
-          >
-            <defs>
-              <mask id="spotlight-mask">
-                {/* White covers everything (keeps backdrop visible) */}
-                <rect x="0" y="0" width="100%" height="100%" fill="white" />
-                {/* Black cutout (creates the clear hole) */}
-                <motion.rect
-                  initial={!isMounted ? {
-                    x: rect.left - 6,
-                    y: rect.top - 6,
-                    width: rect.width + 12,
-                    height: rect.height + 12,
-                    rx: parseInt(activeStep.borderRadius) || 24,
-                    ry: parseInt(activeStep.borderRadius) || 24,
-                  } : false}
-                  animate={{
-                    x: rect.left - 6,
-                    y: rect.top - 6,
-                    width: rect.width + 12,
-                    height: rect.height + 12,
-                    rx: parseInt(activeStep.borderRadius) || 24,
-                    ry: parseInt(activeStep.borderRadius) || 24,
-                  }}
-                  transition={{ type: 'spring', stiffness: 130, damping: 20 }}
-                  fill="black"
-                />
-              </mask>
-            </defs>
-            
-            {/* The semi-transparent dark backdrop */}
-            <rect
-              x="0"
-              y="0"
-              width="100%"
-              height="100%"
-              fill="rgba(5, 5, 5, 0.76)"
-              mask="url(#spotlight-mask)"
-            />
-
-            {/* Glow border ring around the spotlight hole */}
-            <motion.rect
-              initial={!isMounted ? {
-                x: rect.left - 6,
-                y: rect.top - 6,
-                width: rect.width + 12,
-                height: rect.height + 12,
-                rx: parseInt(activeStep.borderRadius) || 24,
-                ry: parseInt(activeStep.borderRadius) || 24,
-              } : false}
-              animate={{
-                x: rect.left - 6,
-                y: rect.top - 6,
-                width: rect.width + 12,
-                height: rect.height + 12,
-                rx: parseInt(activeStep.borderRadius) || 24,
-                ry: parseInt(activeStep.borderRadius) || 24,
-              }}
-              transition={{ type: 'spring', stiffness: 130, damping: 20 }}
-              fill="none"
-              stroke={themeSpotlightGlow}
-              strokeWidth="2"
-              style={{
-                filter: `drop-shadow(0 0 8px ${themeSpotlightShadow})`
-              }}
-            />
-          </motion.svg>
+            transition={{ duration: 0.35, ease: 'easeOut' }}
+            className="fixed inset-0 z-[95] bg-black/55 pointer-events-none"
+          />
         )}
       </AnimatePresence>
 
-      {/* Screen-wide transparent click-catcher during the tour */}
-      <div className="absolute inset-0 bg-black/5 pointer-events-auto z-40" />
+      {/* 2. Accent ring around the highlighted element — fades between steps */}
+      <AnimatePresence>
+        {isVisible && ready && !isTransitioning && ring && (
+          <motion.div
+            key={`ring-${currentStep}`}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            className="fixed z-[96] pointer-events-none"
+            style={{
+              left: ring.left,
+              top: ring.top,
+              width: ring.width,
+              height: ring.height,
+              borderRadius: ring.borderRadius,
+              border: '1.5px solid var(--elva-accent-border)',
+              boxShadow: '0 0 0 2000px rgba(5, 5, 5, 0.58)',
+            }}
+          />
+        )}
+      </AnimatePresence>
 
-      {/* Glassmorphic Tooltip Card - Positioned in style, animated locally in framer motion to prevent layout jumps */}
-      <motion.div
-        initial={{ 
-          opacity: 0, 
-          scale: 0.94, 
-          y: 12,
-        }}
-        animate={{ 
-          opacity: 1, 
-          scale: 1, 
-          y: 0,
-        }}
-        transition={{ type: 'spring', stiffness: 140, damping: 22 }}
-        style={{
-          left: tooltipPos.left,
-          top: tooltipPos.top,
-          position: 'fixed'
-        }}
-        className={`fixed w-[380px] z-[110] pointer-events-auto select-none rounded-[28px] border ${borderClass} bg-[#121214]/65 backdrop-blur-3xl shadow-[0_30px_70px_rgba(0,0,0,0.7)] p-6 overflow-hidden flex flex-col`}
-      >
-        {/* Decorative subtle emerald radial glow in corner */}
-        <div className={`absolute -top-10 -right-10 w-24 h-24 rounded-full ${glowBgClass} blur-xl pointer-events-none animate-pulse`} />
+      {/* 3. Tooltip card */}
+      <AnimatePresence mode="wait">
+        {isVisible && ready && !isTransitioning && (
+          <motion.div
+            key={`card-${currentStep}`}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 6 }}
+            transition={{ duration: 0.18, ease: 'easeOut' }}
+            className="fixed z-[98] pointer-events-auto select-none"
+            style={{ left: cardPos.left, top: cardPos.top, width: CARD_W }}
+          >
+            <div className="rounded-2xl border border-white/[0.08] bg-[#0c0d10]/90 backdrop-blur-2xl shadow-[0_20px_60px_rgba(0,0,0,0.7)] p-5 flex flex-col gap-4">
+              {/* Header */}
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-elva-accent-muted text-[10px] uppercase tracking-[0.16em] font-semibold mb-1">
+                    {currentStep + 1} / {tourSteps.length}
+                  </p>
+                  <h3 className="text-[14px] font-semibold text-white/90 leading-snug">
+                    {activeStep.title}
+                  </h3>
+                </div>
+                <button
+                  onClick={onSkip}
+                  className="p-1.5 rounded-lg text-white/30 hover:text-white/60 hover:bg-white/5 transition-colors cursor-pointer shrink-0"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
 
-        {/* Top Header */}
-        <div className="flex items-start justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <div className={`p-1.5 rounded-lg ${iconContainerClass}`}>
-              <Sparkles className={`w-3.5 h-3.5 ${iconTextClass}`} />
+              {/* Body */}
+              <p className="text-[13px] text-white/45 leading-relaxed">
+                {activeStep.description}
+              </p>
+
+              {/* Step dots */}
+              <div className="flex items-center gap-1.5">
+                {tourSteps.map((_, i) => (
+                  <div
+                    key={i}
+                    className="h-[3px] rounded-full transition-all duration-300"
+                    style={{
+                      width: i === currentStep ? 18 : 5,
+                      background:
+                        i === currentStep
+                          ? 'var(--elva-accent)'
+                          : 'rgba(255,255,255,0.1)',
+                    }}
+                  />
+                ))}
+              </div>
+
+              {/* Footer */}
+              <div className="flex items-center justify-between pt-3 border-t border-white/[0.05]">
+                <button
+                  onClick={onSkip}
+                  className="text-xs text-white/30 hover:text-white/50 transition-colors cursor-pointer"
+                >
+                  Skip tour
+                </button>
+                <div className="flex items-center gap-2">
+                  {currentStep > 0 && (
+                    <button
+                      onClick={onBack}
+                      className="p-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] transition-colors cursor-pointer text-white/50 hover:text-white/80"
+                    >
+                      <ChevronLeft className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                  <button
+                    onClick={onNext}
+                    className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-[12px] font-medium text-white/85 hover:text-white bg-white/[0.07] hover:bg-white/[0.12] border border-white/[0.08] transition-all cursor-pointer"
+                    style={{ boxShadow: '0 0 0 1px var(--elva-accent-border) inset' }}
+                  >
+                    {currentStep === tourSteps.length - 1 ? 'Done' : 'Next'}
+                    <ChevronRight className="w-3.5 h-3.5 text-elva-accent-muted" />
+                  </button>
+                </div>
+              </div>
             </div>
-            <span className={`text-[10px] ${badgeTextClass} uppercase tracking-[0.2em] font-medium`}>Guide • Step {currentStep + 1} of {activeSteps.length}</span>
-          </div>
-          <button
-            onClick={onSkip}
-            className="p-1 rounded-full text-white/30 hover:text-white/60 hover:bg-white/5 transition-all cursor-pointer"
-            title="Close guide"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Text Area */}
-        <h3 className="text-[17px] font-medium tracking-tight text-white/95 mb-1.5 leading-snug">{activeStep.title}</h3>
-        <p className="text-[13px] font-light text-white/55 leading-relaxed mb-6">{activeStep.description}</p>
-
-        {/* Navigation Footer */}
-        <div className="flex items-center justify-between border-t border-white/[0.06] pt-4 mt-auto">
-          <button
-            onClick={onSkip}
-            className="text-xs font-light text-white/30 hover:text-white/50 transition-all cursor-pointer"
-          >
-            Skip tour
-          </button>
-
-          <div className="flex items-center gap-2">
-            {currentStep > 0 && (
-              <button
-                onClick={onBack}
-                className="p-2.5 rounded-full bg-white/5 hover:bg-white/10 active:scale-95 border border-white/5 hover:border-white/10 transition-all cursor-pointer flex items-center justify-center text-white/60 hover:text-white"
-                title="Previous"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-            )}
-
-            <button
-              onClick={onNext}
-              className={`${nextBtnClass} active:scale-95 px-5 py-2.5 rounded-full text-xs font-medium tracking-wide transition-all flex items-center gap-1.5 cursor-pointer`}
-            >
-              <span>{currentStep === activeSteps.length - 1 ? 'Finish' : 'Next'}</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-      </motion.div>
-    </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }

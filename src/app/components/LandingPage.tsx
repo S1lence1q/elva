@@ -70,6 +70,8 @@ interface LandingPageProps {
   onEnableCustomLyricsChange: (enable: boolean) => void;
   peekProgressStyle: 'none' | 'line' | 'border';
   onPeekProgressStyleChange: (style: 'none' | 'line' | 'border') => void;
+  showVisualizer: boolean;
+  onShowVisualizerChange: (show: boolean) => void;
 }
 
 export function LandingPage({
@@ -129,7 +131,9 @@ export function LandingPage({
   enableCustomLyrics,
   onEnableCustomLyricsChange,
   peekProgressStyle,
-  onPeekProgressStyleChange
+  onPeekProgressStyleChange,
+  showVisualizer,
+  onShowVisualizerChange
 }: LandingPageProps) {
   return (
     <motion.div
@@ -253,6 +257,7 @@ export function LandingPage({
           filter: (selectedArtist !== null || selectedPlaylist !== null) ? 'blur(4px)' : 'blur(0px)'
         }}
         transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+        id="landing-scroll-container"
         className="w-full h-full overflow-y-auto snap-y snap-mandatory scroll-smooth scrollbar-none flex flex-col relative z-10"
         style={{
           pointerEvents: (selectedArtist !== null || selectedPlaylist !== null) ? 'none' : 'auto'
@@ -301,7 +306,7 @@ export function LandingPage({
         {/* SECTION 2: Discover */}
         <section className="w-full h-full snap-start shrink-0 flex flex-col items-center justify-start relative px-0 pt-16 pb-24 overflow-y-auto scrollbar-none">
           {/* Custom Section Header */}
-          <div className="w-full max-w-[898px] px-6 mb-4 flex items-center justify-between shrink-0 select-none">
+          <div id="tour-discover-section" className="w-full max-w-[898px] px-6 mb-4 flex items-center justify-between shrink-0 select-none">
             <h2 className="text-2xl font-normal tracking-[0.08em] bg-clip-text text-transparent bg-gradient-to-r from-white via-white/80 to-white/60" style={{ fontFamily: '"Kaobe", serif' }}>
               Discover
             </h2>
@@ -355,6 +360,8 @@ export function LandingPage({
             onEnableCustomLyricsChange={onEnableCustomLyricsChange}
             peekProgressStyle={peekProgressStyle}
             onPeekProgressStyleChange={onPeekProgressStyleChange}
+            showVisualizer={showVisualizer}
+            onShowVisualizerChange={onShowVisualizerChange}
           />
         </section>
       </motion.div>

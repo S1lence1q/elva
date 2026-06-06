@@ -7,6 +7,9 @@ interface QueuePlaylistSubviewProps {
   onPlayAll: () => void;
   onPlaySong: (song: SearchResult) => void;
   onAddToQueue?: (e: React.MouseEvent, song: SearchResult) => void;
+  onPlayNext?: (song: SearchResult) => void;
+  onToggleFavorite?: (song: SearchResult) => void;
+  favorites?: SearchResult[];
 }
 
 export function QueuePlaylistSubview({
@@ -14,6 +17,9 @@ export function QueuePlaylistSubview({
   onPlayAll,
   onPlaySong,
   onAddToQueue,
+  onPlayNext,
+  onToggleFavorite,
+  favorites = [],
 }: QueuePlaylistSubviewProps) {
   const tracks = playlist.tracks || [];
 
@@ -41,14 +47,20 @@ export function QueuePlaylistSubview({
       </div>
 
       <div className="space-y-2 px-5">
-        {tracks.map((track, idx) => (
-          <QueueSongRow
-            key={`plist-track-${track.id}-${idx}`}
-            song={track}
-            onPlay={() => onPlaySong(track)}
-            onAddToQueue={onAddToQueue}
-          />
-        ))}
+        {tracks.map((track, idx) => {
+          const isFav = favorites.some((fav) => fav.id === track.id);
+          return (
+            <QueueSongRow
+              key={`plist-track-${track.id}-${idx}`}
+              song={track}
+              onPlay={() => onPlaySong(track)}
+              onAddToQueue={onAddToQueue}
+              onPlayNext={onPlayNext}
+              onToggleFavorite={onToggleFavorite}
+              isFavorite={isFav}
+            />
+          );
+        })}
         {tracks.length === 0 && (
           <div className="py-12 text-center text-white/30 select-none">
             <p className="text-xs font-medium">This playlist is empty</p>

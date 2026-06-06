@@ -1,4 +1,5 @@
 import { Search, Upload, X } from 'lucide-react';
+import { strings } from '../../constants/strings';
 
 interface QueueSearchBarProps {
   searchQuery: string;
@@ -35,7 +36,7 @@ export function QueueSearchBar({
           value={searchQuery}
           onChange={(e) => onSearchQueryChange(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && onSearch()}
-          placeholder="Search or paste a link..."
+          placeholder={strings.queue.searchPlaceholder}
           autoComplete="off"
           autoCorrect="off"
           autoCapitalize="off"

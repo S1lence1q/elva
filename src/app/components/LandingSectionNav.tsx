@@ -54,6 +54,7 @@ export function LandingSectionNav({
 
   return (
     <motion.nav
+      id="landing-section-nav"
       initial={{ opacity: 0, x: 12 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 12 }}
@@ -85,7 +86,7 @@ export function LandingSectionNav({
             aria-current={isActive ? 'true' : undefined}
           >
             <span
-              className={`absolute right-9 text-[10px] font-semibold uppercase tracking-[0.14em] whitespace-nowrap pointer-events-none select-none transition-all duration-200 ${
+              className={`absolute right-9 text-[11px] font-semibold uppercase tracking-[0.12em] whitespace-nowrap pointer-events-none select-none transition-all duration-200 ${
                 showHintLabel
                   ? 'opacity-100 translate-x-0 text-white/50'
                   : 'opacity-0 translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 text-white/45 group-hover:text-white/65'

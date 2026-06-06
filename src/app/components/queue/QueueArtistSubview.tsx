@@ -10,6 +10,9 @@ interface QueueArtistSubviewProps {
   accentColor: AccentColor;
   onPlaySong: (song: SearchResult) => void;
   onAddToQueue?: (e: React.MouseEvent, song: SearchResult) => void;
+  onPlayNext?: (song: SearchResult) => void;
+  onToggleFavorite?: (song: SearchResult) => void;
+  favorites?: SearchResult[];
 }
 
 export function QueueArtistSubview({
@@ -18,6 +21,9 @@ export function QueueArtistSubview({
   accentColor,
   onPlaySong,
   onAddToQueue,
+  onPlayNext,
+  onToggleFavorite,
+  favorites = [],
 }: QueueArtistSubviewProps) {
   const theme = ACCENT_THEMES[accentColor];
 
@@ -48,14 +54,20 @@ export function QueueArtistSubview({
       </div>
 
       <div className="space-y-2">
-        {tracks.map((track) => (
-          <QueueSongRow
-            key={`artist-track-${track.id}`}
-            song={track}
-            onPlay={() => onPlaySong(track)}
-            onAddToQueue={onAddToQueue}
-          />
-        ))}
+        {tracks.map((track) => {
+          const isFav = favorites.some((fav) => fav.id === track.id);
+          return (
+            <QueueSongRow
+              key={`artist-track-${track.id}`}
+              song={track}
+              onPlay={() => onPlaySong(track)}
+              onAddToQueue={onAddToQueue}
+              onPlayNext={onPlayNext}
+              onToggleFavorite={onToggleFavorite}
+              isFavorite={isFav}
+            />
+          );
+        })}
       </div>
     </div>
   );

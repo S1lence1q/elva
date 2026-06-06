@@ -18,6 +18,8 @@ import { isLikelyMusicVideoStream } from './utils/apiUtils';
 import { prefetchChartTracks } from './utils/chartPrefetch';
 import { parseLocalMetadata } from './utils/metadataParser';
 import { getPlaybackSongKey } from './utils/playbackSongKey';
+import { strings } from './constants/strings';
+import { waitForScrollEnd } from './utils/scrollUtils';
 
 // Import newly extracted hooks and components
 import { useScrollTracking } from './hooks/useScrollTracking';
@@ -124,7 +126,7 @@ export default function App() {
   });
 
   const [showVolumeSlider, setShowVolumeSlider] = useState(() => {
-    return localStorage.getItem('elva_volume_slider') !== 'false';
+    return localStorage.getItem('elva_volume_slider') === 'true';
   });
 
   const [enable3DTilt, setEnable3DTilt] = useState(() => {
@@ -140,7 +142,7 @@ export default function App() {
   });
 
   const [showVisualizer, setShowVisualizer] = useState(() => {
-    return localStorage.getItem('elva_show_visualizer') !== 'false';
+    return localStorage.getItem('elva_show_visualizer') === 'true';
   });
 
   const [peekProgressStyle, setPeekProgressStyle] = useState<'none' | 'line' | 'border'>(() => {
@@ -193,8 +195,16 @@ export default function App() {
   // Onboarding Tour State
   const [tourType, setTourType] = useState<'landing' | 'player' | null>(null);
   const [tourStep, setTourStep] = useState(0);
+  const [tourTransitioning, setTourTransitioning] = useState(false);
+  const tourBusyRef = useRef(false);
   const [hasSeenTour, setHasSeenTour] = useState(() => localStorage.getItem('elva_tour_completed') === 'true');
   const [showShortcutMap, setShowShortcutMap] = useState(false);
+
+  useEffect(() => {
+    const handleToggleShortcuts = () => setShowShortcutMap(true);
+    window.addEventListener('elva-show-shortcuts', handleToggleShortcuts);
+    return () => window.removeEventListener('elva-show-shortcuts', handleToggleShortcuts);
+  }, []);
   const [recentlyPlayed, setRecentlyPlayed] = useState<SearchResult[]>(() => {
     try {
       const stored = localStorage.getItem('elva_recently_played');
@@ -281,9 +291,6 @@ export default function App() {
         audioUrl: URL.createObjectURL(file)
       });
       setAppState('ready');
-      if (tourType !== null && tourStep === 0) {
-        setTourStep(1);
-      }
     }, 1200);
   };
 
@@ -475,11 +482,13 @@ export default function App() {
     }
 
     const fallbacks = getDynamicFallbackColors(result.title, result.artist);
-    setSongColors({
-      primary: fallbacks.primary,
-      secondary: fallbacks.secondary,
-      accent: fallbacks.accent
-    });
+    if (startingAppState !== 'ready') {
+      setSongColors({
+        primary: fallbacks.primary,
+        secondary: fallbacks.secondary,
+        accent: fallbacks.accent
+      });
+    }
 
     if (startingAppState === 'ready') {
       setSongData({
@@ -505,10 +514,11 @@ export default function App() {
         const extracted = extractColorsFromImage(img, result.title, result.artist);
         setSongColors(extracted);
       };
+      img.onerror = () => {
+        if (latestSelectedSongIdRef.current !== latestId) return;
+        setSongColors(fallbacks);
+      };
 
-      if (tourType !== null && tourStep === 0) {
-        setTourStep(1);
-      }
       return;
     }
 
@@ -546,9 +556,6 @@ export default function App() {
         });
         setAppState('ready');
         setLoadingSongId(null);
-        if (tourType !== null && tourStep === 0) {
-          setTourStep(1);
-        }
       }, remainingTime);
     };
 
@@ -619,6 +626,7 @@ export default function App() {
   useKeyboardShortcuts({
     appState,
     searchQuery: searchLogic.searchQuery,
+    lastSearchedQuery: searchLogic.lastSearchedQuery,
     isSearching: searchLogic.isSearching,
     searchResults: searchLogic.searchResults,
     selectedArtist,
@@ -626,13 +634,18 @@ export default function App() {
     verifiedArtist,
     loadingSongId,
     focusedResultIndex,
-    setFocusedResultIndex,
+    setFocusedResultIndex: searchLogic.setFocusedResultIndex,
+    setSearchQuery: searchLogic.setSearchQuery,
+    setSelectedArtist: searchLogic.setSelectedArtist,
+    setArtistTracks: searchLogic.setArtistTracks,
     handleSelectSong,
     handleViewArtistProfile: searchLogic.handleViewArtistProfile,
     showShortcutMap,
     setShowShortcutMap,
     showSettings,
-    setShowSettings
+    setShowSettings,
+    selectedPlaylist,
+    setSelectedPlaylist
   });
 
   // Global custom HUD event listeners
@@ -674,6 +687,26 @@ export default function App() {
   }, [searchLogic]);
 
   useEffect(() => {
+    const handleScrollToDiscover = () => {
+      setAppState('landing');
+      searchLogic.setSelectedArtist(null);
+      setSelectedPlaylist(null);
+
+      setTimeout(() => {
+        const container = scrollContainerRef.current;
+        if (container) {
+          container.scrollTo({
+            top: container.clientHeight,
+            behavior: 'smooth',
+          });
+        }
+      }, 150);
+    };
+    window.addEventListener('elva-scroll-to-discover', handleScrollToDiscover);
+    return () => window.removeEventListener('elva-scroll-to-discover', handleScrollToDiscover);
+  }, [searchLogic]);
+
+  useEffect(() => {
     if (hudMessage) {
       const timer = setTimeout(() => {
         setHudMessage(null);
@@ -693,12 +726,36 @@ export default function App() {
     return () => window.removeEventListener('elva-reset-tour', handleResetTour);
   }, []);
 
+  const scrollToLandingSection = (index: number) => {
+    const container = scrollContainerRef.current;
+    if (container) {
+      container.scrollTo({
+        top: index * container.clientHeight,
+        behavior: 'smooth',
+      });
+    }
+  };
+
   const startTour = () => {
     localStorage.removeItem('elva_tour_completed');
     localStorage.removeItem('elva_player_tour_completed');
     setHasSeenTour(false);
+    setAppState('landing');
+    setTourTransitioning(false);
+    tourBusyRef.current = false;
+    scrollToLandingSection(0);
     setTourType('landing');
     setTourStep(0);
+  };
+
+  const tourScrollToSection = async (index: number) => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    container.scrollTo({
+      top: index * container.clientHeight,
+      behavior: 'smooth',
+    });
+    await waitForScrollEnd(container);
   };
 
   const dismissTour = () => {
@@ -707,49 +764,64 @@ export default function App() {
     setHasSeenTour(true);
   };
 
-  const handleTourNext = () => {
+  const handleTourNext = async () => {
+    if (tourBusyRef.current) return;
+    tourBusyRef.current = true;
+
     if (tourStep === 0) {
-      setSongData({
-        title: 'Overleve',
-        artist: 'Ukendt Kunstner',
-        artworkUrl: 'https://img.youtube.com/vi/P5UWjgb-YaY/maxresdefault.jpg',
-        audioUrl: 'https://www.youtube.com/watch?v=P5UWjgb-YaY',
-        videoId: 'P5UWjgb-YaY',
-      });
-      setAppState('ready');
+      setTourTransitioning(true);
+      await tourScrollToSection(1);
       setTourStep(1);
+      setTourTransitioning(false);
     } else if (tourStep === 1) {
+      setTourTransitioning(true);
+      await tourScrollToSection(2);
       setTourStep(2);
+      setTourTransitioning(false);
     } else if (tourStep === 2) {
+      setTourTransitioning(true);
+      await tourScrollToSection(0);
       setTourType(null);
       setTourStep(0);
+      setTourTransitioning(false);
       localStorage.setItem('elva_tour_completed', 'true');
       setHasSeenTour(true);
-      toast.success('Tour completed!', {
-        description: 'Enjoy exploring the immersive player!',
+      toast.success(strings.tour.completed, {
+        description: strings.tour.completedDesc,
       });
     }
+
+    tourBusyRef.current = false;
   };
 
-  const handleTourBack = () => {
+  const handleTourBack = async () => {
+    if (tourBusyRef.current) return;
+    tourBusyRef.current = true;
+
     if (tourStep === 1) {
-      setAppState('landing');
-      setSongData(null);
+      setTourTransitioning(true);
+      await tourScrollToSection(0);
       setTourStep(0);
+      setTourTransitioning(false);
     } else if (tourStep === 2) {
+      setTourTransitioning(true);
+      await tourScrollToSection(1);
       setTourStep(1);
+      setTourTransitioning(false);
     }
+
+    tourBusyRef.current = false;
   };
 
   const handleTourSkip = () => {
+    if (tourBusyRef.current) return;
     localStorage.setItem('elva_tour_completed', 'true');
     setHasSeenTour(true);
     setTourType(null);
     setTourStep(0);
-    if (songData?.title === 'Overleve') {
-      setAppState('landing');
-      setSongData(null);
-    }
+    setTourTransitioning(false);
+    tourBusyRef.current = false;
+    scrollToLandingSection(0);
   };
 
   // Intro sequence logic
@@ -890,7 +962,11 @@ export default function App() {
   const theme = ACCENT_THEMES[accentColor];
 
   return (
-    <div ref={containerRef} className="size-full relative overflow-hidden bg-[#0a0a0a] flex items-center justify-center">
+    <div
+      ref={containerRef}
+      data-accent={accentColor}
+      className="size-full relative overflow-hidden bg-[#0a0a0a] flex items-center justify-center"
+    >
 
       {/* Premium Multi-Color Ambient Background & Vector Grid */}
       <motion.div
@@ -1013,6 +1089,8 @@ export default function App() {
             onEnableCustomLyricsChange={setEnableCustomLyrics}
             peekProgressStyle={peekProgressStyle}
             onPeekProgressStyleChange={setPeekProgressStyle}
+            showVisualizer={showVisualizer}
+            onShowVisualizerChange={setShowVisualizer}
           />
           </ErrorBoundary>
         )}
@@ -1074,6 +1152,7 @@ export default function App() {
               onShuffleQueue={handleShuffleQueue}
               onSelectFromQueue={handleSelectFromQueue}
               onAddToQueue={handleAddToQueue}
+              onPlayNext={handlePlayNext}
               onPlayPlaylist={handlePlayPlaylist}
               onReorderQueue={handleReorderQueue}
               onQueueFileSelect={handleQueueFileSelect}
@@ -1200,10 +1279,10 @@ export default function App() {
       <OnboardingTour
         tourType={tourType}
         currentStep={tourStep}
+        isTransitioning={tourTransitioning}
         onNext={handleTourNext}
         onBack={handleTourBack}
         onSkip={handleTourSkip}
-        accentColor={accentColor}
       />
 
       {/* Keyboard Shortcuts Map Overlay */}

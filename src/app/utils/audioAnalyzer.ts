@@ -21,7 +21,7 @@ export function initAudioAnalyzer(
 
     if (!globalAnalyser) {
       globalAnalyser = ctx.createAnalyser();
-      globalAnalyser.fftSize = 256;
+      globalAnalyser.fftSize = 1024;
       globalAnalyser.connect(ctx.destination);
     }
     const analyser = globalAnalyser;

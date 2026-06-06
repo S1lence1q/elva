@@ -1,5 +1,15 @@
 import type { Transition, Variants } from 'motion/react';
 
+export function prefersReducedMotion(): boolean {
+  if (typeof window === 'undefined') return false;
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+export function withReducedMotion<T extends Transition>(transition: T): T {
+  if (!prefersReducedMotion()) return transition;
+  return { ...transition, duration: 0, delay: 0 };
+}
+
 /** Matches Landing / artist overlays — smooth deceleration, no bounce */
 export const EASE_PREMIUM: Transition['ease'] = [0.16, 1, 0.3, 1];
 
@@ -9,10 +19,10 @@ export const DURATION_FAST = 0.22;
 export const DURATION_PANEL = 0.28;
 
 export const panelEnter = {
-  initial: { opacity: 0, y: 10 },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: 6 },
-  transition: { duration: DURATION_PANEL, ease: EASE_OUT_SMOOTH },
+  initial: { opacity: 0 },
+  animate: { opacity: 1 },
+  exit: { opacity: 0 },
+  transition: { duration: DURATION_PANEL, ease: EASE_PREMIUM },
 };
 
 export const panelEnterFromSide = {
@@ -23,12 +33,11 @@ export const panelEnterFromSide = {
 };
 
 export const listItemEnter = (index: number) => ({
-  initial: { opacity: 0, y: 4 },
-  animate: { opacity: 1, y: 0 },
+  initial: { opacity: 0 },
+  animate: { opacity: 1 },
   transition: {
     duration: DURATION_FAST,
     ease: EASE_OUT_SMOOTH,
-    delay: Math.min(index * 0.018, 0.14),
   },
 });
 

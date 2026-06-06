@@ -5,6 +5,8 @@ import { SearchResult } from '../types';
 import { AccentColor, ACCENT_THEMES } from './themeUtils';
 import { Playlist } from './PlaylistDetailsView';
 import { SongRowOptions } from './SongRowOptions';
+import { ElvaEmptyState } from './ElvaEmptyState';
+import { strings } from '../constants/strings';
 import { fetchAppleMusicChart, STOREFRONT_COUNTRIES } from '../utils/chartFeeds';
 
 import topHitsDenmark from '../../top_hits_denmark.png';
@@ -229,7 +231,12 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                 />
               ))
             ) : (
-              <p className="text-xs text-white/35 py-6 text-center">Chart data unavailable</p>
+              <ElvaEmptyState
+                icon={<Flame className="w-6 h-6" />}
+                title={strings.discover.trendingUnavailable}
+                description={strings.discover.trendingDesc}
+                action={{ label: strings.discover.retry, onClick: () => void loadCharts() }}
+              />
             )}
           </div>
         </section>
@@ -262,7 +269,12 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                 />
               ))
             ) : (
-              <p className="text-xs text-white/35 py-6 text-center">Chart data unavailable</p>
+              <ElvaEmptyState
+                icon={<Flame className="w-6 h-6" />}
+                title={strings.discover.trendingUnavailable}
+                description={strings.discover.trendingDesc}
+                action={{ label: strings.discover.retry, onClick: () => void loadCharts() }}
+              />
             )}
           </div>
         </section>

@@ -72,6 +72,21 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
     }
   }, [showPlaylistMenu]);
 
+  const [hoverTime, setHoverTime] = useState<number | null>(null);
+  const [hoverX, setHoverX] = useState<number>(0);
+
+  const handleSliderMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (duration <= 0) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    setHoverTime(pct * duration);
+    setHoverX(e.clientX - rect.left);
+  };
+
+  const handleSliderMouseLeave = () => {
+    setHoverTime(null);
+  };
+
   const isFavorite = favorites.some(fav => fav.id === (songData.videoId || songData.audioUrl));
   const controlsVisible =
     isArtworkHovered || !isPlaying || (tourType !== null && currentStep === 1) || showPlaylistMenu;
@@ -224,46 +239,65 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
       <div className="absolute inset-0 flex flex-col justify-end p-8 z-10">
         {/* Timeline section */}
         <div className="space-y-2 mb-6" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
-          <Slider.Root
-            value={[currentTime]}
-            max={duration}
-            step={0.1}
-            onValueChange={handleSliderChange}
-            onKeyDown={(e) => {
-              if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
-                e.preventDefault();
-              }
-            }}
-            className="relative flex items-center w-full h-12 cursor-pointer group/slider"
-          >
-            {/* Minimalistic waveform backdrop */}
-            <div className="absolute inset-0 flex items-center gap-[2px] px-0.5">
-              {waveformData.map((height, i) => {
-                const progress = (currentTime / duration) * 100;
-                const barProgress = (i / waveformData.length) * 100;
-                const isPlayed = barProgress <= progress;
+          <div className="relative w-full">
+            <AnimatePresence>
+              {hoverTime !== null && duration > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 6, scale: 0.92 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 6, scale: 0.92 }}
+                  transition={{ duration: 0.12, ease: 'easeOut' }}
+                  className="absolute bottom-10 px-2.5 py-1.5 rounded-xl border border-white/10 bg-black/85 backdrop-blur-2xl shadow-2xl text-[10px] font-semibold text-white/90 tabular-nums pointer-events-none -translate-x-1/2 z-30"
+                  style={{ left: `${hoverX}px` }}
+                >
+                  {formatTime(hoverTime)}
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-                return (
-                  <div
-                    key={i}
-                    className="flex-1 rounded-full transition-all duration-150"
-                    style={{
-                      height: `${height * 16}px`,
-                      backgroundColor: isPlayed ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.15)',
-                      opacity: 0.6,
-                    }}
-                  />
-                );
-              })}
-            </div>
+            <Slider.Root
+              value={[currentTime]}
+              max={duration}
+              step={0.1}
+              onValueChange={handleSliderChange}
+              onMouseMove={handleSliderMouseMove}
+              onMouseLeave={handleSliderMouseLeave}
+              onKeyDown={(e) => {
+                if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
+                  e.preventDefault();
+                }
+              }}
+              className="relative flex items-center w-full h-12 cursor-pointer group/slider"
+            >
+              {/* Minimalistic waveform backdrop */}
+              <div className="absolute inset-0 flex items-center gap-[2px] px-0.5">
+                {waveformData.map((height, i) => {
+                  const progress = (currentTime / duration) * 100;
+                  const barProgress = (i / waveformData.length) * 100;
+                  const isPlayed = barProgress <= progress;
 
-            <Slider.Track className="relative h-[3px] w-full bg-transparent rounded-full overflow-hidden">
-              <Slider.Range className="absolute h-full bg-transparent" />
-            </Slider.Track>
-            <Slider.Thumb
-              className="block w-3 h-3 rounded-full bg-white opacity-0 group-hover/slider:opacity-100 transition-opacity duration-150 focus:outline-none focus:opacity-100"
-            />
-          </Slider.Root>
+                  return (
+                    <div
+                      key={i}
+                      className="flex-1 rounded-full transition-all duration-150"
+                      style={{
+                        height: `${height * 16}px`,
+                        backgroundColor: isPlayed ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.15)',
+                        opacity: 0.6,
+                      }}
+                    />
+                  );
+                })}
+              </div>
+
+              <Slider.Track className="relative h-[3px] w-full bg-transparent rounded-full overflow-hidden">
+                <Slider.Range className="absolute h-full bg-transparent" />
+              </Slider.Track>
+              <Slider.Thumb
+                className="block w-3 h-3 rounded-full bg-white opacity-0 group-hover/slider:opacity-100 transition-opacity duration-150 focus:outline-none focus:opacity-100"
+              />
+            </Slider.Root>
+          </div>
 
           {/* Time display */}
           <div className="flex justify-between">

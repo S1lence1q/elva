@@ -82,6 +82,14 @@
   --elva-border-focus: rgba(255, 255, 255, 0.15);
   --elva-text-muted: rgba(255, 255, 255, 0.4);
   --elva-text-secondary: rgba(255, 255, 255, 0.55);
+  /* Accent defaults — overridden per [data-accent] */
+  --elva-accent: #5dbe9a;
+  --elva-accent-muted: rgba(93, 190, 154, 0.62);
+  --elva-accent-soft: rgba(93, 190, 154, 0.11);
+  --elva-accent-softer: rgba(93, 190, 154, 0.06);
+  --elva-accent-border: rgba(93, 190, 154, 0.22);
+  --elva-accent-glow: rgba(93, 190, 154, 0.14);
+  --elva-accent-ring: rgba(93, 190, 154, 0.32);
   --elva-shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.04);
   --elva-shadow-panel: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 6px 20px rgba(0, 0, 0, 0.35);
   --elva-shadow-chrome: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 12px 40px rgba(0, 0, 0, 0.55);
@@ -158,19 +166,25 @@
   pointer-events: none;
 }
 
-/* Typography tokens */
-.elva-section-label,
-.elva-label-xs {
-  font-size: 10px;
+/* Typography tokens — minimum 11px; section labels 12px for legibility */
+.elva-section-label {
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.25em;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--elva-text-muted);
+}
+.elva-label-xs {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--elva-text-muted);
 }
 .elva-label-sm {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--elva-text-secondary);
 }
@@ -181,10 +195,82 @@
   letter-spacing: 0.02em;
 }
 
-.elva-empty-state {
+/* ─── Accent palettes — muted, tuned for dark mercury UI ───────────────── */
+[data-accent='emerald'] {
+  --theme-primary: #5dbe9a;
+  --elva-accent: #5dbe9a;
+  --elva-accent-muted: rgba(93, 190, 154, 0.62);
+  --elva-accent-soft: rgba(93, 190, 154, 0.11);
+  --elva-accent-softer: rgba(93, 190, 154, 0.06);
+  --elva-accent-border: rgba(93, 190, 154, 0.22);
+  --elva-accent-glow: rgba(93, 190, 154, 0.14);
+  --elva-accent-ring: rgba(93, 190, 154, 0.32);
+}
+[data-accent='sand'] {
+  --theme-primary: #d9b67a;
+  --elva-accent: #d9b67a;
+  --elva-accent-muted: rgba(217, 182, 122, 0.62);
+  --elva-accent-soft: rgba(217, 182, 122, 0.11);
+  --elva-accent-softer: rgba(217, 182, 122, 0.06);
+  --elva-accent-border: rgba(217, 182, 122, 0.22);
+  --elva-accent-glow: rgba(217, 182, 122, 0.14);
+  --elva-accent-ring: rgba(217, 182, 122, 0.32);
+}
+[data-accent='wine'] {
+  --theme-primary: #c97b8f;
+  --elva-accent: #c97b8f;
+  --elva-accent-muted: rgba(201, 123, 143, 0.62);
+  --elva-accent-soft: rgba(201, 123, 143, 0.11);
+  --elva-accent-softer: rgba(201, 123, 143, 0.06);
+  --elva-accent-border: rgba(201, 123, 143, 0.22);
+  --elva-accent-glow: rgba(201, 123, 143, 0.14);
+  --elva-accent-ring: rgba(201, 123, 143, 0.32);
+}
+[data-accent='navy'] {
+  --theme-primary: #7ba3d4;
+  --elva-accent: #7ba3d4;
+  --elva-accent-muted: rgba(123, 163, 212, 0.62);
+  --elva-accent-soft: rgba(123, 163, 212, 0.11);
+  --elva-accent-softer: rgba(123, 163, 212, 0.06);
+  --elva-accent-border: rgba(123, 163, 212, 0.22);
+  --elva-accent-glow: rgba(123, 163, 212, 0.14);
+  --elva-accent-ring: rgba(123, 163, 212, 0.32);
+}
+
+.text-elva-accent { color: var(--elva-accent); }
+.text-elva-accent-muted { color: var(--elva-accent-muted); }
+.bg-elva-accent-soft { background-color: var(--elva-accent-soft); }
+.bg-elva-accent-softer { background-color: var(--elva-accent-softer); }
+.border-elva-accent { border-color: var(--elva-accent-border); }
+.shadow-elva-accent-glow { box-shadow: 0 0 20px var(--elva-accent-glow); }
+.ring-elva-accent { --tw-ring-color: var(--elva-accent-ring); }
+.hover\:bg-elva-accent-soft:hover { background-color: var(--elva-accent-soft); }
+.hover\:text-elva-accent:hover { color: var(--elva-accent); }
+.hover\:border-elva-accent:hover { border-color: var(--elva-accent-border); }
+
+.elva-empty-state-panel {
   background-color: rgba(255, 255, 255, 0.03);
-  border: 1px dashed rgba(255, 255, 255, 0.08);
   border-radius: 1rem;
+}
+
+.elva-hub-card {
+  background-color: rgba(255, 255, 255, 0.03);
+  border-radius: 1.5rem;
+}
+
+.elva-hub-row {
+  background-color: rgba(255, 255, 255, 0.04);
+  border-radius: 1rem;
+  transition: background-color 0.2s ease;
+}
+.elva-hub-row:hover {
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-pulse {
+    animation: none !important;
+  }
 }
 
 /* Focus ring for custom icon buttons */

@@ -821,35 +821,47 @@ export function usePlaybackCore({
 
     const songKey = getPlaybackSongKey(songData);
     if (songKey && songKey !== lastLoadedSongRef.current) {
+      const isFirstLoad = !lastLoadedSongRef.current;
       lastLoadedSongRef.current = songKey;
       isTransitioningRef.current = true;
       
-      // Reset playhead timeline and duration instantly
-      setCurrentTime(0);
-      setDuration(0);
-      setPlaying(true);
-      
-      // Abort crossfade since user triggered a manual load
-      abortActiveCrossfade();
-      
-      // Stop other engine completely
-      const inactiveEngine = activeEngine === 'A' ? 'B' : 'A';
-      const oldAudio = inactiveEngine === 'A' ? audioRefA.current : audioRefB.current;
-      const oldYT = inactiveEngine === 'A' ? ytPlayerRefA.current : ytPlayerRefB.current;
-      if (oldAudio) {
-        try {
-          oldAudio.pause();
-          oldAudio.src = '';
-        } catch {}
-      }
-      if (oldYT?.pauseVideo) {
-        try { oldYT.pauseVideo(); } catch {}
-      }
+      const proceedManualLoad = async () => {
+        // Reset playhead timeline and duration instantly
+        setCurrentTime(0);
+        setDuration(0);
+        setPlaying(true);
+        
+        // Abort crossfade since user triggered a manual load
+        abortActiveCrossfade();
+        
+        // Stop other engine completely
+        const inactiveEngine = activeEngine === 'A' ? 'B' : 'A';
+        const oldAudio = inactiveEngine === 'A' ? audioRefA.current : audioRefB.current;
+        const oldYT = inactiveEngine === 'A' ? ytPlayerRefA.current : ytPlayerRefB.current;
+        if (oldAudio) {
+          try {
+            oldAudio.pause();
+            oldAudio.src = '';
+          } catch {}
+        }
+        if (oldYT?.pauseVideo) {
+          try { oldYT.pauseVideo(); } catch {}
+        }
 
-      // Load active engine and force playImmediately to true
-      void loadSongIntoEngine(activeEngine, songData, true);
+        // Load active engine and force playImmediately to true
+        await loadSongIntoEngine(activeEngine, songData, true);
+      };
+
+      if (!isFirstLoad && isPlaying) {
+        const activeFadeVolume = activeEngine === 'A' ? fadeVolumeA : fadeVolumeB;
+        activeFadeVolume(0, 300).then(() => {
+          void proceedManualLoad();
+        });
+      } else {
+        void proceedManualLoad();
+      }
     }
-  }, [songData, activeEngine, loadSongIntoEngine, abortActiveCrossfade, setPlaying]);
+  }, [songData, activeEngine, loadSongIntoEngine, abortActiveCrossfade, setPlaying, isPlaying, fadeVolumeA, fadeVolumeB]);
 
   // Media Session API registration
   useEffect(() => {

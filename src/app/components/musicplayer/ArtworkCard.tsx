@@ -306,6 +306,8 @@ export function ArtworkCard({
         top: isLargeScreen ? 0 : 'auto',
         width: 520,
         height: 520,
+        pointerEvents: appState === 'ready' ? 'auto' : 'none',
+        visibility: appState === 'ready' ? 'visible' : 'hidden',
       }}
     >
       <div
@@ -314,7 +316,7 @@ export function ArtworkCard({
         className="relative cursor-pointer w-[520px] h-[520px]"
         style={{ 
           perspective: 1200,
-          pointerEvents: isTransitioning ? 'none' : 'auto'
+          pointerEvents: appState === 'ready' ? (isTransitioning ? 'none' : 'auto') : 'none'
         }}
       >
         <motion.div
@@ -351,7 +353,7 @@ export function ArtworkCard({
               className={`absolute inset-0 w-full h-full ${showLyrics && !isLargeScreen ? 'pointer-events-none' : ''}`} 
               style={{ 
                 backfaceVisibility: 'hidden',
-                visibility: showLyrics && !isLargeScreen ? 'hidden' : 'visible'
+                visibility: appState === 'ready' ? (showLyrics && !isLargeScreen ? 'hidden' : 'visible') : 'hidden'
               }}
             >
               <div

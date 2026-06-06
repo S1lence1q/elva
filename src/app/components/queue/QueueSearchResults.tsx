@@ -13,6 +13,7 @@ import {
   searchStaggerContainer,
   searchStaggerItem,
 } from '../../utils/motionPresets';
+import { strings } from '../../constants/strings';
 
 type QueueSearchPhase = 'idle' | 'loading' | 'results';
 
@@ -25,6 +26,9 @@ interface QueueSearchResultsProps {
   onOpenArtist: (artist: VerifiedArtist) => void;
   onPlaySong: (song: SearchResult) => void;
   onAddToQueue?: (e: React.MouseEvent, song: SearchResult) => void;
+  onPlayNext?: (song: SearchResult) => void;
+  onToggleFavorite?: (song: SearchResult) => void;
+  favorites?: SearchResult[];
 }
 
 export function QueueSearchResults({
@@ -35,6 +39,9 @@ export function QueueSearchResults({
   onOpenArtist,
   onPlaySong,
   onAddToQueue,
+  onPlayNext,
+  onToggleFavorite,
+  favorites = [],
 }: QueueSearchResultsProps) {
   const phase: QueueSearchPhase = useMemo(() => {
     if (isSearching) return 'loading';
@@ -96,15 +103,21 @@ export function QueueSearchResults({
                 </motion.div>
               )}
 
-              {searchResults.map((song) => (
-                <motion.div key={song.id} variants={searchStaggerItem} className="will-change-transform">
-                  <QueueSongRow
-                    song={song}
-                    onPlay={() => onPlaySong(song)}
-                    onAddToQueue={onAddToQueue}
-                  />
-                </motion.div>
-              ))}
+              {searchResults.map((song) => {
+                const isFav = favorites.some((fav) => fav.id === song.id);
+                return (
+                  <motion.div key={song.id} variants={searchStaggerItem} className="will-change-transform">
+                    <QueueSongRow
+                      song={song}
+                      onPlay={() => onPlaySong(song)}
+                      onAddToQueue={onAddToQueue}
+                      onPlayNext={onPlayNext}
+                      onToggleFavorite={onToggleFavorite}
+                      isFavorite={isFav}
+                    />
+                  </motion.div>
+                );
+              })}
             </motion.div>
           </motion.div>
         )}
@@ -122,7 +135,7 @@ export function QueueSearchResults({
                   : 'text-white/30 text-[11px] font-medium tracking-wide uppercase'
               }
             >
-              {hasSearched ? 'No results found' : 'Press Enter to search'}
+              {hasSearched ? strings.queue.noResults : strings.queue.pressEnter}
             </p>
           </motion.div>
         )}

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 
 interface VisualizerCanvasProps {
   showVisualizer: boolean;
@@ -10,6 +10,99 @@ interface VisualizerCanvasProps {
     secondary: string;
     accent: string;
   };
+  volume?: number;
+}
+
+function parseRGB(c: string): [number, number, number] {
+  const m = c.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+  return m ? [+m[1], +m[2], +m[3]] : [255, 255, 255];
+}
+
+// Smooth step for pinch envelope
+function smoothstep(edge0: number, edge1: number, x: number): number {
+  const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
+  return t * t * (3 - 2 * t);
+}
+
+/**
+ * Builds a Float32Array of normalized [-1..1] values that look like
+ * real PCM audio from a trap / 808 / hardstyle track.
+ *
+ * Strategy: layer 3 harmonics of a base wave + hi-hat teeth + beat amplitude.
+ * All math is deterministic (based on time `t`), so the display is smooth.
+ */
+function buildSynthPCM(n: number, t: number, playing: boolean): Float32Array {
+  const out = new Float32Array(n);
+  if (!playing) {
+    // Idle flat-line with barely visible slow breath
+    for (let i = 0; i < n; i++) {
+      out[i] = Math.sin((i / n) * Math.PI * 1.8 + t * 0.6) * 0.03;
+    }
+    return out;
+  }
+
+  const bpm = 140;
+  const beat = 60 / bpm;                   // seconds per beat
+  const beatPhase = (t % beat) / beat;     // 0..1 within this beat
+
+  // Kick hits on every beat — fast exponential decay
+  const kick = Math.exp(-beatPhase * 9);
+
+  // Snare on beats 2 & 4 (offset by half a bar)
+  const snarePhase = ((t + beat * 1.5) % (beat * 2)) / (beat * 2);
+  const snare = snarePhase < 0.10 ? Math.exp(-snarePhase * 30) : 0;
+
+  // Hi-hat at 8th notes
+  const hatPhase = (t % (beat / 2)) / (beat / 2);
+  const hihat = hatPhase < 0.07 ? Math.exp(-hatPhase * 50) : 0;
+
+  // Open hi-hat at every other beat
+  const openHatPhase = ((t + beat * 0.75) % (beat * 2)) / (beat * 2);
+  const openHat = (openHatPhase > 0.48 && openHatPhase < 0.60)
+    ? Math.exp(-(openHatPhase - 0.48) * 18)
+    : 0;
+
+  // Master amplitude swells with kick
+  const masterAmp = 0.52 + kick * 0.48;
+
+  // Base frequency: how many half-cycles across the full width.
+  // ~5 gives ~2.5 full cycles (matches the reference images).
+  const baseFreq = 5.0;
+  const phase = -t * 5.8; // scrolling phase
+
+  for (let i = 0; i < n; i++) {
+    const nx = i / (n - 1); // 0..1
+
+    // ── Harmonic stack (3 partials) ───────────────────────────────────────
+    const f1 = Math.sin(nx * Math.PI * baseFreq + phase);           // fundamental
+    const f2 = Math.sin(nx * Math.PI * baseFreq * 2 - phase * 1.3) * 0.30;  // 2nd
+    const f3 = Math.sin(nx * Math.PI * baseFreq * 3 + phase * 0.7) * 0.12;  // 3rd
+
+    const body = f1 + f2 + f3;  // ~[-1.42 .. +1.42] range
+
+    // ── Hi-hat "teeth" riding on the body ────────────────────────────────
+    const teethFreq = 38;
+    const teethAmp = 0.07 * (0.2 + hihat * 0.8 + openHat * 0.5);
+    const teeth = Math.sin(nx * Math.PI * teethFreq + t * 28) * teethAmp;
+
+    // ── Kick transient adds a sharp mid-frequency splash ─────────────────
+    const kickSplash = kick > 0.3
+      ? Math.sin(nx * Math.PI * 12 + t * 45) * 0.18 * kick
+      : 0;
+
+    // ── Snare adds crackle ────────────────────────────────────────────────
+    const snareCrackle = snare > 0.1
+      ? Math.sin(nx * Math.PI * 55 + t * 80) * 0.14 * snare
+      : 0;
+
+    // ── Mix & soft-clip ───────────────────────────────────────────────────
+    let s = (body + teeth + kickSplash + snareCrackle) * masterAmp;
+
+    // tanh soft-clip keeps the wave inside [-1,1] while preserving loudness
+    out[i] = Math.tanh(s * 1.15) * 0.88;
+  }
+
+  return out;
 }
 
 export const VisualizerCanvas: React.FC<VisualizerCanvasProps> = ({
@@ -17,312 +110,229 @@ export const VisualizerCanvas: React.FC<VisualizerCanvasProps> = ({
   isPlaying,
   videoId,
   analyser,
-  colors
+  colors,
+  volume = 100,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const pathHistoryRef = useRef<number[][]>([]);
-  const [canvasDimensions, setCanvasDimensions] = useState(() => {
-    const dpr = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1;
-    return {
-      width: Math.round(920 * dpr),
-      height: Math.round(420 * dpr)
-    };
-  });
-  const resizeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
+  const ghostFrameRef = useRef<Float32Array | null>(null);
   const colorsRef = useRef(colors);
-  useEffect(() => {
-    colorsRef.current = colors;
-  }, [colors]);
+  const volumeRef = useRef(volume);
+  const isPlayingRef = useRef(isPlaying);
 
+  useEffect(() => { colorsRef.current = colors; }, [colors]);
+  useEffect(() => { volumeRef.current = volume; }, [volume]);
+  useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
+
+  // Keep canvas pixel buffer size synced to its CSS layout dimensions
   useEffect(() => {
     if (!showVisualizer) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
 
-    const handleResize = () => {
-      if (resizeTimeoutRef.current) {
-        clearTimeout(resizeTimeoutRef.current);
-      }
-      resizeTimeoutRef.current = setTimeout(() => {
-        const dpr = window.devicePixelRatio || 1;
-        const targetWidth = Math.round(920 * dpr);
-        const targetHeight = Math.round(420 * dpr);
-        setCanvasDimensions(prev => {
-          if (prev.width !== targetWidth || prev.height !== targetHeight) {
-            return { width: targetWidth, height: targetHeight };
-          }
-          return prev;
-        });
-      }, 100);
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      if (resizeTimeoutRef.current) {
-        clearTimeout(resizeTimeoutRef.current);
+    const sync = () => {
+      const dpr = window.devicePixelRatio || 1;
+      const w = Math.round(canvas.clientWidth * dpr);
+      const h = Math.round(canvas.clientHeight * dpr);
+      if (canvas.width !== w || canvas.height !== h) {
+        canvas.width = w;
+        canvas.height = h;
+        ghostFrameRef.current = null;
       }
     };
+    sync();
+    const ro = new ResizeObserver(sync);
+    ro.observe(canvas);
+    return () => ro.disconnect();
   }, [showVisualizer]);
 
   useEffect(() => {
     if (!showVisualizer) return;
 
-    // Clear history on reset
-    pathHistoryRef.current = [];
-
-    let animationFrameId: number;
+    ghostFrameRef.current = null;
+    let rafId: number;
 
     const draw = () => {
       const canvas = canvasRef.current;
-      if (!canvas) return;
-
+      if (!canvas || canvas.width === 0 || canvas.height === 0) {
+        rafId = requestAnimationFrame(draw);
+        return;
+      }
       const ctx = canvas.getContext('2d');
-      if (!ctx) return;
+      if (!ctx) { rafId = requestAnimationFrame(draw); return; }
 
-      // Fully clear the canvas so the background stays transparent
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      ctx.save();
-      
       const dpr = window.devicePixelRatio || 1;
-      const scaleX = canvas.width / 920;
-      const scaleY = canvas.height / 420;
-      ctx.scale(scaleX, scaleY);
+      const W = canvas.width;
+      const H = canvas.height;
+      const LW = W / dpr;  // logical width
+      const LH = H / dpr;  // logical height
+      const cy = LH / 2;
 
-      const logicalWidth = 920;
-      const logicalHeight = 420;
-      const cx = logicalWidth / 2;
-      const cy = logicalHeight / 2;
-
-      // Get real audio frequency / time domain data if active
-      const isAudioAPIActive = !!(analyser && !videoId);
-      const bufferLength = analyser ? analyser.fftSize : 256;
-      const timeDataArray = new Uint8Array(bufferLength);
-      const freqDataArray = new Uint8Array(analyser ? analyser.frequencyBinCount : 64);
-
-      if (analyser) {
-        if (isAudioAPIActive) {
-          analyser.getByteTimeDomainData(timeDataArray);
-          analyser.getByteFrequencyData(freqDataArray);
-        }
-      }
-
-      // Compute bass energy for shaking and scaling
-      let bassFactor = 0;
-      if (isAudioAPIActive && analyser) {
-        let bassSum = 0;
-        const bassBins = Math.min(10, freqDataArray.length);
-        for (let i = 0; i < bassBins; i++) {
-          bassSum += freqDataArray[i];
-        }
-        bassFactor = bassSum / (bassBins * 255);
-      }
-
-      // Synthesize audio patterns if no audio feed or paused
-      const time = performance.now() * 0.001;
-      const bpm = 138;
-      const beatDuration = 60 / bpm;
-      const beatTime = time % beatDuration;
-      const beatProgress = beatTime / beatDuration;
-
-      // Kick beat envelope: fast attack, exponential decay
-      const kickVolume = isPlaying ? Math.exp(-beatProgress * 7.5) : 0;
-      const ambientPulse = 0.05 + Math.sin(time * 2) * 0.02;
-      const activeBass = isAudioAPIActive ? bassFactor : (kickVolume * 0.8 + ambientPulse);
-
-      // Perform a satisfying viewport camera shake on heavy bass
-      if (isPlaying && activeBass > 0.3) {
-        const shakePower = (activeBass - 0.3) * 16;
-        const shakeX = (Math.random() - 0.5) * shakePower;
-        const shakeY = (Math.random() - 0.5) * shakePower;
-        ctx.translate(shakeX, shakeY);
-      }
-
-      // 1. Draw Oscilloscope Grid Lines (Sci-fi look)
+      ctx.clearRect(0, 0, W, H);
       ctx.save();
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
-      ctx.lineWidth = 1;
-      
-      // Horizontal grid lines
-      const gridSpacing = 45;
-      for (let y = cy - gridSpacing * 3; y <= cy + gridSpacing * 3; y += gridSpacing) {
-        ctx.beginPath();
-        if (Math.round(y) === Math.round(cy)) {
-          ctx.strokeStyle = 'rgba(255, 255, 255, 0.09)';
-        } else {
-          ctx.strokeStyle = 'rgba(255, 255, 255, 0.035)';
-        }
-        ctx.moveTo(40, y);
-        ctx.lineTo(logicalWidth - 40, y);
-        ctx.stroke();
+      ctx.scale(dpr, dpr);
+
+      // ── CRT Horizontal Scanlines ─────────────────────────────────────────
+      // Very faint dark stripes, like a real CRT phosphor display
+      ctx.save();
+      ctx.globalAlpha = 0.18;
+      ctx.fillStyle = '#000000';
+      const scanSpacing = 5;
+      for (let y = 0; y < LH; y += scanSpacing) {
+        ctx.fillRect(0, y + 1, LW, 2);
       }
-
-      // Vertical center axis grid line
-      ctx.beginPath();
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
-      ctx.moveTo(cx, cy - gridSpacing * 3.5);
-      ctx.lineTo(cx, cy + gridSpacing * 3.5);
-      ctx.stroke();
-
-      // Muted grid borders
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
-      ctx.strokeRect(40, cy - gridSpacing * 3.5, logicalWidth - 80, gridSpacing * 7);
-
-      // Center axis ticks
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
-      for (let x = 60; x < logicalWidth - 60; x += 15) {
-        ctx.beginPath();
-        const tickHeight = (x - cx) % 75 === 0 ? 8 : 4;
-        ctx.moveTo(x, cy - tickHeight / 2);
-        ctx.lineTo(x, cy + tickHeight / 2);
-        ctx.stroke();
-      }
+      ctx.globalAlpha = 1;
       ctx.restore();
 
-      // 2. Generate current frame waveform path points
-      const wavePoints: number[] = [];
-      const numPoints = 256;
-      const leftBound = 40;
-      const rightBound = logicalWidth - 40;
-      const spanWidth = rightBound - leftBound;
+      // ── Get Audio Data ───────────────────────────────────────────────────
+      const hasReal = !!(analyser && !videoId);
+      const N = 512;
+      let wave = new Float32Array(N); // normalized -1..1
 
-      // Sub-bass rumble sweep
-      const subRumble = Math.sin(time * Math.PI * 4.5) * 0.12 * (isPlaying ? 1 : 0);
-      // Hardstyle high frequency lead synth oscillation
-      const leadSweep = Math.sin(time * 0.4) * 120 + 260;
+      if (hasReal) {
+        const raw = new Uint8Array(analyser!.fftSize);
+        analyser!.getByteTimeDomainData(raw);
 
-      for (let i = 0; i < numPoints; i++) {
-        const normX = i / (numPoints - 1);
-        let sampleVal = 0.5; // center normalized
-
-        if (isAudioAPIActive) {
-          // Read time-domain wave sample
-          const dataIdx = Math.floor(normX * (timeDataArray.length - 1));
-          sampleVal = timeDataArray[dataIdx] / 255;
-        } else if (isPlaying) {
-          // Synthesize an aggressive, jagged trap/hardstyle oscilloscope wave
-          const subOsc = Math.sin(normX * Math.PI * 6.5 + time * 18) * (activeBass * 0.65 + subRumble);
-          
-          // Screeching high-pitch lead waves
-          const leadOsc = Math.sin(normX * Math.PI * leadSweep + time * 12) * (0.08 + Math.sin(time * 2.5) * 0.04);
-          
-          // Jagged sawtooth screech (very aggressive lead synth)
-          const sawOsc = ((normX * 88 + time * 24) % 1.0 - 0.5) * 0.05 * activeBass;
-
-          // Aggressive transient rolls
-          const hatRoll = Math.sin(normX * Math.PI * 1200) * 0.06 * Math.max(0, Math.sin(time * 35));
-
-          // Base noise floor
-          const noise = (Math.random() - 0.5) * 0.02;
-
-          sampleVal = 0.5 + subOsc + leadOsc + sawOsc + hatRoll + noise;
-        } else {
-          // Muted breathing sine wave
-          sampleVal = 0.5 + Math.sin(normX * Math.PI * 3 + time * 1.5) * 0.02;
+        let silent = true;
+        for (let i = 0; i < raw.length; i++) {
+          if (Math.abs(raw[i] - 128) > 3) { silent = false; break; }
         }
 
-        // Apply window envelope to fade out the wave edges cleanly at grid borders
-        const envelope = Math.sin(normX * Math.PI);
-        const amplitudeY = (sampleVal - 0.5) * 2.0; // range: -1 to 1
-        
-        // Scale vertical height: larger when bass hits
-        const finalAmp = amplitudeY * envelope * (140 + activeBass * 75);
-        const y = cy + finalAmp;
-        wavePoints.push(y);
+        if (!silent) {
+          // Downsample & lightly smooth into N points
+          const hw = 3;
+          for (let i = 0; i < N; i++) {
+            const ri = Math.floor((i / (N - 1)) * (raw.length - 1));
+            let sum = 0, cnt = 0;
+            for (let w = -hw; w <= hw; w++) {
+              const idx = ri + w;
+              if (idx >= 0 && idx < raw.length) { sum += raw[idx]; cnt++; }
+            }
+            wave[i] = cnt > 0 ? (sum / cnt - 128) / 128 : 0;
+          }
+        } else {
+          wave = buildSynthPCM(N, performance.now() * 0.001, isPlayingRef.current);
+        }
+      } else {
+        wave = buildSynthPCM(N, performance.now() * 0.001, isPlayingRef.current);
       }
 
-      // Add to path history for motion blur trails
-      const pathHistory = pathHistoryRef.current;
-      pathHistory.push(wavePoints);
-      if (pathHistory.length > 7) {
-        pathHistory.shift();
+      // ── Volume & Max Amplitude ───────────────────────────────────────────
+      // Like Wave Candy: gain control. 72% of half-height = very aggressive.
+      const vol = volumeRef.current;       // 0..100
+      const volNorm = Math.pow(vol / 100, 1.15);
+      const maxAmp = cy * 0.72 * Math.max(0.1, volNorm);
+
+      // ── Pinch Envelope (Wave Candy "Pinch" feature) ───────────────────────
+      // The wave is forced near zero at left/right 8% margins.
+      // smoothstep gives a natural ramp-in / ramp-out.
+      const PINCH = 0.06; // fraction of width that is pinched in
+
+      // ── Build Y-coordinate array ─────────────────────────────────────────
+      const yPts = new Float32Array(N);
+      for (let i = 0; i < N; i++) {
+        const nx = i / (N - 1);
+        const pinch = smoothstep(0, PINCH, nx) * smoothstep(1, 1 - PINCH, nx);
+        yPts[i] = cy + wave[i] * maxAmp * pinch;
       }
 
-      // Fetch active primary theme colors
-      const colorsSafe = colorsRef.current || {
-        primary: 'rgba(255,255,255,0.6)',
-        secondary: 'rgba(255,255,255,0.5)',
-        accent: 'rgba(255,255,255,0.4)'
-      };
-      const primaryClean = colorsSafe.primary.replace('0.6', '1');
-      const accentClean = colorsSafe.accent.replace('0.4', '1');
-      const secondaryClean = colorsSafe.secondary.replace('0.5', '1');
-
-      // 3. Render Motion Blur Wave History
-      pathHistory.forEach((points, hIdx) => {
-        const count = pathHistory.length;
-        const progress = (hIdx + 1) / count; // older: lower opacity
-        
+      // ── Ghost frame (very faint phosphor persistence) ────────────────────
+      const ghost = ghostFrameRef.current;
+      if (ghost && ghost.length === N) {
         ctx.save();
         ctx.beginPath();
-        
-        // Connect points with quadratic curves or line segment chains
-        for (let i = 0; i < points.length; i++) {
-          const normX = i / (points.length - 1);
-          const x = leftBound + normX * spanWidth;
-          const y = points[i];
-          if (i === 0) {
-            ctx.moveTo(x, y);
-          } else {
-            ctx.lineTo(x, y);
-          }
+        for (let i = 0; i < ghost.length; i++) {
+          const x = (i / (ghost.length - 1)) * LW;
+          if (i === 0) ctx.moveTo(x, ghost[i]);
+          else ctx.lineTo(x, ghost[i]);
         }
-
-        // Generate glowing linear gradient
-        const grad = ctx.createLinearGradient(leftBound, cy, rightBound, cy);
-        grad.addColorStop(0, primaryClean.replace('1)', `${0.15 * progress})`));
-        grad.addColorStop(0.2, accentClean.replace('1)', `${0.7 * progress})`));
-        grad.addColorStop(0.5, '#ffffff'.replace(')', `${1.0 * progress})`));
-        grad.addColorStop(0.8, secondaryClean.replace('1)', `${0.7 * progress})`));
-        grad.addColorStop(1, primaryClean.replace('1)', `${0.15 * progress})`));
-
-        ctx.strokeStyle = grad;
-        // Make the line thicker when bass is pushing
-        ctx.lineWidth = (0.75 + progress * 2.2) * (1.0 + activeBass * 1.5);
+        ctx.strokeStyle = 'rgba(255,255,255,0.10)';
+        ctx.lineWidth = 2.5;
         ctx.lineJoin = 'round';
         ctx.lineCap = 'round';
-        
-        // Add subtle shadow glow only to the newest/brightest line to protect performance
-        if (hIdx === count - 1) {
-          ctx.shadowBlur = 12 + activeBass * 14;
-          ctx.shadowColor = accentClean;
-        }
-
         ctx.stroke();
         ctx.restore();
-      });
-
-      // 4. Draw glowing boundary nodes on the ends of the oscilloscope grid
-      const latestPoints = pathHistory[pathHistory.length - 1];
-      if (latestPoints && latestPoints.length > 0) {
-        const leftY = latestPoints[0];
-        const rightY = latestPoints[latestPoints.length - 1];
-
-        ctx.save();
-        // Left Node
-        ctx.shadowBlur = 10 + activeBass * 10;
-        ctx.shadowColor = primaryClean;
-        ctx.fillStyle = '#ffffff';
-        ctx.beginPath();
-        ctx.arc(leftBound, leftY, 3.5 + activeBass * 3, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Right Node
-        ctx.shadowBlur = 10 + activeBass * 10;
-        ctx.shadowColor = secondaryClean;
-        ctx.beginPath();
-        ctx.arc(rightBound, rightY, 3.5 + activeBass * 3, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
       }
+      ghostFrameRef.current = yPts.slice();
 
+      // ── Theme Colors ─────────────────────────────────────────────────────
+      const [ar, ag, ab] = parseRGB(colorsRef.current.accent);
+
+      // ── Multi-Pass Phosphor Glow Rendering ───────────────────────────────
+      // Pass 1: wide soft bloom (outer glow)
+      ctx.save();
+      ctx.beginPath();
+      for (let i = 0; i < yPts.length; i++) {
+        const x = (i / (yPts.length - 1)) * LW;
+        if (i === 0) ctx.moveTo(x, yPts[i]);
+        else ctx.lineTo(x, yPts[i]);
+      }
+      ctx.strokeStyle = `rgba(${ar},${ag},${ab},0.18)`;
+      ctx.lineWidth = 14;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      ctx.shadowBlur = 0;
+      ctx.stroke();
       ctx.restore();
 
-      animationFrameId = requestAnimationFrame(draw);
+      // Pass 2: medium glow (brighter, narrower)
+      ctx.save();
+      ctx.beginPath();
+      for (let i = 0; i < yPts.length; i++) {
+        const x = (i / (yPts.length - 1)) * LW;
+        if (i === 0) ctx.moveTo(x, yPts[i]);
+        else ctx.lineTo(x, yPts[i]);
+      }
+      ctx.strokeStyle = `rgba(255,255,255,0.45)`;
+      ctx.lineWidth = 5;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      ctx.shadowBlur = 16;
+      ctx.shadowColor = `rgba(${ar},${ag},${ab},0.8)`;
+      ctx.stroke();
+      ctx.restore();
+
+      // Pass 3: crisp bright center line
+      ctx.save();
+      ctx.beginPath();
+      for (let i = 0; i < yPts.length; i++) {
+        const x = (i / (yPts.length - 1)) * LW;
+        if (i === 0) ctx.moveTo(x, yPts[i]);
+        else ctx.lineTo(x, yPts[i]);
+      }
+      ctx.strokeStyle = 'rgba(255,255,255,0.97)';
+      ctx.lineWidth = 1.4;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      ctx.shadowBlur = 5;
+      ctx.shadowColor = 'rgba(255,255,255,1)';
+      ctx.stroke();
+      ctx.restore();
+
+      // ── Endpoint Glow Dots ───────────────────────────────────────────────
+      const ly = yPts[0];
+      const ry = yPts[N - 1];
+      const peak = yPts.reduce((mx, y) => Math.max(mx, Math.abs(y - cy)), 0) / (maxAmp || 1);
+      const dotR = 2.5 + peak * 2.5;
+
+      ctx.save();
+      ctx.shadowBlur = 14;
+      ctx.shadowColor = `rgba(${ar},${ag},${ab},1)`;
+      ctx.fillStyle = 'rgba(255,255,255,0.95)';
+      ctx.beginPath();
+      ctx.arc(0, ly, dotR, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(LW, ry, dotR, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      ctx.restore(); // pop dpr scale
+
+      rafId = requestAnimationFrame(draw);
     };
 
-    animationFrameId = requestAnimationFrame(draw);
-    return () => cancelAnimationFrame(animationFrameId);
+    rafId = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(rafId);
   }, [showVisualizer, isPlaying, videoId, analyser]);
 
   if (!showVisualizer) return null;
@@ -330,15 +340,16 @@ export const VisualizerCanvas: React.FC<VisualizerCanvasProps> = ({
   return (
     <canvas
       ref={canvasRef}
-      className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-[1]"
-      style={{ 
-        width: '920px', 
-        height: '420px',
-        maskImage: 'linear-gradient(to right, transparent, black 15%, black 85%, transparent)',
-        WebkitMaskImage: 'linear-gradient(to right, transparent, black 15%, black 85%, transparent)'
+      className="absolute inset-0 pointer-events-none z-[1]"
+      style={{
+        width: '100%',
+        height: '100%',
+        // Fade at the very edges so the wave blends into the background
+        maskImage:
+          'linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%)',
+        WebkitMaskImage:
+          'linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%)',
       }}
-      width={canvasDimensions.width}
-      height={canvasDimensions.height}
     />
   );
 };

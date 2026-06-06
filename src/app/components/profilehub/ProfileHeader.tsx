@@ -33,7 +33,7 @@ export function ProfileHeader({
       {/* Left Side: Avatar & Username */}
       <div className="flex items-center gap-5 relative z-10 shrink-0 select-none">
         <div className="relative group">
-          <div className="w-16 h-16 rounded-full overflow-hidden p-0.5 border border-white/15 bg-gradient-to-tr shadow-lg bg-[#0f0f12] group-hover:border-white/30 transition-all duration-300">
+          <div className="w-16 h-16 rounded-full overflow-hidden p-0.5 border border-white/15 shadow-lg bg-white/[0.04] group-hover:border-white/30 transition-all duration-300">
             {avatar === 'initials' ? (
               <div className="w-full h-full rounded-full flex items-center justify-center bg-gradient-to-tr from-white/[0.04] to-white/[0.12] backdrop-blur-md relative overflow-hidden">
                 <span className="text-xl font-extrabold text-white tracking-tighter">
@@ -49,7 +49,7 @@ export function ProfileHeader({
         </div>
 
         <div className="flex flex-col gap-0.5 text-left">
-          <span className="text-[9px] uppercase font-bold tracking-[0.25em] text-white/30">
+          <span className="text-[11px] uppercase font-bold tracking-[0.18em] text-white/35">
             Music Curator • {activeCountryData.name.toUpperCase()} {activeCountryData.flag}
           </span>
           <div className="flex items-center gap-2.5">
@@ -75,21 +75,21 @@ export function ProfileHeader({
       <div className="flex items-center gap-6 relative z-10 shrink-0 md:border-l md:border-white/5 md:pl-8 py-1">
         <div className="text-center group min-w-[70px]">
           <p className="text-xl font-medium text-white tracking-tight leading-none">{totalListeningMinutes}m</p>
-          <p className="text-[9px] uppercase tracking-wider text-white/35 font-bold mt-1.5">Minutes</p>
+          <p className="text-[11px] uppercase tracking-wide text-white/40 font-bold mt-1.5">Minutes</p>
         </div>
 
         <div className="h-6 w-px bg-white/5" />
 
         <div className="text-center group min-w-[70px]">
           <p className="text-xl font-medium text-white tracking-tight leading-none">{uniqueSongsCount}</p>
-          <p className="text-[9px] uppercase tracking-wider text-white/35 font-bold mt-1.5">Songs</p>
+          <p className="text-[11px] uppercase tracking-wide text-white/40 font-bold mt-1.5">Songs</p>
         </div>
 
         <div className="h-6 w-px bg-white/5" />
 
         <div className="text-center group min-w-[70px]">
           <p className="text-xl font-medium text-white tracking-tight leading-none">{totalPlayCount}</p>
-          <p className="text-[9px] uppercase tracking-wider text-white/35 font-bold mt-1.5">Plays</p>
+          <p className="text-[11px] uppercase tracking-wide text-white/40 font-bold mt-1.5">Plays</p>
         </div>
       </div>
     </div>

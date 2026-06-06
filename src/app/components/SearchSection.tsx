@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, ChevronRight, Music } from 'lucide-react';
+import { Search, ChevronRight, Music, X } from 'lucide-react';
 import { SearchResult, VerifiedArtist } from '../types';
 import { ARTIST_PROFILE_BADGE, ARTIST_SEARCH_CARD_HINT } from '../constants/artistUi';
 import { ThemeColors } from './themeUtils';
@@ -15,8 +15,9 @@ import {
   searchStaggerContainer,
   searchStaggerItem,
 } from '../utils/motionPresets';
+import { strings } from '../constants/strings';
 
-type SearchPanelPhase = 'recents' | 'loading' | 'results';
+type SearchPanelPhase = 'recents' | 'loading' | 'results' | 'no-results';
 
 interface SearchSectionProps {
   searchQuery: string;
@@ -56,8 +57,11 @@ function SearchArtistCard({
     <motion.div
       variants={searchArtistCardItem}
       onClick={onOpen}
+      data-search-result-index={0}
       className={`mb-0 w-full flex items-center justify-between gap-6 group cursor-pointer min-h-[110px] transition-colors duration-300 overflow-hidden rounded-2xl ${
-        isFocused ? 'bg-white/[0.045]' : 'bg-transparent hover:bg-white/[0.025]'
+        isFocused
+          ? 'bg-white/[0.06] ring-1 ring-inset ring-white/20'
+          : 'bg-transparent hover:bg-white/[0.025]'
       }`}
     >
       {/* Soft ambient glow behind the avatar — no top edge, fades before card rim */}
@@ -73,7 +77,7 @@ function SearchArtistCard({
 
         <div className="flex flex-col text-left min-w-0">
           {/* Badge */}
-          <span className="text-[9px] font-bold text-white/40 bg-white/[0.06] border border-white/[0.08] px-2.5 py-0.5 rounded-md uppercase tracking-[0.2em] w-fit">
+          <span className="text-[10px] font-bold text-white/45 bg-white/[0.06] border border-white/[0.08] px-2.5 py-0.5 rounded-md uppercase tracking-[0.14em] w-fit">
             ✦ {ARTIST_PROFILE_BADGE}
           </span>
 
@@ -164,11 +168,16 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
   hasSelectedArtist,
 }) => {
   const [localQuery, setLocalQuery] = useState(searchQuery);
+  const [showSearchTips, setShowSearchTips] = useState(false);
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     setLocalQuery(searchQuery);
   }, [searchQuery]);
+
+  useEffect(() => {
+    setShowSearchTips(false);
+  }, [lastSearchedQuery]);
 
   useEffect(() => {
     return () => {
@@ -189,14 +198,23 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
 
   const panelPhase: SearchPanelPhase = useMemo(() => {
     if (isSearching) return 'loading';
-    if (searchResults.length > 0 && lastSearchedQuery?.trim()) return 'results';
+    if (lastSearchedQuery?.trim()) {
+      if (searchResults.length > 0 || verifiedArtist) return 'results';
+      return 'no-results';
+    }
     return 'recents';
-  }, [isSearching, searchResults.length, lastSearchedQuery]);
+  }, [isSearching, searchResults.length, lastSearchedQuery, verifiedArtist]);
 
   const showArtistCard =
     panelPhase === 'results' &&
     shouldShowArtistCard(lastSearchedQuery || '') &&
     !!verifiedArtist;
+
+  useEffect(() => {
+    if (panelPhase !== 'results' || focusedResultIndex < 0) return;
+    const el = document.querySelector(`[data-search-result-index="${focusedResultIndex}"]`);
+    el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [focusedResultIndex, panelPhase, searchResults.length, showArtistCard]);
 
   const searchInputVariants = {
     initial: { opacity: 0, y: 25 },
@@ -250,8 +268,22 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
             autoCorrect="off"
             autoCapitalize="off"
             spellCheck="false"
-            className="w-full pl-16 pr-8 py-5 rounded-3xl border-0 bg-white/[0.05] text-white/90 placeholder-white/25 text-base font-light tracking-wide elva-focus-ring transition-colors duration-300 focus-visible:bg-white/[0.07]"
+            className="w-full pl-16 pr-12 py-5 rounded-3xl border-0 bg-white/[0.05] text-white/90 placeholder-white/25 text-base font-light tracking-wide elva-focus-ring transition-colors duration-300 focus-visible:bg-white/[0.07]"
           />
+          {localQuery && (
+            <button
+              type="button"
+              onClick={() => {
+                setLocalQuery('');
+                setSearchQuery('');
+                document.getElementById('search-input')?.focus();
+              }}
+              className="absolute right-6 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors cursor-pointer p-1 rounded-lg hover:bg-white/5"
+              title="Clear search"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -317,11 +349,12 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
                         onClick={() => {
                           if (!loadingSongId) handleSelectSong(result);
                         }}
+                        data-search-result-index={actualIndex}
                         className={`group relative w-full flex items-center gap-4 p-3 rounded-2xl border-0 transition-colors duration-300 cursor-pointer will-change-transform ${
                           loadingSongId === result.id
                             ? 'bg-white/[0.05]'
                             : isFocused
-                              ? 'bg-white/[0.045]'
+                              ? 'bg-white/[0.06] ring-1 ring-inset ring-white/20'
                               : 'bg-transparent hover:bg-white/[0.03]'
                         }`}
                       >
@@ -371,7 +404,70 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
                       </motion.div>
                     );
                   })}
+                {focusedResultIndex >= 0 && (
+                  <p className="text-center text-[11px] normal-case tracking-normal text-white/30 pt-2 pb-0.5">
+                    {strings.search.keyboardHint}
+                  </p>
+                )}
               </motion.div>
+            </motion.div>
+          )}
+
+          {panelPhase === 'no-results' && (
+            <motion.div
+              key="search-phase-no-results"
+              {...searchPhaseMotion}
+              className="w-full will-change-transform py-12 flex flex-col items-center justify-center text-center select-none"
+            >
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-normal text-white/40 tracking-wide">
+                  No results found for "{lastSearchedQuery}"
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setShowSearchTips(prev => !prev)}
+                  className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] border font-bold transition-all cursor-pointer ${
+                    showSearchTips
+                      ? 'bg-white/10 border-white/30 text-white'
+                      : 'bg-white/[0.03] border-white/10 text-white/40 hover:text-white hover:border-white/20'
+                  }`}
+                  title="Show suggestions"
+                >
+                  ?
+                </button>
+              </div>
+
+              <AnimatePresence>
+                {showSearchTips && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0, y: -4 }}
+                    animate={{ opacity: 1, height: 'auto', y: 0 }}
+                    exit={{ opacity: 0, height: 0, y: -4 }}
+                    transition={{ duration: 0.2 }}
+                    className="overflow-hidden max-w-sm mt-4 text-left p-4 rounded-2xl bg-white/[0.02] border border-white/[0.05]"
+                  >
+                    <p className="text-[11px] font-bold text-white/50 uppercase tracking-wider mb-2">Suggestions</p>
+                    <ul className="text-[11px] text-white/40 space-y-1.5 list-disc list-inside font-light leading-relaxed">
+                      <li>Check for spelling mistakes in your query</li>
+                      <li>Try searching for a different song name or artist</li>
+                      <li>Paste a direct YouTube video or playlist link</li>
+                      <li>Upload a local audio file directly from the homepage</li>
+                    </ul>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setLocalQuery('');
+                  setSearchQuery('');
+                  document.getElementById('search-input')?.focus();
+                }}
+                className="mt-4 text-xs text-white/30 hover:text-white/60 border-b border-white/15 hover:border-white/40 transition-all cursor-pointer pb-0.5"
+              >
+                Clear search
+              </button>
             </motion.div>
           )}
         </AnimatePresence>

@@ -199,17 +199,21 @@ export function extractColorsFromImage(
       let s = color.s;
       let l = color.l;
 
+      // Scale minimum saturation clamps if the original color is very muted/grayscale.
+      // This prevents color compression noise on grayscale/sepia covers from being boosted into vibrant neon glow.
+      const saturationFactor = Math.min(1.0, color.s / 0.18);
+
       if (index === 0) {
         // Primary: Deep, rich background base
-        s = Math.min(0.60, Math.max(0.26, color.s * 1.05));
+        s = Math.min(0.60, Math.max(0.26 * saturationFactor, color.s * 1.05));
         l = Math.min(0.21, Math.max(0.12, color.l * 0.95));
       } else if (index === 1) {
         // Secondary: Medium-depth complementary shade
-        s = Math.min(0.55, Math.max(0.22, color.s * 1.00));
+        s = Math.min(0.55, Math.max(0.22 * saturationFactor, color.s * 1.00));
         l = Math.min(0.18, Math.max(0.10, color.l * 0.85));
       } else {
         // Accent: Vibrant ambient cinematic glow (This is what lights up the WebGL fluid!)
-        s = Math.min(0.92, Math.max(0.50, color.s * 1.55));
+        s = Math.min(0.92, Math.max(0.50 * saturationFactor, color.s * 1.55));
         l = Math.min(0.46, Math.max(0.26, color.l * 1.40));
       }
 

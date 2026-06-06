@@ -4,6 +4,7 @@ import { getHandPickedImage } from '../../utils/apiUtils';
 export function ArtistAvatar({ name, fallbackThumbnail }: { name: string; fallbackThumbnail: string }) {
   const handPicked = getHandPickedImage(name);
   const [imgUrl, setImgUrl] = useState(handPicked || fallbackThumbnail);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     if (handPicked) {
@@ -15,7 +16,7 @@ export function ArtistAvatar({ name, fallbackThumbnail }: { name: string; fallba
       try {
         const cached = localStorage.getItem(`elva_artist_img_${name.toLowerCase()}`);
         if (cached) {
-          setImgUrl(cached);
+          if (active) setImgUrl(cached);
           return;
         }
 
@@ -45,5 +46,13 @@ export function ArtistAvatar({ name, fallbackThumbnail }: { name: string; fallba
     };
   }, [name, fallbackThumbnail, handPicked]);
 
-  return <img src={imgUrl} alt={name} className="w-full h-full object-cover rounded-full" />;
+  return (
+    <img
+      src={imgUrl}
+      alt={name}
+      onLoad={() => setLoaded(true)}
+      className="w-full h-full object-cover rounded-full transition-opacity duration-300"
+      style={{ opacity: loaded ? 1 : 0 }}
+    />
+  );
 }

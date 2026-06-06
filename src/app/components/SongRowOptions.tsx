@@ -1,21 +1,31 @@
 import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { MoreHorizontal, Play, Plus, ListMusic, ChevronRight } from 'lucide-react';
+import { MoreHorizontal, Play, Plus, ListMusic, ChevronRight, Heart, Trash2 } from 'lucide-react';
 import { SearchResult } from '../types';
 import { showMiniHUD } from '../utils/hudUtils';
 
 const MENU_WIDTH = 192;
 const MENU_GAP = 8;
-const MENU_ESTIMATE_MAIN = 148;
+const MENU_ESTIMATE_MAIN = 220; // Expanded to accommodate Likes and Remove options
 const MENU_ESTIMATE_SUB = 220;
 
 interface SongRowOptionsProps {
   track: SearchResult;
   onPlayNext?: (track: SearchResult) => void;
   onAddToQueue?: (track: SearchResult) => void;
+  onToggleFavorite?: (track: SearchResult) => void;
+  isFavorite?: boolean;
+  onRemoveFromQueue?: (track: SearchResult) => void;
 }
 
-export const SongRowOptions: React.FC<SongRowOptionsProps> = ({ track, onPlayNext, onAddToQueue }) => {
+export const SongRowOptions: React.FC<SongRowOptionsProps> = ({
+  track,
+  onPlayNext,
+  onAddToQueue,
+  onToggleFavorite,
+  isFavorite = false,
+  onRemoveFromQueue,
+}) => {
   const [isOpen, setIsOpen] = useState(false);
   const [showPlaylistsSub, setShowPlaylistsSub] = useState(false);
   const [playlists, setPlaylists] = useState<any[]>([]);
@@ -41,32 +51,35 @@ export const SongRowOptions: React.FC<SongRowOptionsProps> = ({ track, onPlayNex
     }
   }, [isOpen]);
 
-  const updateMenuPosition = () => {
-    const trigger = triggerRef.current;
-    if (!trigger) return;
-
-    const rect = trigger.getBoundingClientRect();
-    const menuHeight = showPlaylistsSub ? MENU_ESTIMATE_SUB : MENU_ESTIMATE_MAIN;
-    const spaceBelow = window.innerHeight - rect.bottom - MENU_GAP;
-    const spaceAbove = rect.top - MENU_GAP;
-    const openBelow = spaceBelow >= menuHeight || spaceBelow >= spaceAbove;
-
-    const top = openBelow
-      ? rect.bottom + MENU_GAP
-      : Math.max(MENU_GAP, rect.top - menuHeight - MENU_GAP);
-
-    let left = rect.right - MENU_WIDTH;
-    left = Math.max(MENU_GAP, Math.min(left, window.innerWidth - MENU_WIDTH - MENU_GAP));
-
-    setMenuPosition({ top, left });
-  };
-
   useLayoutEffect(() => {
     if (!isOpen) {
       setMenuPosition(null);
       return;
     }
+
+    const updateMenuPosition = () => {
+      const trigger = triggerRef.current;
+      const menu = menuRef.current;
+      if (!trigger) return;
+
+      const rect = trigger.getBoundingClientRect();
+      const menuHeight = menu ? menu.getBoundingClientRect().height : (showPlaylistsSub ? MENU_ESTIMATE_SUB : MENU_ESTIMATE_MAIN);
+      const spaceBelow = window.innerHeight - rect.bottom - MENU_GAP;
+      const spaceAbove = rect.top - MENU_GAP;
+      const openBelow = spaceBelow >= menuHeight || spaceBelow >= spaceAbove;
+
+      const top = openBelow
+        ? rect.bottom + MENU_GAP
+        : Math.max(MENU_GAP, rect.top - menuHeight - MENU_GAP);
+
+      let left = rect.right - MENU_WIDTH;
+      left = Math.max(MENU_GAP, Math.min(left, window.innerWidth - MENU_WIDTH - MENU_GAP));
+
+      setMenuPosition({ top, left });
+    };
+
     updateMenuPosition();
+
     window.addEventListener('resize', updateMenuPosition);
     window.addEventListener('scroll', updateMenuPosition, true);
     return () => {
@@ -133,19 +146,21 @@ export const SongRowOptions: React.FC<SongRowOptionsProps> = ({ track, onPlayNex
   };
 
   const menu =
-    isOpen && menuPosition
+    isOpen
       ? createPortal(
           <div
             ref={menuRef}
             role="menu"
             style={{
               position: 'fixed',
-              top: menuPosition.top,
-              left: menuPosition.left,
+              top: menuPosition?.top ?? 0,
+              left: menuPosition?.left ?? 0,
               width: MENU_WIDTH,
               zIndex: 10000,
+              visibility: menuPosition ? 'visible' : 'hidden',
+              opacity: menuPosition ? 1 : 0,
             }}
-            className="rounded-2xl bg-[#0b0b0e]/95 border border-white/10 backdrop-blur-2xl shadow-[0_15px_30px_rgba(0,0,0,0.6)] p-1.5 flex flex-col gap-0.5 text-left"
+            className="rounded-2xl bg-[#0b0b0e]/95 border border-white/10 backdrop-blur-2xl shadow-[0_15px_30px_rgba(0,0,0,0.6)] p-1.5 flex flex-col gap-0.5 text-left transition-opacity duration-100 ease-out"
             onClick={(e) => e.stopPropagation()}
           >
             {!showPlaylistsSub ? (
@@ -178,6 +193,20 @@ export const SongRowOptions: React.FC<SongRowOptionsProps> = ({ track, onPlayNex
                     <span>Add to Queue</span>
                   </button>
                 )}
+                {onToggleFavorite && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      onToggleFavorite(track);
+                      setIsOpen(false);
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-white/80 hover:text-white hover:bg-white/5 transition-all cursor-pointer"
+                  >
+                    <Heart className={`w-3.5 h-3.5 ${isFavorite ? 'text-red-500 fill-red-500' : 'text-white/50'}`} />
+                    <span>{isFavorite ? 'Remove from Likes' : 'Like'}</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   role="menuitem"
@@ -196,6 +225,20 @@ export const SongRowOptions: React.FC<SongRowOptionsProps> = ({ track, onPlayNex
                   </div>
                   <ChevronRight className="w-3 h-3 text-white/30" />
                 </button>
+                {onRemoveFromQueue && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      onRemoveFromQueue(track);
+                      setIsOpen(false);
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-red-400 hover:text-red-300 hover:bg-white/5 transition-all cursor-pointer border-t border-white/5 mt-1 pt-1.5"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 text-red-400/70" />
+                    <span>Remove from Queue</span>
+                  </button>
+                )}
               </>
             ) : (
               <>

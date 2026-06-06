@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { X, Sliders, Moon, Layers, Maximize2, Edit3, Volume2, VolumeX, Volume1 } from 'lucide-react';
-import { AccentColor, ACCENT_THEMES } from './themeUtils';
+import { AccentColor, ACCENT_THEMES, ACCENT_SWATCH } from './themeUtils';
 
 interface SettingsModalProps {
   onClose: () => void;
@@ -78,7 +78,7 @@ export function SettingsModal({
   onTextureStyleChange,
   enableCustomLyrics = false,
   onEnableCustomLyricsChange,
-  showVisualizer = true,
+  showVisualizer = false,
   onShowVisualizerChange,
   volume,
   onVolumeChange
@@ -220,28 +220,26 @@ export function SettingsModal({
 
         {/* Accent Color card */}
         <div className="bg-white/[0.03] border border-white/[0.05] rounded-2xl p-4 flex flex-col gap-3.5 text-left">
-          <span className="text-[10px] text-white/35 font-bold uppercase tracking-wider select-none">Accent Accent</span>
+          <span className="text-[10px] text-white/35 font-bold uppercase tracking-wider select-none">Accent Color</span>
           <div className="flex items-center justify-between px-1">
             {(['emerald', 'sand', 'wine', 'navy'] as AccentColor[]).map((color) => {
               const isActive = accentColor === color;
               
-              const swatchBgs = {
-                emerald: 'bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.35)]',
-                sand: 'bg-amber-300 shadow-[0_0_8px_rgba(245,158,11,0.35)]',
-                wine: 'bg-rose-400 shadow-[0_0_8px_rgba(244,63,94,0.35)]',
-                navy: 'bg-indigo-400 shadow-[0_0_8px_rgba(99,102,241,0.35)]'
-              };
+              const swatch = ACCENT_SWATCH[color];
 
               return (
                 <button
                   key={color}
                   onClick={() => onAccentColorChange?.(color)}
                   className={`w-6 h-6 rounded-full flex items-center justify-center border transition-all cursor-pointer ${
-                    isActive ? 'border-white scale-110' : 'border-transparent opacity-50 hover:opacity-100'
+                    isActive ? 'border-white/80 scale-110' : 'border-transparent opacity-50 hover:opacity-100'
                   }`}
-                  title={color}
+                  title={ACCENT_THEMES[color].name}
                 >
-                  <div className={`w-3.5 h-3.5 rounded-full ${swatchBgs[color]}`} />
+                  <div
+                    className="w-3.5 h-3.5 rounded-full"
+                    style={{ backgroundColor: swatch.core }}
+                  />
                 </button>
               );
             })}

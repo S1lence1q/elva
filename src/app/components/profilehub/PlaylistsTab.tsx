@@ -6,6 +6,8 @@ import { AccentColor, ACCENT_THEMES } from '../themeUtils';
 import { SongRowOptions } from '../SongRowOptions';
 import { executeSearchAPI } from '../../utils/apiUtils';
 import { showMiniHUD } from '../../utils/hudUtils';
+import { ElvaEmptyState } from '../ElvaEmptyState';
+import { strings } from '../../constants/strings';
 
 interface Playlist {
   id: string;
@@ -116,11 +118,11 @@ export function PlaylistsTab({
                 className="flex items-center gap-1.5 text-white/50 hover:text-white transition-all cursor-pointer select-none text-xs font-semibold py-1 px-3 rounded-full hover:bg-white/5 -ml-3"
               >
                 <ChevronLeft className="w-4 h-4" />
-                <span>Back to Playlists</span>
+                <span>{strings.profileHub.backToPlaylists}</span>
               </button>
 
               {/* Header Card */}
-              <div className="relative w-full rounded-3xl overflow-hidden border border-white/[0.08] elva-glass-chrome backdrop-blur-2xl shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_12px_40px_rgba(0,0,0,0.5)] py-5 px-6 md:px-8 flex flex-col md:flex-row items-center justify-between gap-6">
+              <div className="relative w-full rounded-3xl overflow-hidden elva-hub-card py-5 px-6 md:px-8 flex flex-col md:flex-row items-center justify-between gap-6">
                 <div className={`absolute -top-12 -left-12 w-28 h-28 rounded-full bg-gradient-to-tr ${playlist.color} blur-3xl opacity-20`} />
                 
                 <div className="flex items-center gap-5 relative z-10 w-full md:w-auto">
@@ -169,7 +171,7 @@ export function PlaylistsTab({
                         initial={{ opacity: 0, y: 8 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: idx * 0.02 }}
-                        className="group flex items-center justify-between p-3.5 rounded-2xl bg-[#13141b]/35 hover:bg-[#181a23]/60 border border-white/[0.04] hover:border-white/[0.09] transition-all duration-300 shadow-sm w-full"
+                        className="group flex items-center justify-between p-3.5 rounded-2xl elva-hub-row border-0 w-full"
                       >
                         <div 
                           onClick={() => onSelectSong(song)}
@@ -216,13 +218,11 @@ export function PlaylistsTab({
                     ))}
                   </div>
                 ) : (
-                  <div className="rounded-3xl border border-white/[0.08] elva-glass-chrome backdrop-blur-2xl p-12 text-center flex flex-col items-center justify-center select-none shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_12px_40px_rgba(0,0,0,0.5)]">
-                    <Music className="w-8 h-8 text-white/25 mb-3 animate-pulse" />
-                    <p className="text-white/50 text-sm font-semibold">This playlist is empty</p>
-                    <p className="text-white/30 text-xs mt-1.5 font-light max-w-[280px]">
-                      Use the search engine below to find and add tracks directly into this collection!
-                    </p>
-                  </div>
+                  <ElvaEmptyState
+                    icon={<Music className="w-7 h-7" />}
+                    title={strings.empty.playlistEmptyTitle}
+                    description={strings.empty.playlistEmptyDesc}
+                  />
                 )}
               </div>
 
@@ -282,7 +282,7 @@ export function PlaylistsTab({
                       {inlineResults.map((result) => (
                         <div
                           key={result.id}
-                          className="flex items-center justify-between p-3 rounded-2xl bg-[#13141b]/35 hover:bg-[#181a23]/60 border border-white/[0.04] hover:border-white/[0.09] transition-all duration-300 group"
+                          className="flex items-center justify-between p-3 rounded-2xl elva-hub-row border-0 group"
                         >
                           <div className="flex items-center gap-3 truncate mr-4 text-left">
                             <img
@@ -328,14 +328,14 @@ export function PlaylistsTab({
               className="text-2xl font-normal text-white/95 tracking-wide leading-none" 
               style={{ fontFamily: '"Kaobe", serif' }}
             >
-              Your Playlist Collections
+              {strings.profileHub.playlistsTitle}
             </h2>
             <button
               onClick={() => setIsCreatingPlaylist((prev) => !prev)}
               className="flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 hover:border-white/25 text-xs font-semibold uppercase tracking-wider text-white bg-white/5 hover:bg-white/10 transition-all cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>Create New</span>
+              <span>{strings.profileHub.createNew}</span>
             </button>
           </div>
 
@@ -346,7 +346,7 @@ export function PlaylistsTab({
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
-                className="rounded-3xl border border-white/[0.08] elva-glass-chrome backdrop-blur-2xl shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_12px_40px_rgba(0,0,0,0.5)] p-5 overflow-hidden text-left"
+                className="rounded-3xl elva-hub-card p-5 overflow-hidden text-left"
               >
                 <div className="flex flex-col gap-4">
                   <h4 className="text-xs uppercase tracking-widest font-semibold text-white/70">Create new playlist</h4>
@@ -402,7 +402,7 @@ export function PlaylistsTab({
                 <div
                   key={playlist.id}
                   onClick={() => setSelectedPlaylistId(playlist.id)}
-                  className="group relative rounded-3xl border border-white/[0.08] bg-[#0a0b10]/65 hover:border-white/15 hover:bg-white/[0.03] p-6.5 flex flex-col justify-between h-[160px] shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_12px_36px_rgba(0,0,0,0.55)] overflow-hidden transition-all duration-300 hover:border-white/15 hover:shadow-black/75 cursor-pointer active:scale-[0.99] backdrop-blur-2xl"
+                  className="group relative rounded-3xl elva-hub-card hover:bg-white/[0.05] p-6.5 flex flex-col justify-between h-[160px] overflow-hidden transition-all duration-300 cursor-pointer active:scale-[0.99]"
                 >
                   <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${playlist.color}`} />
 
@@ -440,13 +440,11 @@ export function PlaylistsTab({
               ))}
             </div>
           ) : (
-            <div className="rounded-3xl border border-white/[0.08] elva-glass-chrome backdrop-blur-2xl p-16 text-center flex flex-col items-center justify-center select-none shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_12px_40px_rgba(0,0,0,0.5)]">
-              <ListMusic className="w-8 h-8 text-white/20 mb-3" />
-              <p className="text-white/50 text-sm font-medium">No playlists yet</p>
-              <p className="text-white/30 text-xs mt-1.5 font-light max-w-[280px]">
-                Click on "Create New" to start your first collection, and add songs along the way.
-              </p>
-            </div>
+            <ElvaEmptyState
+              icon={<ListMusic className="w-8 h-8" />}
+              title={strings.empty.noPlaylistsTitle}
+              description={strings.empty.noPlaylistsDesc}
+            />
           )}
         </>
       )}

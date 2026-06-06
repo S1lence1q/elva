@@ -2,6 +2,8 @@ import { motion } from 'motion/react';
 import { Play, Trash2, Heart } from 'lucide-react';
 import { SearchResult } from '../../types';
 import { SongRowOptions } from '../SongRowOptions';
+import { ElvaEmptyState } from '../ElvaEmptyState';
+import { strings } from '../../constants/strings';
 
 interface FavoritesTabProps {
   favorites: SearchResult[];
@@ -33,10 +35,10 @@ export function FavoritesTab({
           className="text-2xl font-normal text-white/95 tracking-wide leading-none" 
           style={{ fontFamily: '"Kaobe", serif' }}
         >
-          Your Favorite Library
+          {strings.profileHub.favoritesTitle}
         </h2>
-        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30">
-          {favorites.length} {favorites.length === 1 ? 'Song' : 'Songs'}
+        <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-white/35">
+          {strings.profileHub.favoritesCount(favorites.length)}
         </span>
       </div>
 
@@ -48,7 +50,7 @@ export function FavoritesTab({
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.02 }}
-              className="group flex items-center justify-between p-4 rounded-2xl bg-[#13141b]/35 hover:bg-[#181a23]/60 border border-white/[0.04] hover:border-white/[0.09] transition-all duration-300 shadow-md w-full"
+              className="group flex items-center justify-between p-4 rounded-2xl elva-hub-row border-0 w-full"
             >
               {/* Left: Artwork + Title/Artist */}
               <div 
@@ -99,13 +101,15 @@ export function FavoritesTab({
           ))}
         </div>
       ) : (
-        <div className="rounded-3xl elva-glass-chrome backdrop-blur-2xl p-16 text-center flex flex-col items-center justify-center select-none">
-          <Heart className="w-8 h-8 text-white/20 mb-3" />
-          <p className="text-white/50 text-sm font-medium">No favorite songs yet</p>
-          <p className="text-white/30 text-xs mt-1.5 font-light max-w-[280px]">
-            Use the heart icon during playback or in search results to save your favorites.
-          </p>
-        </div>
+        <ElvaEmptyState
+          icon={<Heart className="w-8 h-8" />}
+          title={strings.empty.favoritesTitle}
+          description={strings.empty.favoritesDesc}
+          action={{
+            label: strings.empty.favoritesAction,
+            onClick: () => window.dispatchEvent(new CustomEvent('elva-scroll-to-discover')),
+          }}
+        />
       )}
     </motion.div>
   );

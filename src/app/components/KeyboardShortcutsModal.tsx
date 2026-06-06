@@ -15,6 +15,7 @@ export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({
   accentColor,
 }) => {
   const theme = ACCENT_THEMES[accentColor];
+  const isMac = typeof window !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.userAgent);
 
   return (
     <AnimatePresence>
@@ -67,7 +68,8 @@ export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({
                 { keys: ['M'], desc: 'Mute / Unmute audio' },
                 { keys: ['←', '→'], desc: 'Seek 5s backward / forward' },
                 { keys: ['L'], desc: 'Flip artwork / toggle live lyrics' },
-                { keys: ['⌘', ','], desc: 'Open settings menu' },
+                { keys: ['Q'], desc: 'Toggle active queue drawer' },
+                { keys: [isMac ? '⌘' : 'Ctrl', ','], desc: 'Open settings menu' },
                 { keys: ['?'], desc: 'Toggle keyboard shortcut map' },
                 { keys: ['Esc'], desc: 'Close any active overlays / map' }
               ].map((item, idx) => (

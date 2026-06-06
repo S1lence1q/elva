@@ -33,13 +33,6 @@ interface BottomBarControlsProps {
   setPreMuteVolume?: (v: number) => void;
 }
 
-const accentBgs: Record<AccentColor, string> = {
-  emerald: 'bg-emerald-500',
-  sand: 'bg-amber-500',
-  wine: 'bg-rose-500',
-  navy: 'bg-slate-500'
-};
-
 export function BottomBarControls({
   showQueue,
   setShowQueue,
@@ -186,11 +179,16 @@ export function BottomBarControls({
           <List className={`w-4 h-4 transition-colors ${showQueue && !focusSearchInQueue ? theme.text : 'text-white/40'}`} />
           <span className="text-sm font-medium tracking-wide">Queue</span>
           {queue.length > 0 && (
-            <span className={`ml-1 px-1.5 py-0.5 rounded text-[10px] font-bold transition-all leading-none ${
-              showQueue && !focusSearchInQueue
-                ? `${accentBgs[accentColor]} text-white`
-                : 'bg-white/10 text-white/60'
-            }`}>
+            <span
+              className={`ml-1 px-1.5 py-0.5 rounded text-[10px] font-bold transition-all leading-none ${
+                showQueue && !focusSearchInQueue ? 'text-white' : 'bg-white/10 text-white/60'
+              }`}
+              style={
+                showQueue && !focusSearchInQueue
+                  ? { backgroundColor: 'var(--elva-accent)' }
+                  : undefined
+              }
+            >
               {queue.length}
             </span>
           )}

@@ -56,30 +56,16 @@ interface ProfileHubViewProps {
   onEnableCustomLyricsChange?: (enable: boolean) => void;
   peekProgressStyle: 'none' | 'line' | 'border';
   onPeekProgressStyleChange: (style: 'none' | 'line' | 'border') => void;
+  showVisualizer: boolean;
+  onShowVisualizerChange: (show: boolean) => void;
 }
 
 
 const ACTIVE_TAB_STYLES: Record<AccentColor, { border: string; glow: string; text: string }> = {
-  emerald: {
-    border: 'border-emerald-500/20',
-    glow: 'shadow-[0_0_20px_rgba(16,185,129,0.08)]',
-    text: 'text-emerald-300',
-  },
-  sand: {
-    border: 'border-amber-500/20',
-    glow: 'shadow-[0_0_20px_rgba(245,158,11,0.08)]',
-    text: 'text-amber-200',
-  },
-  wine: {
-    border: 'border-rose-500/20',
-    glow: 'shadow-[0_0_20px_rgba(244,63,94,0.08)]',
-    text: 'text-rose-300',
-  },
-  navy: {
-    border: 'border-indigo-500/20',
-    glow: 'shadow-[0_0_20px_rgba(99,102,241,0.08)]',
-    text: 'text-slate-300',
-  },
+  emerald: { border: 'border-elva-accent', glow: '', text: 'text-elva-accent' },
+  sand: { border: 'border-elva-accent', glow: '', text: 'text-elva-accent' },
+  wine: { border: 'border-elva-accent', glow: '', text: 'text-elva-accent' },
+  navy: { border: 'border-elva-accent', glow: '', text: 'text-elva-accent' },
 };
 
 export const ProfileHubView: React.FC<ProfileHubViewProps> = ({
@@ -107,7 +93,9 @@ export const ProfileHubView: React.FC<ProfileHubViewProps> = ({
   enableCustomLyrics,
   onEnableCustomLyricsChange,
   peekProgressStyle,
-  onPeekProgressStyleChange
+  onPeekProgressStyleChange,
+  showVisualizer,
+  onShowVisualizerChange
 }) => {
   const theme = ACCENT_THEMES[accentColor];
   const [activeTab, setActiveTab] = useState<'overview' | 'favorites' | 'playlists' | 'settings'>(() => {
@@ -442,6 +430,8 @@ export const ProfileHubView: React.FC<ProfileHubViewProps> = ({
               onEnableCustomLyricsChange={onEnableCustomLyricsChange}
               peekProgressStyle={peekProgressStyle}
               onPeekProgressStyleChange={onPeekProgressStyleChange}
+              showVisualizer={showVisualizer}
+              onShowVisualizerChange={onShowVisualizerChange}
             />
           )}
         </AnimatePresence>

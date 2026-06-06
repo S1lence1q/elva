@@ -3,6 +3,8 @@ import type { Playlist, SearchResult } from './types';
 import { ArtistAvatar } from './ArtistAvatar';
 import { QueueSongRow } from './QueueSongRow';
 import { CAROUSEL_END_SPACER_CLASS, CAROUSEL_MASK_STYLE } from './carouselStyles';
+import { ElvaEmptyState } from '../ElvaEmptyState';
+import { strings } from '../../constants/strings';
 
 interface QueueLibraryViewProps {
   localPlaylists: Playlist[];
@@ -12,6 +14,8 @@ interface QueueLibraryViewProps {
   onOpenArtist: (artist: { name: string; channelId?: string; thumbnail: string }) => void;
   onPlaySong: (song: SearchResult) => void;
   onAddToQueue?: (e: React.MouseEvent, song: SearchResult) => void;
+  onPlayNext?: (song: SearchResult) => void;
+  onToggleFavorite?: (song: SearchResult) => void;
 }
 
 export function QueueLibraryView({
@@ -22,6 +26,8 @@ export function QueueLibraryView({
   onOpenArtist,
   onPlaySong,
   onAddToQueue,
+  onPlayNext,
+  onToggleFavorite,
 }: QueueLibraryViewProps) {
   return (
     <div className="space-y-8 text-left select-none">
@@ -31,9 +37,7 @@ export function QueueLibraryView({
           <h3 className="text-[10px] uppercase tracking-[0.25em] font-bold text-white/40">Playlists</h3>
         </div>
         {localPlaylists.length === 0 ? (
-          <div className="py-8 text-center text-white/30 elva-empty-state">
-            <p className="text-[11px] font-medium leading-relaxed">No playlists found. Create them in My Hub!</p>
-          </div>
+          <ElvaEmptyState variant="inline" title={strings.queue.library.playlists} />
         ) : (
           <div className="flex flex-col gap-3">
             {localPlaylists.map((playlist) => (
@@ -71,9 +75,7 @@ export function QueueLibraryView({
           <h3 className="text-[10px] uppercase tracking-[0.25em] font-bold text-white/40">Favorite Artists</h3>
         </div>
         {artistBubbles.length === 0 ? (
-          <div className="py-6 text-center text-white/30 elva-empty-state">
-            <p className="text-[11px] font-medium leading-relaxed">No artists resolved yet.</p>
-          </div>
+          <ElvaEmptyState variant="inline" title={strings.queue.library.artists} />
         ) : (
           <div
             className="flex overflow-x-auto gap-4.5 pb-2 scrollbar-none snap-x snap-mandatory"
@@ -86,7 +88,7 @@ export function QueueLibraryView({
                 className="group flex flex-col items-center gap-2 w-16 shrink-0 snap-start cursor-pointer"
                 title={`Browse ${artist.name}`}
               >
-                <div className="relative w-16 h-16 rounded-full overflow-hidden p-0.5 border border-white/10 hover:border-white/30 group-hover:scale-105 transition-all duration-300 shadow-md">
+                <div className="relative w-16 h-16 rounded-full overflow-hidden border border-white/10 hover:border-white/30 group-hover:scale-105 transition-all duration-300 shadow-md bg-white/[0.06] shrink-0">
                   <ArtistAvatar name={artist.name} fallbackThumbnail={artist.thumbnail} />
                 </div>
                 <span className="text-[10px] text-white/40 group-hover:text-white transition-colors text-center truncate w-full font-semibold">
@@ -105,9 +107,7 @@ export function QueueLibraryView({
           <h3 className="text-[10px] uppercase tracking-[0.25em] font-bold text-white/40">All Likes</h3>
         </div>
         {localFavorites.length === 0 ? (
-          <div className="py-8 text-center text-white/30 elva-empty-state">
-            <p className="text-[11px] font-medium leading-relaxed">No favorites saved yet.</p>
-          </div>
+          <ElvaEmptyState variant="inline" title={strings.queue.library.likes} />
         ) : (
           <div className="space-y-3">
             {localFavorites.map((song) => (
@@ -116,6 +116,9 @@ export function QueueLibraryView({
                 song={song}
                 onPlay={() => onPlaySong(song)}
                 onAddToQueue={onAddToQueue}
+                onPlayNext={onPlayNext}
+                onToggleFavorite={onToggleFavorite}
+                isFavorite={true}
               />
             ))}
           </div>

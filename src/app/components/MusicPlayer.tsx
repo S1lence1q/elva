@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Queue } from './Queue';
 import { SettingsModal } from './SettingsModal';
 import { LyricsPanel } from './LyricsPanel';
+import { Keyboard } from 'lucide-react';
 import { AccentColor, ACCENT_THEMES } from './themeUtils';
 import { getDynamicFallbackColors } from '../utils/playerColorUtils';
 import { loadCustomLyrics } from '../utils/lyricsUtils';
@@ -46,6 +47,7 @@ interface MusicPlayerProps {
   onShuffleQueue?: () => void;
   onSelectFromQueue?: (id: string, isCrossfade?: boolean) => void;
   onAddToQueue?: (song: SearchResult) => void;
+  onPlayNext?: (song: SearchResult) => void;
   onSelectSong?: (song: SearchResult) => void;
   onPlayPlaylist?: (tracks: SearchResult[], label?: string) => void;
   onFileSelect?: (file: File) => void;
@@ -115,6 +117,7 @@ export function MusicPlayer({
   onShuffleQueue,
   onSelectFromQueue, 
   onAddToQueue, 
+  onPlayNext,
   onSelectSong,
   onPlayPlaylist,
   onFileSelect, 
@@ -132,11 +135,11 @@ export function MusicPlayer({
   onTextureStyleChange,
   backgroundStyle = 'mesh',
   onBackgroundStyleChange,
-  showVisualizer = true,
+  showVisualizer = false,
   onShowVisualizerChange,
   zenMode = false,
   onZenModeChange,
-  showVolumeSlider = true,
+  showVolumeSlider = false,
   onShowVolumeSliderChange,
   enable3DTilt = true,
   onEnable3DTiltChange,
@@ -210,6 +213,13 @@ export function MusicPlayer({
   const [showQueue, setShowQueue] = useState(false);
   const [focusSearchInQueue, setFocusSearchInQueue] = useState(false);
   const [isLargeScreen, setIsLargeScreen] = useState(false);
+  const [queueInitialArtist, setQueueInitialArtist] = useState<{ name: string; channelId?: string } | null>(null);
+  const isMac = typeof window !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.userAgent);
+
+  const handleArtworkViewArtist = (name: string, channelId?: string) => {
+    setQueueInitialArtist({ name, channelId });
+    setShowQueue(true);
+  };
 
   useEffect(() => {
     const handleResize = () => {
@@ -323,7 +333,28 @@ export function MusicPlayer({
           target.tagName === 'TEXTAREA' ||
           target.isContentEditable)
       ) {
+        if (e.key === 'Escape') {
+          target.blur();
+        }
         return;
+      }
+
+      if (e.key === 'Escape') {
+        if (showSettings) {
+          e.preventDefault();
+          setShowSettings(false);
+          return;
+        }
+        if (showQueue) {
+          e.preventDefault();
+          setShowQueue(false);
+          return;
+        }
+        if (showLyrics) {
+          e.preventDefault();
+          setShowLyrics(false);
+          return;
+        }
       }
 
       if (e.code === 'Space') {
@@ -354,6 +385,9 @@ export function MusicPlayer({
       } else if (e.code === 'KeyL') {
         e.preventDefault();
         setShowLyrics((prev) => !prev);
+      } else if (e.code === 'KeyQ') {
+        e.preventDefault();
+        setShowQueue((prev) => !prev);
       } else if (e.code === 'Comma' && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         if (appState === 'ready') {
@@ -404,14 +438,14 @@ export function MusicPlayer({
             className="fixed top-8 right-8 z-50 px-4 py-2 rounded-full bg-black/50 border border-white/10"
           >
             <p className="text-xs text-white/50">
-              Press <span className="text-white/70">⌘,</span> for settings
+              Press <span className="text-white/70">{isMac ? '⌘,' : 'Ctrl+,'}</span> for settings
             </p>
           </motion.div>
         )}
       </AnimatePresence>
 
       {/* Top bar */}
-      <div className={`absolute top-8 left-8 z-20 transition-all duration-700 ${isUserIdle && zenMode ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+      <div className={`absolute top-8 left-8 z-20 transition-all duration-700 flex items-center gap-1.5 ${isUserIdle && zenMode ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
         <motion.button
           id="back-home-button"
           initial={{ opacity: 0 }}
@@ -421,6 +455,17 @@ export function MusicPlayer({
           className="text-xl font-normal text-white/30 hover:text-white/50 tracking-wider transition-colors cursor-pointer"
         >
           Elva
+        </motion.button>
+        <motion.button
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.4, duration: 0.4 }}
+          onClick={() => window.dispatchEvent(new Event('elva-show-shortcuts'))}
+          className="p-2 hover:bg-white/8 rounded-xl transition-all cursor-pointer text-white/35 hover:text-white/65 hover:scale-105 active:scale-95 duration-200 outline-none focus:outline-none focus:ring-0"
+          title="Keyboard Shortcuts (?)"
+          aria-label="Keyboard Shortcuts"
+        >
+          <Keyboard className="w-4.5 h-4.5" />
         </motion.button>
       </div>
 
@@ -472,8 +517,11 @@ export function MusicPlayer({
                   videoId: item.videoId
                 }))}
                 currentSongId={songData.videoId}
+                isPlaying={isPlaying}
                 songData={songData}
                 accentColor={accentColor}
+                favorites={favorites}
+                onToggleFavorite={onToggleFavorite}
                 onRemove={onRemoveFromQueue || (() => {})}
                 onClearQueue={onClearQueue}
                 onShuffleQueue={onShuffleQueue}
@@ -483,11 +531,17 @@ export function MusicPlayer({
                   }
                   if (onSelectFromQueue) onSelectFromQueue(id);
                 }}
-                onClose={() => setShowQueue(false)}
+                onClose={() => {
+                  setShowQueue(false);
+                  setQueueInitialArtist(null);
+                }}
+                initialArtist={queueInitialArtist}
+                onClearInitialArtist={() => setQueueInitialArtist(null)}
                 focusSearchOnMount={focusSearchInQueue}
                 onSearch={onSearch}
                 onFetchChannelUploads={onFetchChannelUploads}
                 onAddToQueue={onAddToQueue}
+                onPlayNext={onPlayNext}
                 onPlayPlaylist={onPlayPlaylist}
                 onSelectSong={async (song) => {
                   if (isPlayingRef.current) {
@@ -555,6 +609,7 @@ export function MusicPlayer({
             videoId={songData.videoId}
             analyser={analyserRef.current}
             colors={dominantColors}
+            volume={volume}
           />
 
           {/* Extracted 3D Artwork Card */}
@@ -574,7 +629,7 @@ export function MusicPlayer({
             favorites={favorites}
             onToggleFavorite={onToggleFavorite}
             handleAddToPlaylist={handleAddToPlaylist}
-            onViewArtist={onViewArtist}
+            onViewArtist={handleArtworkViewArtist}
             showLyrics={showLyrics}
             setShowLyrics={setShowLyrics}
             lyrics={lyrics}

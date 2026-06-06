@@ -485,9 +485,9 @@ export function useSearchLogic({
       setSearchResults(results);
       setLastSearchedQuery(query);
     } else {
-      toast.error('Search failed', {
-        description: 'No music results found right now. Try a song title, or paste a YouTube link directly.',
-      });
+      setSearchResults([]);
+      setVerifiedArtist(null);
+      setLastSearchedQuery(query);
     }
   };
 

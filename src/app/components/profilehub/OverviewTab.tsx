@@ -4,6 +4,8 @@ import { History, Play, Music, ListMusic, Sparkles } from 'lucide-react';
 import { SearchResult, VerifiedArtist } from '../../types';
 import { AccentColor, ACCENT_THEMES } from '../themeUtils';
 import { getHandPickedImage } from '../../utils/apiUtils';
+import { ElvaEmptyState } from '../ElvaEmptyState';
+import { strings } from '../../constants/strings';
 
 interface Playlist {
   id: string;
@@ -98,9 +100,7 @@ export function OverviewTab({
       className="flex flex-col gap-8"
     >
       {/* B. HORIZONTAL "VINYL FLIP" CAROUSEL (Recently Played) — PRIMARY card */}
-      <div className="rounded-3xl border border-white/[0.08] bg-[#0d0e14]/75 backdrop-blur-2xl p-6 flex flex-col gap-5 w-full"
-        style={{ boxShadow: '0 16px 48px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)' }}
-      >
+      <div className="rounded-3xl elva-hub-card p-6 flex flex-col gap-5 w-full">
         <div className="flex items-center gap-2.5 select-none">
           <History className={`w-4 h-4 ${theme.text}`} />
           <h3 className="text-xs uppercase tracking-[0.25em] font-bold text-white/60">Recently Played</h3>
@@ -115,7 +115,7 @@ export function OverviewTab({
                 className="group flex flex-col gap-2.5 w-40 shrink-0 snap-start select-none cursor-pointer"
                 title={`Play ${song.title}`}
               >
-                <div className="relative w-40 h-40 rounded-2xl overflow-hidden bg-[#0c0d10]">
+                <div className="relative w-40 h-40 rounded-2xl overflow-hidden bg-white/[0.04]">
                   <img
                     src={song.thumbnail}
                     alt={song.title}
@@ -144,18 +144,16 @@ export function OverviewTab({
             ))}
           </div>
         ) : (
-          <div className="rounded-2xl border border-white/[0.06] bg-[#0c0d10]/40 p-8 text-center flex flex-col items-center justify-center select-none">
-            <Music className="w-6 h-6 text-white/20 mb-2" />
-            <p className="text-white/40 text-[10px] font-semibold">No recent songs</p>
-            <p className="text-white/20 text-[9px] mt-1 font-light max-w-[160px]">
-              Start playing some tracks to fill your recents history.
-            </p>
-          </div>
+          <ElvaEmptyState
+            variant="inline"
+            title={strings.empty.noRecentsTitle}
+            description={strings.empty.noRecentsDesc}
+          />
         )}
       </div>
 
       {/* C. Recently Played Artists Carousel — secondary card */}
-      <div className="rounded-2xl border border-white/[0.06] bg-[#0d0e14]/50 backdrop-blur-xl p-5 flex flex-col gap-4 w-full">
+      <div className="rounded-2xl elva-hub-card p-5 flex flex-col gap-4 w-full">
         <div className="flex items-center justify-between select-none">
           <h3 className="text-[10px] uppercase tracking-[0.25em] font-bold text-white/40">Recently Played Artists</h3>
         </div>
@@ -189,17 +187,16 @@ export function OverviewTab({
             ))}
           </div>
         ) : (
-          <div className="rounded-2xl border border-white/[0.08] bg-[#0c0d10]/40 p-6 text-center flex flex-col items-center justify-center select-none shadow-sm">
-            <p className="text-white/40 text-xs font-semibold">No artists resolved yet</p>
-            <p className="text-white/20 text-[10px] mt-1 font-light max-w-[220px]">
-              Your recently played artists will pop up here.
-            </p>
-          </div>
+          <ElvaEmptyState
+            variant="inline"
+            title={strings.empty.noArtistsTitle}
+            description={strings.empty.noArtistsDesc}
+          />
         )}
       </div>
 
       {/* D. Bottom Showcase: Playlists Horizontal Strip — secondary card */}
-      <div className="rounded-2xl border border-white/[0.06] bg-[#0d0e14]/50 backdrop-blur-xl p-5 flex flex-col gap-4 w-full">
+      <div className="rounded-2xl elva-hub-card p-5 flex flex-col gap-4 w-full">
         <div className="flex items-center justify-between select-none">
           <h3 className="text-[10px] uppercase tracking-[0.25em] font-bold text-white/40">Custom Playlists</h3>
           <button
@@ -219,7 +216,7 @@ export function OverviewTab({
                   setActiveTab('playlists');
                   setSelectedPlaylistId(playlist.id);
                 }}
-                className="group relative rounded-2xl border border-white/[0.07] bg-[#13141b]/35 hover:bg-[#181a23]/60 p-4.5 flex flex-col justify-between h-[120px] shadow-lg overflow-hidden transition-all duration-300 cursor-pointer active:scale-[0.98]"
+                className="group relative rounded-2xl elva-hub-row p-4.5 flex flex-col justify-between h-[120px] overflow-hidden transition-all duration-300 cursor-pointer active:scale-[0.98] border-0"
               >
                 <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r ${playlist.color}`} />
 
@@ -246,12 +243,15 @@ export function OverviewTab({
             ))}
           </div>
         ) : (
-          <div className="rounded-2xl border border-white/[0.08] bg-[#0c0d10]/40 p-6 text-center flex flex-col items-center justify-center select-none shadow-sm">
-            <p className="text-white/40 text-xs font-semibold">No playlists created yet</p>
-            <p className="text-white/20 text-[10px] mt-1 font-light max-w-[220px]">
-              Go to the Playlists tab to create and manage collections.
-            </p>
-          </div>
+          <ElvaEmptyState
+            variant="inline"
+            title={strings.empty.noPlaylistsOverviewTitle}
+            description={strings.empty.noPlaylistsOverviewDesc}
+            action={{
+              label: strings.empty.goToPlaylists,
+              onClick: () => setActiveTab('playlists'),
+            }}
+          />
         )}
       </div>
     </motion.div>
