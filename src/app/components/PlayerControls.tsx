@@ -129,11 +129,18 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
                   });
                   e.currentTarget.blur();
                 }}
-                className="p-2.5 rounded-xl hover:bg-white/10 text-white/40 hover:text-white cursor-pointer shrink-0 transition-all hover:scale-105 active:scale-95 duration-200 outline-none focus:outline-none focus:ring-0"
+                className="p-2.5 rounded-xl hover:bg-white/10 text-white/40 hover:text-white cursor-pointer shrink-0 transition-all duration-200 outline-none focus:outline-none focus:ring-0"
                 aria-label={isFavorite ? 'Fjern fra favoritter' : 'Marker som favorit'}
                 title={isFavorite ? "Fjern fra favoritter" : "Marker som favorit"}
               >
-                <Heart className={`w-[21px] h-[21px] ${isFavorite ? 'text-red-500 fill-red-500' : ''}`} />
+                <motion.div
+                  key={isFavorite ? 'active-fav' : 'inactive-fav'}
+                  initial={{ scale: 0.82, rotate: isFavorite ? -15 : 0 }}
+                  animate={{ scale: 1, rotate: 0 }}
+                  transition={{ type: 'spring', stiffness: 500, damping: 15 }}
+                >
+                  <Heart className={`w-[21px] h-[21px] ${isFavorite ? 'text-red-500 fill-red-500' : ''}`} />
+                </motion.div>
               </button>
             </div>
           )}

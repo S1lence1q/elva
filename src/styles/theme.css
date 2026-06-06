@@ -282,23 +282,55 @@
   box-shadow: 0 0 0 2px var(--elva-surface-0), 0 0 0 4px rgba(255, 255, 255, 0.28);
 }
 
-/* Scroll fade — masks content at bottom (no solid overlay band on tinted backgrounds) */
+/* Scroll fade — masks content at top and bottom dynamically */
 .elva-scroll-fade {
   position: relative;
 }
-.elva-scroll-fade[data-can-scroll='true'] {
+.elva-scroll-fade[data-can-scroll-up='true'][data-can-scroll-down='true'] {
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    #000 48px,
+    #000 calc(100% - 48px),
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    #000 48px,
+    #000 calc(100% - 48px),
+    transparent 100%
+  );
+}
+.elva-scroll-fade[data-can-scroll-up='true'][data-can-scroll-down='false'] {
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    #000 48px
+  );
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    #000 48px
+  );
+}
+.elva-scroll-fade[data-can-scroll-up='false'][data-can-scroll-down='true'] {
   mask-image: linear-gradient(
     to bottom,
     #000 0%,
-    #000 calc(100% - 52px),
+    #000 calc(100% - 48px),
     transparent 100%
   );
   -webkit-mask-image: linear-gradient(
     to bottom,
     #000 0%,
-    #000 calc(100% - 52px),
+    #000 calc(100% - 48px),
     transparent 100%
   );
+}
+.elva-scroll-fade[data-can-scroll-up='false'][data-can-scroll-down='false'] {
+  mask-image: none;
+  -webkit-mask-image: none;
 }
 
 :root {

@@ -8,14 +8,17 @@ interface ElvaScrollFadeProps extends React.HTMLAttributes<HTMLDivElement> {
 /** Wraps scrollable regions and shows a bottom fade when more content exists below. */
 export function ElvaScrollFade({ children, className, ...props }: ElvaScrollFadeProps) {
   const ref = useRef<HTMLDivElement>(null);
-  const [canScroll, setCanScroll] = useState(false);
+  const [canScrollUp, setCanScrollUp] = useState(false);
+  const [canScrollDown, setCanScrollDown] = useState(false);
 
   const update = useCallback(() => {
     const el = ref.current;
     if (!el) return;
     const hasOverflow = el.scrollHeight > el.clientHeight + 8;
     const notAtBottom = el.scrollTop + el.clientHeight < el.scrollHeight - 8;
-    setCanScroll(hasOverflow && notAtBottom);
+    const notAtTop = el.scrollTop > 8;
+    setCanScrollUp(hasOverflow && notAtTop);
+    setCanScrollDown(hasOverflow && notAtBottom);
   }, []);
 
   useEffect(() => {
@@ -34,7 +37,8 @@ export function ElvaScrollFade({ children, className, ...props }: ElvaScrollFade
   return (
     <div
       ref={ref}
-      data-can-scroll={canScroll ? 'true' : 'false'}
+      data-can-scroll-up={canScrollUp ? 'true' : 'false'}
+      data-can-scroll-down={canScrollDown ? 'true' : 'false'}
       className={cn('elva-scroll-fade', className)}
       {...props}
     >
