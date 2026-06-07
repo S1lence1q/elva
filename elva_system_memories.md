@@ -364,3 +364,13 @@ Disse hooks er udtrukket for at holde `App.tsx` og `MusicPlayer.tsx` fokuserede 
     - Hævede afbøjningsgrænsen for venstrerul (`canLeft`) til `node.scrollLeft > 10` for at eliminere subpixel-fejl på skærme med høj opløsning.
     - Tilføjede en nulstilling af rullestatus i `useEffect`-cleanup'en ved tab-skift og afmontering, så nye views altid starter med rene, umaskede venstre-kanter.
 
+### 🎯 27. Profile Hub Design Unification & No Glow / Clean Apple Aesthetic
+* **Filer:** [theme.css](file:///Users/applemacbook/AntiGravity%20Shit/Elva.nosync/Elva/src/styles/theme.css), [OverviewTab.tsx](file:///Users/applemacbook/AntiGravity%20Shit/Elva.nosync/Elva/src/app/components/profilehub/OverviewTab.tsx), [FavoritesTab.tsx](file:///Users/applemacbook/AntiGravity%20Shit/Elva.nosync/Elva/src/app/components/profilehub/FavoritesTab.tsx), [PlaylistsTab.tsx](file:///Users/applemacbook/AntiGravity%20Shit/Elva.nosync/Elva/src/app/components/profilehub/PlaylistsTab.tsx), [AdvancedSettingsTab.tsx](file:///Users/applemacbook/AntiGravity%20Shit/Elva.nosync/Elva/src/app/components/profilehub/AdvancedSettingsTab.tsx), [SettingsModal.tsx](file:///Users/applemacbook/AntiGravity%20Shit/Elva.nosync/Elva/src/app/components/SettingsModal.tsx)
+* **Hvordan det virker:**
+  - **Unificering af kort- og række-baggrunde:** Tidligere brugte Profile Hub-arkene og indstillingerne forskellige rå `bg-white/[0.015]`- og `border-white/[0.03]`-klasser spredt ad hoc i koden. Disse er fuldt erstattet af de to globale semantiske CSS-klasser i `theme.css`:
+    - `.elva-hub-card`: Bruges til store container-kort (fx overbliksbokse, indstillingspaneler, oprettelses-popups). Den har en ren, subtil gennemsigtighed (`bg-white/[0.015]`), en meget tynd og sprød border (`border-white/[0.04]`), og en dæmpet, naturlig skygge.
+    - `.elva-hub-row`: Bruges til rækker, sange og toggles (fx favoritnumre, afspilningslister, inline søgeresultater, indstillingsknapper). Den har samme baggrund som kortene, men ændrer sig blødt på hover til en mere markeret platin-glasoverflade (`bg-white/[0.04] border-white/[0.06]`) med en tidsmæssig transition på 300ms.
+  - **Fjernelse af støjende lyseffekter (Glows & 3D-skygger):** For at imødekomme brugerens ønske om at fjerne "glow glød lort" er følgende ændret:
+    - Alle neonagtige accent-skyggelys (`shadow-elva-accent-glow`) er fjernet fra aktive toggles, indstillingsknapper og farvevælgere.
+    - De slørede farvegløder bag Playlists-overskriftskortet og Customizer-modal-swatches er fuldstændigt fjernet.
+    - Omskifterknapperne (SettingsToggle) bruger nu et Apple-inspireret solidt design: et fladt farvet spor uden glød, når de er tændt, og en hvid knap uden lysende skyggekontur.
