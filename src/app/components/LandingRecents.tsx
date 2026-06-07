@@ -24,40 +24,14 @@ export const LandingRecents: React.FC<LandingRecentsProps> = ({
   const hasArtists = recentArtists.length > 0;
 
   const [activeTab, setActiveTab] = useState<'songs' | 'artists'>('songs');
-  const [scrollState, setScrollState] = useState({ canScrollLeft: false, canScrollRight: false });
+  const [songsScrollState, setSongsScrollState] = useState({ canScrollLeft: false, canScrollRight: false });
+  const [artistsScrollState, setArtistsScrollState] = useState({ canScrollLeft: false, canScrollRight: false });
 
-  const activeNodeRef = useRef<HTMLDivElement | null>(null);
+  const songsRef = useRef<HTMLDivElement | null>(null);
+  const artistsRef = useRef<HTMLDivElement | null>(null);
 
-  const scrollRef = useCallback((node: HTMLDivElement | null) => {
-    if (activeNodeRef.current && (activeNodeRef.current as any)._cleanup) {
-      (activeNodeRef.current as any)._cleanup();
-    }
-    activeNodeRef.current = node;
-    if (node) {
-      const handleScroll = () => {
-        const canLeft = node.scrollLeft > 6;
-        const canRight = node.scrollLeft + node.clientWidth < node.scrollWidth - 6;
-        setScrollState(prev => {
-          if (prev.canScrollLeft === canLeft && prev.canScrollRight === canRight) return prev;
-          return { canScrollLeft: canLeft, canScrollRight: canRight };
-        });
-      };
-
-      // Run on next tick to ensure scrollWidth/clientWidth are populated
-      setTimeout(handleScroll, 0);
-      node.addEventListener('scroll', handleScroll, { passive: true });
-      const ro = new ResizeObserver(handleScroll);
-      ro.observe(node);
-
-      (node as any)._cleanup = () => {
-        node.removeEventListener('scroll', handleScroll);
-        ro.disconnect();
-      };
-    }
-  }, []);
-
-  const getMaskStyle = () => {
-    const { canScrollLeft, canScrollRight } = scrollState;
+  const getMaskStyle = (state: { canScrollLeft: boolean; canScrollRight: boolean }) => {
+    const { canScrollLeft, canScrollRight } = state;
     if (canScrollLeft && canScrollRight) {
       return 'linear-gradient(to right, transparent 0%, black 32px, black calc(100% - 32px), transparent 100%)';
     }
@@ -69,6 +43,64 @@ export const LandingRecents: React.FC<LandingRecentsProps> = ({
     }
     return 'none';
   };
+
+  useEffect(() => {
+    const node = songsRef.current;
+    if (!node) return;
+
+    const handleScroll = () => {
+      // Threshold is 10 to prevent subpixel issues and offset snap issues (scroll-padding keeps it at 0 when snapped left)
+      const canLeft = node.scrollLeft > 10;
+      const canRight = node.scrollLeft + node.clientWidth < node.scrollWidth - 10;
+      setSongsScrollState(prev => {
+        if (prev.canScrollLeft === canLeft && prev.canScrollRight === canRight) return prev;
+        return { canScrollLeft: canLeft, canScrollRight: canRight };
+      });
+    };
+
+    // Run measurement after layout/animations
+    const id = requestAnimationFrame(() => {
+      handleScroll();
+    });
+    node.addEventListener('scroll', handleScroll, { passive: true });
+    const ro = new ResizeObserver(handleScroll);
+    ro.observe(node);
+
+    return () => {
+      cancelAnimationFrame(id);
+      node.removeEventListener('scroll', handleScroll);
+      ro.disconnect();
+      setSongsScrollState({ canScrollLeft: false, canScrollRight: false });
+    };
+  }, [activeTab, recentlyPlayed]);
+
+  useEffect(() => {
+    const node = artistsRef.current;
+    if (!node) return;
+
+    const handleScroll = () => {
+      const canLeft = node.scrollLeft > 10;
+      const canRight = node.scrollLeft + node.clientWidth < node.scrollWidth - 10;
+      setArtistsScrollState(prev => {
+        if (prev.canScrollLeft === canLeft && prev.canScrollRight === canRight) return prev;
+        return { canScrollLeft: canLeft, canScrollRight: canRight };
+      });
+    };
+
+    const id = requestAnimationFrame(() => {
+      handleScroll();
+    });
+    node.addEventListener('scroll', handleScroll, { passive: true });
+    const ro = new ResizeObserver(handleScroll);
+    ro.observe(node);
+
+    return () => {
+      cancelAnimationFrame(id);
+      node.removeEventListener('scroll', handleScroll);
+      ro.disconnect();
+      setArtistsScrollState({ canScrollLeft: false, canScrollRight: false });
+    };
+  }, [activeTab, recentArtists]);
 
   useEffect(() => {
     if (!hasSongs && hasArtists) {
@@ -134,16 +166,16 @@ export const LandingRecents: React.FC<LandingRecentsProps> = ({
         <AnimatePresence mode="wait">
           {activeTab === 'songs' && hasSongs ? (
             <motion.div
-              ref={scrollRef}
+              ref={songsRef}
               key="songs-list"
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -4 }}
               transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-              className="flex gap-3.5 overflow-x-auto pb-3 pt-1 px-3 scrollbar-none snap-x snap-mandatory w-full"
+              className="flex gap-3.5 overflow-x-auto pb-3 pt-1 px-3 scroll-px-3 scrollbar-none snap-x snap-mandatory w-full"
               style={{
-                maskImage: getMaskStyle(),
-                WebkitMaskImage: getMaskStyle(),
+                maskImage: getMaskStyle(songsScrollState),
+                WebkitMaskImage: getMaskStyle(songsScrollState),
               }}
             >
               {recentlyPlayed.map((song) => {
@@ -184,16 +216,16 @@ export const LandingRecents: React.FC<LandingRecentsProps> = ({
             </motion.div>
           ) : (
             <motion.div
-              ref={scrollRef}
+              ref={artistsRef}
               key="artists-list"
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -4 }}
               transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-              className="flex gap-3.5 overflow-x-auto pb-3 pt-1 px-3 scrollbar-none snap-x snap-mandatory w-full justify-center sm:justify-start"
+              className="flex gap-3.5 overflow-x-auto pb-3 pt-1 px-3 scroll-px-3 scrollbar-none snap-x snap-mandatory w-full justify-center sm:justify-start"
               style={{
-                maskImage: getMaskStyle(),
-                WebkitMaskImage: getMaskStyle(),
+                maskImage: getMaskStyle(artistsScrollState),
+                WebkitMaskImage: getMaskStyle(artistsScrollState),
               }}
             >
               {recentArtists.map((artist) => (
