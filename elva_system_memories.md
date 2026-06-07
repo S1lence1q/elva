@@ -350,3 +350,17 @@ Disse hooks er udtrukket for at holde `App.tsx` og `MusicPlayer.tsx` fokuserede 
   - **Mini Player Upgrade:** Landing page mini-playeren er udvidet i volumen (højde 56px ➔ 64px, bredde 410px ➔ 440px) og forsynet med større cover-thumbnails (44px) og markant hævet tekstskalering (titel: `xs`/12px, artist: 11px med `text-white/50` kontrast) for uovertruffen læsbarhed.
   - **EQ Pause Sync:** Detekterer afspilningstilstand i kø-lister og sætter automatisk EQ-bølgernes CSS-animationer på pause (`animation-play-state: paused`), når lyden standses.
 
+---
+
+### 🎯 26. LandingRecents Horizontal Scroll Mask Bugfix
+* **Filer:** [LandingRecents.tsx](file:///Users/applemacbook/AntiGravity%20Shit/Elva.nosync/Elva/src/app/components/LandingRecents.tsx)
+* **Hvordan det virker:**
+  - **Udfordring:** Scroll-masken (der fader siderne ud) var permanent aktiv på venstre side i historikken, selv når man var scrollet helt til venstre. Dette skyldtes primært to ting:
+    1. Deling af et enkelt `scrollState` og en enkelt callback ref mellem Songs og Artists tabs. Da det ene liste-element blev afmonteret ved tab-skift under exit-animationerne, forblev dets rullestatus (`canScrollLeft: true`) gemt i det fælles state og blev fejlagtigt overført til det nye element.
+    2. Manglende CSS `scroll-padding` (Tailwind class `scroll-px-3`) på de to rullende containere. Browserens snapping-motor forsøgte at justere de `snap-start` indrettede elementer (som startede 12px inde pga. `px-3` container-padding) helt mod scrollportens start (0px). Dette tvang en permanent rullestilling på `scrollLeft = 12px` (hvilket gemte venstre-paddingen og udløste masken).
+  - **Løsning:** 
+    - Opdelte det fælles state i to fuldstændigt isolerede states (`songsScrollState` og `artistsScrollState`) samt to separate ref-instanser (`songsRef` og `artistsRef`).
+    - Tilføjede `scroll-px-3` på begge scroll-containere, så det rullende snap-start punkt indrettes mod padding-grænsen og lader startrullestillingen forblive præcis på `scrollLeft = 0px`.
+    - Hævede afbøjningsgrænsen for venstrerul (`canLeft`) til `node.scrollLeft > 10` for at eliminere subpixel-fejl på skærme med høj opløsning.
+    - Tilføjede en nulstilling af rullestatus i `useEffect`-cleanup'en ved tab-skift og afmontering, så nye views altid starter med rene, umaskede venstre-kanter.
+
