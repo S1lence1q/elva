@@ -122,8 +122,8 @@ export function PlaylistsTab({
               </button>
 
               {/* Header Card */}
-              <div className="relative w-full rounded-3xl overflow-hidden elva-hub-card py-5 px-6 md:px-8 flex flex-col md:flex-row items-center justify-between gap-6">
-                <div className={`absolute -top-12 -left-12 w-28 h-28 rounded-full bg-gradient-to-tr ${playlist.color} blur-3xl opacity-20`} />
+              <div className="relative w-full rounded-3xl overflow-hidden bg-white/[0.015] border border-white/[0.04] py-6 px-6 md:px-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-[0_16px_48px_rgba(0,0,0,0.45)]">
+                <div className={`absolute -top-16 -left-16 w-36 h-36 rounded-full bg-gradient-to-tr ${playlist.color} blur-3xl opacity-30`} />
                 
                 <div className="flex items-center gap-5 relative z-10 w-full md:w-auto">
                   <div className={`w-14 h-14 rounded-2xl bg-gradient-to-tr ${playlist.color} flex items-center justify-center shadow-lg border border-white/10 shrink-0`}>
@@ -141,7 +141,7 @@ export function PlaylistsTab({
                 <div className="flex items-center gap-3 relative z-10 shrink-0 select-none">
                   <button
                     onClick={() => onPlayPlaylist(playlist)}
-                    className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-white text-black hover:bg-white/95 text-xs font-extrabold uppercase tracking-wider transition-all cursor-pointer shadow-md"
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-white text-black hover:bg-white/90 hover:scale-[1.02] text-xs font-extrabold uppercase tracking-wider transition-all duration-300 cursor-pointer shadow-md"
                   >
                     <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
                     <span>Play All</span>
@@ -151,7 +151,7 @@ export function PlaylistsTab({
                       onDeletePlaylist(playlist.id, playlist.name);
                       setSelectedPlaylistId(null);
                     }}
-                    className="p-2.5 rounded-xl bg-white/5 hover:bg-red-500/10 text-white/40 hover:text-red-400 border border-white/5 hover:border-red-500/20 transition-all cursor-pointer"
+                    className="p-2.5 rounded-xl bg-white/5 hover:bg-red-500/10 text-white/40 hover:text-red-400 border border-white/10 hover:border-red-500/20 hover:scale-105 transition-all duration-300 cursor-pointer"
                     title="Delete Playlist"
                   >
                     <Trash2 className="w-4.5 h-4.5" />
@@ -171,7 +171,7 @@ export function PlaylistsTab({
                         initial={{ opacity: 0, y: 8 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: idx * 0.02 }}
-                        className="group flex items-center justify-between p-3.5 rounded-2xl elva-hub-row border-0 w-full"
+                        className="group flex items-center justify-between p-3.5 rounded-2xl bg-white/[0.01] border border-white/[0.02] hover:bg-white/[0.035] hover:border-white/[0.07] transition-all duration-300 w-full"
                       >
                         <div 
                           onClick={() => onSelectSong(song)}
@@ -253,7 +253,7 @@ export function PlaylistsTab({
                   </div>
                   <button
                     onClick={() => handleInlineSearch(inlineQuery)}
-                    className="px-6 rounded-2xl bg-white hover:bg-white/90 text-black border border-transparent text-xs font-extrabold uppercase tracking-wider transition-all cursor-pointer shadow-md select-none shrink-0"
+                    className="px-6 rounded-2xl bg-white/5 hover:bg-white text-white hover:text-black border border-white/10 hover:border-elva-accent hover:scale-[1.02] text-xs font-extrabold uppercase tracking-wider transition-all duration-300 cursor-pointer shadow-md select-none shrink-0"
                   >
                     Search
                   </button>
@@ -282,7 +282,7 @@ export function PlaylistsTab({
                       {inlineResults.map((result) => (
                         <div
                           key={result.id}
-                          className="flex items-center justify-between p-3 rounded-2xl elva-hub-row border-0 group"
+                          className="flex items-center justify-between p-3 rounded-2xl bg-white/[0.01] border border-white/[0.025] hover:bg-white/[0.035] hover:border-white/[0.07] transition-all duration-300 group"
                         >
                           <div className="flex items-center gap-3 truncate mr-4 text-left">
                             <img
@@ -306,7 +306,7 @@ export function PlaylistsTab({
                               setInlineQuery('');
                               setInlineResults([]);
                             }}
-                            className="p-2 rounded-xl bg-white/5 hover:bg-white text-white hover:text-black border border-white/5 transition-all cursor-pointer shrink-0 select-none shadow-sm"
+                            className="p-2 rounded-xl bg-white/5 hover:bg-white text-white hover:text-black border border-white/10 hover:border-elva-accent hover:scale-105 transition-all duration-300 cursor-pointer shrink-0 select-none shadow-sm"
                             title="Add to playlist"
                           >
                             <Plus className="w-3.5 h-3.5" />
@@ -346,7 +346,7 @@ export function PlaylistsTab({
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
-                className="rounded-3xl elva-hub-card p-5 overflow-hidden text-left"
+                className="rounded-3xl bg-white/[0.015] border border-white/[0.04] p-5 overflow-hidden text-left shadow-[0_12px_32px_rgba(0,0,0,0.4)]"
               >
                 <div className="flex flex-col gap-4">
                   <h4 className="text-xs uppercase tracking-widest font-semibold text-white/70">Create new playlist</h4>
@@ -361,7 +361,7 @@ export function PlaylistsTab({
                       autoCorrect="off"
                       autoCapitalize="off"
                       spellCheck="false"
-                      className="flex-1 bg-[#050608]/85 border border-white/[0.08] focus:border-white/20 text-white rounded-xl px-4 py-2.5 text-sm focus:outline-none transition-all duration-300 font-light backdrop-blur-xl"
+                      className="flex-1 elva-input text-white rounded-xl px-4 py-2.5 text-sm focus:outline-none transition-all duration-300 font-light backdrop-blur-xl"
                       autoFocus
                     />
                     <div className="flex items-center gap-2">
@@ -369,8 +369,8 @@ export function PlaylistsTab({
                         <button
                           key={idx}
                           onClick={() => setSelectedColorIndex(idx)}
-                          className={`w-7 h-7 rounded-full bg-gradient-to-br ${col} border-2 transition-all ${
-                            selectedColorIndex === idx ? 'border-white scale-110' : 'border-transparent opacity-75'
+                          className={`w-7 h-7 rounded-full bg-gradient-to-br ${col} border-2 transition-all duration-300 hover:scale-105 active:scale-95 ${
+                            selectedColorIndex === idx ? 'border-white scale-110 shadow-lg' : 'border-transparent opacity-60 hover:opacity-100'
                           } cursor-pointer`}
                         />
                       ))}
@@ -380,13 +380,13 @@ export function PlaylistsTab({
                   <div className="flex gap-2 justify-end mt-2 select-none">
                     <button
                       onClick={() => setIsCreatingPlaylist(false)}
-                      className="px-4 py-2 rounded-xl text-xs text-white/50 hover:text-white hover:bg-white/5 transition-all cursor-pointer font-semibold uppercase"
+                      className="px-4 py-2 rounded-xl text-xs text-white/50 hover:text-white hover:bg-white/5 transition-all duration-300 cursor-pointer font-semibold uppercase"
                     >
                       Cancel
                     </button>
                     <button
                       onClick={submitCreatePlaylist}
-                      className="px-4 py-2 rounded-xl text-xs text-black bg-white hover:bg-white/95 transition-all cursor-pointer font-bold uppercase"
+                      className="px-4 py-2 rounded-xl text-xs text-black bg-white hover:bg-white/90 hover:scale-[1.02] transition-all duration-300 cursor-pointer font-bold uppercase shadow-sm"
                     >
                       Save Playlist
                     </button>
@@ -402,7 +402,7 @@ export function PlaylistsTab({
                 <div
                   key={playlist.id}
                   onClick={() => setSelectedPlaylistId(playlist.id)}
-                  className="group relative rounded-3xl elva-hub-card hover:bg-white/[0.05] p-6.5 flex flex-col justify-between h-[160px] overflow-hidden transition-all duration-300 cursor-pointer active:scale-[0.99]"
+                  className="group relative rounded-3xl bg-white/[0.015] border border-white/[0.04] shadow-[0_8px_32px_rgba(0,0,0,0.4)] hover:bg-white/[0.035] hover:border-white/[0.1] hover:shadow-[0_12px_40px_rgba(0,0,0,0.55)] p-6.5 flex flex-col justify-between h-[160px] overflow-hidden transition-all duration-300 cursor-pointer active:scale-[0.99]"
                 >
                   <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${playlist.color}`} />
 
@@ -419,7 +419,7 @@ export function PlaylistsTab({
                         e.stopPropagation();
                         onDeletePlaylist(playlist.id, playlist.name);
                       }}
-                      className="p-2 rounded-xl hover:bg-white/5 text-white/30 hover:text-red-400 transition-all cursor-pointer opacity-0 group-hover:opacity-100 duration-300"
+                      className="p-2 rounded-xl hover:bg-red-500/10 text-white/30 hover:text-red-400 transition-all cursor-pointer opacity-0 group-hover:opacity-100 duration-300"
                       title="Delete playlist"
                     >
                       <Trash2 className="w-4.5 h-4.5" />
@@ -430,7 +430,7 @@ export function PlaylistsTab({
                         e.stopPropagation();
                         onPlayPlaylist(playlist);
                       }}
-                      className="p-3.5 rounded-full bg-white/10 hover:bg-white text-white hover:text-black border border-white/10 hover:scale-105 transition-all cursor-pointer shadow-md"
+                      className="p-3.5 rounded-full bg-white/5 hover:bg-white text-white hover:text-black border border-white/10 hover:scale-105 transition-all duration-300 cursor-pointer shadow-md"
                       title="Play playlist"
                     >
                       <Play className="w-5 h-5 fill-current ml-0.5" />
