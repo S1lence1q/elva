@@ -50,7 +50,7 @@ export function FavoritesTab({
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.02 }}
-              className="group flex items-center justify-between p-4 rounded-2xl elva-hub-row border-0 w-full"
+              className="group flex items-center justify-between p-4 rounded-2xl elva-hub-row w-full"
             >
               {/* Left: Artwork + Title/Artist */}
               <div 

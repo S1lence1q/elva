@@ -216,7 +216,7 @@ export function OverviewTab({
                   setActiveTab('playlists');
                   setSelectedPlaylistId(playlist.id);
                 }}
-                className="group relative rounded-2xl elva-hub-row p-4.5 flex flex-col justify-between h-[120px] overflow-hidden transition-all duration-300 cursor-pointer active:scale-[0.98] border-0"
+                className="group relative rounded-2xl elva-hub-row p-4.5 flex flex-col justify-between h-[120px] overflow-hidden transition-all duration-300 cursor-pointer active:scale-[0.98]"
               >
                 <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r ${playlist.color}`} />
 

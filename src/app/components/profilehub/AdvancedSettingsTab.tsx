@@ -43,22 +43,22 @@ function SettingsToggle({
   return (
     <div
       onClick={() => onChange(!checked)}
-      className="flex items-center justify-between p-4 rounded-2xl bg-white/[0.015] border border-white/[0.03] hover:bg-white/[0.03] hover:border-white/[0.06] transition-all duration-300 cursor-pointer select-none"
+      className="flex items-center justify-between p-4 elva-hub-row cursor-pointer select-none"
     >
       <div className="text-left pr-4">
         <span className="text-xs font-semibold text-white/90 block">{label}</span>
         <span className="text-[10px] text-white/40 font-light mt-1 block leading-normal">{description}</span>
       </div>
       <div
-        className={`w-10 h-5.5 rounded-full shrink-0 relative border transition-all duration-300 ${
-          checked ? 'bg-elva-accent-soft border-elva-accent' : 'bg-white/5 border-white/5'
+        className={`w-10 h-5.5 rounded-full shrink-0 relative transition-all duration-300 ${
+          checked ? 'bg-elva-accent' : 'bg-white/10'
         }`}
       >
         <motion.div
           animate={{ x: checked ? 18 : 0 }}
           transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-          className={`absolute top-[2px] left-[2px] w-4 h-4 rounded-full transition-shadow duration-300 ${
-            checked ? 'bg-white shadow-[0_0_10px_var(--elva-accent)]' : 'bg-white/40'
+          className={`absolute top-[3px] left-[3px] w-3.5 h-3.5 rounded-full transition-all duration-300 ${
+            checked ? 'bg-white shadow-sm' : 'bg-white/60'
           }`}
         />
       </div>
@@ -105,7 +105,7 @@ export const AdvancedSettingsTab: React.FC<AdvancedSettingsTabProps> = ({
       className="grid grid-cols-1 md:grid-cols-2 gap-8 text-left"
     >
       <div className="space-y-8">
-        <div className="rounded-3xl elva-glass-elevated p-6 space-y-4">
+        <div className="rounded-3xl elva-hub-card p-6 space-y-4">
           <div className="flex items-center gap-2.5 mb-2 select-none">
             <Sliders className={`w-4 h-4 ${theme.text}`} />
             <h3 className="text-[10px] uppercase tracking-[0.2em] font-bold text-white/50">Audio Preferences</h3>
@@ -177,7 +177,7 @@ export const AdvancedSettingsTab: React.FC<AdvancedSettingsTabProps> = ({
           </div>
 
           <div className="space-y-3">
-            <div className="flex items-center justify-between p-4 rounded-2xl bg-white/[0.015] border border-white/[0.03] hover:bg-white/[0.03] hover:border-white/[0.06] transition-all duration-300 select-none">
+            <div className="flex items-center justify-between p-4 elva-hub-row select-none">
               <div className="text-left pr-4">
                 <span className="text-xs font-semibold text-white/90 block">Film Grain & Noise</span>
                 <span className="text-[10px] text-white/40 font-light mt-1 block leading-normal">
@@ -201,7 +201,7 @@ export const AdvancedSettingsTab: React.FC<AdvancedSettingsTabProps> = ({
               </div>
             </div>
 
-            <div className="flex items-center justify-between p-4 rounded-2xl bg-white/[0.015] border border-white/[0.03] hover:bg-white/[0.03] hover:border-white/[0.06] transition-all duration-300 select-none">
+            <div className="flex items-center justify-between p-4 elva-hub-row select-none">
               <div className="text-left pr-4">
                 <span className="text-xs font-semibold text-white/90 block">Progress Indicator</span>
                 <span className="text-[10px] text-white/40 font-light mt-1 block leading-normal">
@@ -246,7 +246,7 @@ export const AdvancedSettingsTab: React.FC<AdvancedSettingsTabProps> = ({
           </div>
         </div>
 
-        <div className="rounded-3xl elva-glass-elevated p-6 space-y-4">
+        <div className="rounded-3xl elva-hub-card p-6 space-y-4">
           <div className="flex items-center gap-2.5 mb-2 select-none">
             <Maximize2 className={`w-4 h-4 ${theme.text}`} />
             <h3 className="text-[10px] uppercase tracking-[0.2em] font-bold text-white/50">System Utilities</h3>
@@ -258,7 +258,7 @@ export const AdvancedSettingsTab: React.FC<AdvancedSettingsTabProps> = ({
                 window.dispatchEvent(new CustomEvent('elva-reset-tour'));
                 showMiniHUD('Tour reset! Ready to start next play.');
               }}
-              className="group flex flex-col items-center justify-center gap-2.5 p-4 rounded-2xl bg-white/[0.015] border border-white/[0.03] hover:bg-white/[0.03] hover:border-white/[0.06] text-white/45 hover:text-white transition-all duration-300 cursor-pointer h-24 text-center"
+              className="group flex flex-col items-center justify-center gap-2.5 p-4 elva-hub-row text-white/45 hover:text-white cursor-pointer h-24 text-center"
             >
               <RefreshCw className="w-4 h-4 group-hover:rotate-180 transition-transform duration-500 text-white/40 group-hover:text-white" />
               <span className="text-[10px] font-bold uppercase tracking-wider">Reset Tour</span>
@@ -267,14 +267,14 @@ export const AdvancedSettingsTab: React.FC<AdvancedSettingsTabProps> = ({
               onClick={() => {
                 window.dispatchEvent(new KeyboardEvent('keydown', { key: '?' }));
               }}
-              className="group flex flex-col items-center justify-center gap-2.5 p-4 rounded-2xl bg-white/[0.015] border border-white/[0.03] hover:bg-white/[0.03] hover:border-white/[0.06] text-white/45 hover:text-white transition-all duration-300 cursor-pointer h-24 text-center"
+              className="group flex flex-col items-center justify-center gap-2.5 p-4 elva-hub-row text-white/45 hover:text-white cursor-pointer h-24 text-center"
             >
               <Keyboard className="w-4 h-4 text-white/40 group-hover:text-white transition-all" />
               <span className="text-[10px] font-bold uppercase tracking-wider">Keyboard Map</span>
             </button>
           </div>
 
-          <div className="p-4 rounded-2xl bg-white/[0.015] border border-white/[0.03] space-y-3">
+          <div className="p-4 elva-hub-row space-y-3">
             <span className="text-[9px] font-bold text-white/35 uppercase tracking-wider block">Accent Tone Swatches</span>
             <div className="grid grid-cols-4 gap-2.5">
               {(['emerald', 'sand', 'wine', 'navy'] as AccentColor[]).map((color) => {
@@ -286,8 +286,8 @@ export const AdvancedSettingsTab: React.FC<AdvancedSettingsTabProps> = ({
                     onClick={() => onAccentColorChange?.(color)}
                     className={`flex flex-col items-center gap-2 p-2.5 rounded-xl border transition-all duration-300 cursor-pointer ${
                       isActive
-                        ? 'border-elva-accent bg-elva-accent-softer shadow-elva-accent-glow'
-                        : 'bg-white/[0.015] border-white/[0.03] hover:bg-white/[0.03] hover:border-white/[0.06]'
+                        ? 'border-elva-accent bg-elva-accent-softer'
+                        : 'bg-white/[0.01] border-white/[0.02] hover:bg-white/[0.03] hover:border-white/[0.05]'
                     }`}
                   >
                     <div

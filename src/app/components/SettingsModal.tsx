@@ -48,7 +48,7 @@ function QuickToggle({
       onClick={() => onChange(!checked)}
       className={`flex items-center gap-3 p-3.5 rounded-2xl border transition-all duration-300 text-left cursor-pointer w-full select-none ${
         checked 
-          ? `bg-elva-accent-softer border-elva-accent text-white shadow-elva-accent-glow` 
+          ? `bg-elva-accent-softer border-elva-accent text-white` 
           : 'bg-white/[0.015] border-white/[0.03] text-white/45 hover:bg-white/[0.03] hover:text-white/70 hover:border-white/[0.08]'
       }`}
     >
@@ -236,7 +236,7 @@ export function SettingsModal({
                   }`}
                   style={{
                     borderColor: isActive ? swatch.core : 'transparent',
-                    boxShadow: isActive ? `0 0 12px ${swatch.glow}` : 'none'
+                    boxShadow: 'none'
                   }}
                   title={ACCENT_THEMES[color].name}
                 >
