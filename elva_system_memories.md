@@ -374,3 +374,11 @@ Disse hooks er udtrukket for at holde `App.tsx` og `MusicPlayer.tsx` fokuserede 
     - Alle neonagtige accent-skyggelys (`shadow-elva-accent-glow`) er fjernet fra aktive toggles, indstillingsknapper og farvevælgere.
     - De slørede farvegløder bag Playlists-overskriftskortet og Customizer-modal-swatches er fuldstændigt fjernet.
     - Omskifterknapperne (SettingsToggle) bruger nu et Apple-inspireret solidt design: et fladt farvet spor uden glød, når de er tændt, og en hvid knap uden lysende skyggekontur.
+
+### 🎯 28. Apple Music-style Lyrics Scroll-Fade
+* **Filer:** [LyricsPanel.tsx](file:///Users/applemacbook/AntiGravity%20Shit/Elva.nosync/Elva/src/app/components/LyricsPanel.tsx)
+* **Hvordan det virker:**
+  - **Safari/WebKit Cross-Browser Support:** Løser problemet, hvor gradient-scrollmasker ikke blev tegnet på Safari (som udelukkende understøtter `-webkit-mask-image`). Både `WebkitMaskImage` og standard `maskImage` er nu tildelt med en matchende lineær gradient (`linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%)`).
+  - **Universal Lyrics Application:** Masken er nu aktiv for **både synkroniserede og almindelige (plain/unsynced) sangtekster**, hvilket sikrer bløde overgange uanset lyrikformat.
+  - **Breathing Room Spacers:** Forhindrer at den første og sidste linje af almindelige sangtekster permanent fader ud, når de er i hviletilstand ved top- eller bundgrænsen. Dette opnås ved at indføre ikke-komprimerbare top- og bundspacers (`h-12` og `h-16`) omkring sangteksterne.
+
