@@ -122,12 +122,16 @@ export const LyricsPanel: React.FC<LyricsPanelProps> = ({
         } pb-32`}
         onClick={(e) => e.stopPropagation()}
         style={{ 
-          maskImage: isLyricsSynced 
-            ? 'linear-gradient(to bottom, transparent, black 15%, black 85%, transparent)' 
-            : 'none' 
+          maskImage: 'linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%)',
+          WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%)'
         }}
       >
-        {isLyricsSynced && <div className={isSideBySide ? "min-h-[25%]" : "min-h-[40%]"} />} {/* Spacer only for synced centering */}
+        {isLyricsSynced ? (
+          <div className={isSideBySide ? "min-h-[25%]" : "min-h-[40%]"} />
+        ) : (
+          <div className="h-12 shrink-0" />
+        )}
+        
         
         {isLoadingLyrics ? (
           <div className="flex flex-col items-center justify-center gap-4 h-full w-full">
@@ -184,7 +188,11 @@ export const LyricsPanel: React.FC<LyricsPanelProps> = ({
           </div>
         )}
         
-        {isLyricsSynced && <div className={isSideBySide ? "min-h-[50%]" : "min-h-[60%]"} />}
+        {isLyricsSynced ? (
+          <div className={isSideBySide ? "min-h-[50%]" : "min-h-[60%]"} />
+        ) : (
+          <div className="h-16 shrink-0" />
+        )}
       </div>
     </div>
   );
