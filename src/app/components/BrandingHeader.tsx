@@ -172,23 +172,11 @@ export function BrandingHeader({
         </motion.div>
       </motion.div>
 
-      {showGreeting && (
-        <motion.p
-          variants={greetingVariants}
-          initial="initial"
-          animate="animate"
-          className="text-[11px] text-white/30 font-light tracking-wide -mt-1 select-none"
-        >
-          {greeting},{' '}
-          <span className="text-white/50 font-normal">{profile.username}</span>
-        </motion.p>
-      )}
-
       <motion.p
         variants={taglineVariants}
         initial="initial"
         animate="animate"
-        className={`text-[9px] uppercase tracking-[0.55em] font-semibold text-white/80 select-none ${showGreeting ? '-mt-1' : '-mt-2.5'}`}
+        className="text-[9px] uppercase tracking-[0.55em] font-semibold text-white/80 select-none -mt-2"
       >
         Listen Deeper
       </motion.p>
