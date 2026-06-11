@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Play } from 'lucide-react';
 import { SearchResult, VerifiedArtist } from '../types';
-import { AccentColor, ACCENT_THEMES } from './themeUtils';
+import { AccentColor, ACCENT_THEMES, ACCENT_SWATCH } from './themeUtils';
 
 interface LandingRecentsProps {
   recentlyPlayed: SearchResult[];
@@ -28,8 +28,11 @@ export const LandingRecents: React.FC<LandingRecentsProps> = ({
   const [songsScrollState, setSongsScrollState] = useState({ canScrollLeft: false, canScrollRight: false });
   const [artistsScrollState, setArtistsScrollState] = useState({ canScrollLeft: false, canScrollRight: false });
 
-  const songsRef = useRef<HTMLDivElement | null>(null);
-  const artistsRef = useRef<HTMLDivElement | null>(null);
+  const songsCleanupRef = useRef<(() => void) | null>(null);
+  const artistsCleanupRef = useRef<(() => void) | null>(null);
+
+  const songsNodeRef = useRef<HTMLDivElement | null>(null);
+  const artistsNodeRef = useRef<HTMLDivElement | null>(null);
 
   const themeAccent = ACCENT_THEMES[accentColor];
 
@@ -47,9 +50,18 @@ export const LandingRecents: React.FC<LandingRecentsProps> = ({
     return 'none';
   };
 
-  useEffect(() => {
-    const node = songsRef.current;
-    if (!node) return;
+  // Callback ref for the Songs scroll list
+  const songsRefCallback = useCallback((node: HTMLDivElement | null) => {
+    if (songsCleanupRef.current) {
+      songsCleanupRef.current();
+      songsCleanupRef.current = null;
+    }
+    songsNodeRef.current = node;
+
+    if (!node) {
+      setSongsScrollState({ canScrollLeft: false, canScrollRight: false });
+      return;
+    }
 
     const handleScroll = () => {
       const canLeft = node.scrollLeft > 2;
@@ -60,24 +72,31 @@ export const LandingRecents: React.FC<LandingRecentsProps> = ({
       });
     };
 
-    const id = requestAnimationFrame(() => {
-      handleScroll();
-    });
+    // Initial check
+    handleScroll();
+
     node.addEventListener('scroll', handleScroll, { passive: true });
     const ro = new ResizeObserver(handleScroll);
     ro.observe(node);
 
-    return () => {
-      cancelAnimationFrame(id);
+    songsCleanupRef.current = () => {
       node.removeEventListener('scroll', handleScroll);
       ro.disconnect();
-      setSongsScrollState({ canScrollLeft: false, canScrollRight: false });
     };
-  }, [activeTab, recentlyPlayed]);
+  }, []);
 
-  useEffect(() => {
-    const node = artistsRef.current;
-    if (!node) return;
+  // Callback ref for the Artists scroll list
+  const artistsRefCallback = useCallback((node: HTMLDivElement | null) => {
+    if (artistsCleanupRef.current) {
+      artistsCleanupRef.current();
+      artistsCleanupRef.current = null;
+    }
+    artistsNodeRef.current = node;
+
+    if (!node) {
+      setArtistsScrollState({ canScrollLeft: false, canScrollRight: false });
+      return;
+    }
 
     const handleScroll = () => {
       const canLeft = node.scrollLeft > 2;
@@ -88,21 +107,57 @@ export const LandingRecents: React.FC<LandingRecentsProps> = ({
       });
     };
 
-    const id = requestAnimationFrame(() => {
-      handleScroll();
-    });
+    // Initial check
+    handleScroll();
+
     node.addEventListener('scroll', handleScroll, { passive: true });
     const ro = new ResizeObserver(handleScroll);
     ro.observe(node);
 
-    return () => {
-      cancelAnimationFrame(id);
+    artistsCleanupRef.current = () => {
       node.removeEventListener('scroll', handleScroll);
       ro.disconnect();
-      setArtistsScrollState({ canScrollLeft: false, canScrollRight: false });
     };
-  }, [activeTab, recentArtists]);
+  }, []);
 
+  // Recalculate scroll states when list data changes
+  useEffect(() => {
+    const node = songsNodeRef.current;
+    if (!node) return;
+    const handleScroll = () => {
+      const canLeft = node.scrollLeft > 2;
+      const canRight = node.scrollLeft + node.clientWidth < node.scrollWidth - 2;
+      setSongsScrollState(prev => {
+        if (prev.canScrollLeft === canLeft && prev.canScrollRight === canRight) return prev;
+        return { canScrollLeft: canLeft, canScrollRight: canRight };
+      });
+    };
+    handleScroll();
+  }, [recentlyPlayed]);
+
+  useEffect(() => {
+    const node = artistsNodeRef.current;
+    if (!node) return;
+    const handleScroll = () => {
+      const canLeft = node.scrollLeft > 2;
+      const canRight = node.scrollLeft + node.clientWidth < node.scrollWidth - 2;
+      setArtistsScrollState(prev => {
+        if (prev.canScrollLeft === canLeft && prev.canScrollRight === canRight) return prev;
+        return { canScrollLeft: canLeft, canScrollRight: canRight };
+      });
+    };
+    handleScroll();
+  }, [recentArtists]);
+
+  // Clean up all bindings when component is fully unmounted
+  useEffect(() => {
+    return () => {
+      if (songsCleanupRef.current) songsCleanupRef.current();
+      if (artistsCleanupRef.current) artistsCleanupRef.current();
+    };
+  }, []);
+
+  // Auto-switch tabs if content is missing
   useEffect(() => {
     if (!hasSongs && hasArtists) {
       setActiveTab('artists');
@@ -167,7 +222,7 @@ export const LandingRecents: React.FC<LandingRecentsProps> = ({
         <AnimatePresence mode="wait">
           {activeTab === 'songs' && hasSongs ? (
             <motion.div
-              ref={songsRef}
+              ref={songsRefCallback}
               key="songs-list"
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
@@ -187,7 +242,7 @@ export const LandingRecents: React.FC<LandingRecentsProps> = ({
                     onClick={() => onPlaySong(song)}
                     whileHover={{ 
                       scale: 1.03,
-                      boxShadow: `0 12px 30px rgba(0, 0, 0, 0.65), 0 0 15px ${themeAccent.shadowHex}20`,
+                      boxShadow: `0 12px 30px rgba(0, 0, 0, 0.65), 0 0 15px ${themeAccent.shadowHex || swatch.core}20`,
                       borderColor: 'rgba(255, 255, 255, 0.12)',
                     }}
                     className="group snap-start flex-shrink-0 w-[154px] flex flex-col gap-3.5 p-3.5 rounded-2xl bg-white/[0.03] border border-white/[0.04] transition-all duration-300 cursor-pointer overflow-hidden"
@@ -221,7 +276,7 @@ export const LandingRecents: React.FC<LandingRecentsProps> = ({
             </motion.div>
           ) : (
             <motion.div
-              ref={artistsRef}
+              ref={artistsRefCallback}
               key="artists-list"
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
@@ -239,7 +294,7 @@ export const LandingRecents: React.FC<LandingRecentsProps> = ({
                   onClick={() => onViewArtist(artist)}
                   whileHover={{ 
                     scale: 1.03,
-                    boxShadow: `0 12px 30px rgba(0, 0, 0, 0.65), 0 0 15px ${themeAccent.shadowHex}20`,
+                    boxShadow: `0 12px 30px rgba(0, 0, 0, 0.65), 0 0 15px ${themeAccent.shadowHex || swatch.core}20`,
                     borderColor: 'rgba(255, 255, 255, 0.12)',
                   }}
                   className="group snap-start flex-shrink-0 w-[154px] flex flex-col gap-3.5 p-3.5 rounded-2xl bg-white/[0.03] border border-white/[0.04] transition-all duration-300 cursor-pointer overflow-hidden"
