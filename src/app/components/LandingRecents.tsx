@@ -52,8 +52,8 @@ export const LandingRecents: React.FC<LandingRecentsProps> = ({
     if (!node) return;
 
     const handleScroll = () => {
-      const canLeft = node.scrollLeft > 10;
-      const canRight = node.scrollLeft + node.clientWidth < node.scrollWidth - 10;
+      const canLeft = node.scrollLeft > 2;
+      const canRight = node.scrollLeft + node.clientWidth < node.scrollWidth - 2;
       setSongsScrollState(prev => {
         if (prev.canScrollLeft === canLeft && prev.canScrollRight === canRight) return prev;
         return { canScrollLeft: canLeft, canScrollRight: canRight };
@@ -80,8 +80,8 @@ export const LandingRecents: React.FC<LandingRecentsProps> = ({
     if (!node) return;
 
     const handleScroll = () => {
-      const canLeft = node.scrollLeft > 10;
-      const canRight = node.scrollLeft + node.clientWidth < node.scrollWidth - 10;
+      const canLeft = node.scrollLeft > 2;
+      const canRight = node.scrollLeft + node.clientWidth < node.scrollWidth - 2;
       setArtistsScrollState(prev => {
         if (prev.canScrollLeft === canLeft && prev.canScrollRight === canRight) return prev;
         return { canScrollLeft: canLeft, canScrollRight: canRight };

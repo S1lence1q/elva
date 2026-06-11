@@ -191,7 +191,7 @@ export function LandingTabNav({
                 onClick={() => setActiveTab(section.id)}
                 className={`group relative z-10 px-4.5 py-2 text-[10px] md:text-[11px] font-bold uppercase tracking-[0.14em] transition-colors duration-250 cursor-pointer rounded-full focus:outline-none elva-focus-ring flex items-center gap-2 ${
                   isActive 
-                    ? 'text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.45)]' 
+                    ? 'text-white' 
                     : 'text-white/25 hover:text-white/60'
                 }`}
                 aria-label={section.aria}
@@ -200,9 +200,9 @@ export function LandingTabNav({
                 {isActive && (
                   <motion.span
                     layoutId={`landingActiveTabBubble-${navPosition}`}
-                    className="absolute inset-0 rounded-full bg-gradient-to-r from-[color:var(--elva-accent)]/[0.12] to-[color:var(--elva-accent-glow)]/[0.04] border border-[color:var(--elva-accent)]/20"
+                    className="absolute inset-0 rounded-full bg-gradient-to-r from-[color:var(--elva-accent)]/[0.08] to-[color:var(--elva-accent-glow)]/[0.02] border border-[color:var(--elva-accent)]/15"
                     style={{
-                      boxShadow: `0 0 22px ${swatch.core}40, inset 0 1px 0 rgba(255,255,255,0.15)`,
+                      boxShadow: `0 0 10px ${swatch.core}20, inset 0 1px 0 rgba(255,255,255,0.1)`,
                     }}
                     transition={{ type: 'spring', stiffness: 380, damping: 30 }}
                   />
