@@ -35,6 +35,7 @@ export const LandingRecents: React.FC<LandingRecentsProps> = ({
   const artistsNodeRef = useRef<HTMLDivElement | null>(null);
 
   const themeAccent = ACCENT_THEMES[accentColor];
+  const swatch = ACCENT_SWATCH[accentColor];
 
   const getMaskStyle = (state: { canScrollLeft: boolean; canScrollRight: boolean }) => {
     const { canScrollLeft, canScrollRight } = state;
