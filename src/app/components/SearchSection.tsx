@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, ChevronRight, Music, X } from 'lucide-react';
+import { Search, ChevronRight, Music, X, Upload } from 'lucide-react';
 import { SearchResult, VerifiedArtist } from '../types';
 import { ARTIST_PROFILE_BADGE, ARTIST_SEARCH_CARD_HINT } from '../constants/artistUi';
 import { ThemeColors, AccentColor } from './themeUtils';
@@ -172,6 +172,11 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
   const [localQuery, setLocalQuery] = useState(searchQuery);
   const [showSearchTips, setShowSearchTips] = useState(false);
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
 
   useEffect(() => {
     setLocalQuery(searchQuery);
@@ -281,23 +286,42 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
             autoCorrect="off"
             autoCapitalize="off"
             spellCheck="false"
-            className="w-full pl-15 pr-12 py-4.5 rounded-full border-0 bg-transparent text-white/90 placeholder-white/25 text-sm md:text-base font-light tracking-wide focus:outline-none focus:ring-0 transition-colors duration-300"
+            className="w-full pl-15 pr-20 py-4.5 rounded-full border-0 bg-transparent text-white/90 placeholder-white/25 text-sm md:text-base font-light tracking-wide focus:outline-none focus:ring-0 transition-colors duration-300"
           />
 
-          {localQuery && (
+          <input
+            type="file"
+            ref={fileInputRef}
+            accept="audio/*"
+            onChange={handleFileSelect}
+            className="hidden"
+          />
+
+          <div className="absolute right-5 top-1/2 -translate-y-1/2 flex items-center gap-1.5 z-20">
+            {localQuery && (
+              <button
+                type="button"
+                onClick={() => {
+                  setLocalQuery('');
+                  setSearchQuery('');
+                  document.getElementById('search-input')?.focus();
+                }}
+                className="text-white/30 hover:text-white/60 transition-colors cursor-pointer p-1 rounded-lg hover:bg-white/5"
+                title="Clear search"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+
             <button
               type="button"
-              onClick={() => {
-                setLocalQuery('');
-                setSearchQuery('');
-                document.getElementById('search-input')?.focus();
-              }}
-              className="absolute right-5 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors cursor-pointer p-1 rounded-lg hover:bg-white/5 z-20"
-              title="Clear search"
+              onClick={handleUploadClick}
+              className="text-white/30 hover:text-white/60 transition-colors cursor-pointer p-1.5 rounded-lg hover:bg-white/5"
+              title="Upload audio file"
             >
-              <X className="w-4 h-4" />
+              <Upload className="w-4.5 h-4.5" />
             </button>
-          )}
+          </div>
         </div>
       </div>
 
@@ -488,17 +512,6 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
         </AnimatePresence>
       </div>
 
-      {panelPhase === 'recents' && (
-        <div className="text-center pt-4">
-          <label id="upload-button" className="inline-flex items-center gap-2 cursor-pointer group">
-            <input type="file" accept="audio/*" onChange={handleFileSelect} className="hidden" />
-            <span className="text-sm text-white/30 group-hover:text-white/50 transition-colors">or</span>
-            <span className="text-sm text-white/40 group-hover:text-white/60 transition-colors border-b border-white/20 group-hover:border-white/40">
-              upload a file
-            </span>
-          </label>
-        </div>
-      )}
     </motion.div>
   );
 };
