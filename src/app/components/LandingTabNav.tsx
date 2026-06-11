@@ -1,12 +1,19 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { AccentColor, ACCENT_THEMES } from './themeUtils';
+import { Home, Compass, User } from 'lucide-react';
+import { AccentColor, ACCENT_THEMES, ACCENT_SWATCH } from './themeUtils';
 
 const SECTIONS = [
   { id: 'search', label: 'Home', aria: 'Search and home' },
   { id: 'discover', label: 'Discover', aria: 'Discover charts' },
   { id: 'myhub', label: 'Hub', aria: 'My hub profile' },
 ] as const;
+
+const SECTION_ICONS = {
+  search: Home,
+  discover: Compass,
+  myhub: User,
+} as const;
 
 interface LandingTabNavProps {
   activeTab: 'search' | 'discover' | 'myhub';
@@ -24,6 +31,7 @@ export function LandingTabNav({
   navPosition = 'bottom',
 }: LandingTabNavProps) {
   const themeAccent = ACCENT_THEMES[accentColor];
+  const swatch = ACCENT_SWATCH[accentColor];
 
   const isBottom = navPosition === 'bottom';
   const isTop = navPosition === 'top';
@@ -103,16 +111,20 @@ export function LandingTabNav({
                     {isActive && (
                       <motion.div
                         layoutId={`landingNavDotGlow-${navPosition}`}
-                        className="absolute -inset-1 rounded-full bg-white/15"
+                        className="absolute -inset-1 rounded-full bg-[color:var(--elva-accent)]/20"
+                        style={{
+                          boxShadow: `0 0 12px ${swatch.core}40`,
+                        }}
                         transition={{ type: 'spring', stiffness: 380, damping: 30 }}
                       />
                     )}
                     <motion.div
                       animate={{ scale: isActive ? 1.15 : 1 }}
                       transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+                      style={isActive ? { boxShadow: `0 0 6px ${swatch.core}` } : {}}
                       className={`w-1.5 h-1.5 rounded-full transition-colors duration-250 ${
                         isActive
-                          ? 'bg-white shadow-[0_0_6px_rgba(255,255,255,0.3)]'
+                          ? 'bg-white'
                           : 'bg-white/20 group-hover:bg-white/40'
                       }`}
                     />
@@ -170,14 +182,17 @@ export function LandingTabNav({
         >
           {SECTIONS.map((section) => {
             const isActive = activeTab === section.id;
+            const Icon = SECTION_ICONS[section.id];
 
             return (
               <button
                 key={section.id}
                 type="button"
                 onClick={() => setActiveTab(section.id)}
-                className={`relative z-10 px-5 py-2 text-[10px] md:text-[11px] font-semibold uppercase tracking-[0.14em] transition-colors duration-200 cursor-pointer rounded-full focus:outline-none elva-focus-ring ${
-                  isActive ? 'text-white font-bold' : 'text-white/40 hover:text-white/70'
+                className={`group relative z-10 px-4.5 py-2 text-[10px] md:text-[11px] font-bold uppercase tracking-[0.14em] transition-colors duration-250 cursor-pointer rounded-full focus:outline-none elva-focus-ring flex items-center gap-2 ${
+                  isActive 
+                    ? 'text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.45)]' 
+                    : 'text-white/25 hover:text-white/60'
                 }`}
                 aria-label={section.aria}
                 aria-current={isActive ? 'true' : undefined}
@@ -185,13 +200,14 @@ export function LandingTabNav({
                 {isActive && (
                   <motion.span
                     layoutId={`landingActiveTabBubble-${navPosition}`}
-                    className="absolute inset-0 rounded-full bg-white/[0.07] border border-white/[0.08] shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_2px_8px_rgba(0,0,0,0.4)]"
+                    className="absolute inset-0 rounded-full bg-gradient-to-r from-[color:var(--elva-accent)]/[0.12] to-[color:var(--elva-accent-glow)]/[0.04] border border-[color:var(--elva-accent)]/20"
                     style={{
-                      boxShadow: `0 0 12px ${themeAccent.shadowHex}20`,
+                      boxShadow: `0 0 22px ${swatch.core}40, inset 0 1px 0 rgba(255,255,255,0.15)`,
                     }}
                     transition={{ type: 'spring', stiffness: 380, damping: 30 }}
                   />
                 )}
+                <Icon className={`w-3.5 h-3.5 relative z-10 transition-colors duration-250 ${isActive ? 'text-[color:var(--elva-accent)]' : 'text-white/20 group-hover:text-white/50'}`} />
                 <span className="relative z-10">{section.label}</span>
               </button>
             );

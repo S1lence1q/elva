@@ -104,7 +104,7 @@ export function BrandingHeader({
   const taglineVariants = {
     initial: { opacity: 0, y: 10 },
     animate: () => ({
-      opacity: 0.3,
+      opacity: 0.18,
       y: 0,
       transition: {
         delay: returning ? 0.1 : isFirstVisit ? 2.2 : showGreeting ? 0.45 : 0.35,
@@ -120,7 +120,7 @@ export function BrandingHeader({
       opacity: 0.25,
       y: 0,
       transition: {
-        delay: returning ? 0.15 : isFirstVisit ? 2.7 : 0.55,
+        delay: returning ? 0.25 : isFirstVisit ? 2.7 : 0.55,
         duration: returning ? 0.15 : isFirstVisit ? 0.8 : 0.5,
         ease: 'easeOut',
       },
@@ -128,20 +128,20 @@ export function BrandingHeader({
   };
 
   return (
-    <div className="flex flex-col items-center gap-6 px-6 mb-8 shrink-0 w-full relative">
+    <div className="flex flex-col items-center gap-4 px-6 mb-4 shrink-0 w-full relative">
       <motion.div className="relative flex flex-col items-center">
         <motion.div
           variants={topLineVariants}
           initial="initial"
           animate="animate"
-          className="relative w-24 h-px mb-8"
+          className="relative w-12 h-px mb-6"
         >
           <div className={`absolute inset-0 bg-gradient-to-r from-transparent ${accentLineFade} to-transparent`} />
           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
         </motion.div>
 
         <div className="relative">
-          <div className="flex items-center select-none pb-2">
+          <div className="flex items-center select-none pb-1">
             {['E', 'l', 'v', 'a'].map((letter, i) => (
               <motion.span
                 key={i}
@@ -149,7 +149,7 @@ export function BrandingHeader({
                 variants={letterVariants}
                 initial="initial"
                 animate="animate"
-                className={`text-8xl font-normal tracking-[0.06em] ${theme.glowText} bg-clip-text text-transparent px-[2px]`}
+                className={`text-5xl md:text-6xl font-normal tracking-[0.06em] ${theme.glowText} bg-clip-text text-transparent px-[2px]`}
                 style={{
                   fontFamily: '"Kaobe", serif',
                   textShadow: 'none',
@@ -165,7 +165,7 @@ export function BrandingHeader({
           variants={bottomLineVariants}
           initial="initial"
           animate="animate"
-          className="relative w-24 h-px mt-8"
+          className="relative w-12 h-px mt-6"
         >
           <div className={`absolute inset-0 bg-gradient-to-r from-transparent ${accentLineFade} to-transparent opacity-60`} />
           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
@@ -177,7 +177,7 @@ export function BrandingHeader({
           variants={greetingVariants}
           initial="initial"
           animate="animate"
-          className="text-[13px] text-white/30 font-light tracking-wide -mt-2 select-none"
+          className="text-[11px] text-white/30 font-light tracking-wide -mt-1 select-none"
         >
           {greeting},{' '}
           <span className="text-white/50 font-normal">{profile.username}</span>
@@ -188,7 +188,7 @@ export function BrandingHeader({
         variants={taglineVariants}
         initial="initial"
         animate="animate"
-        className={`elva-section-label tracking-[0.4em] font-light opacity-75 ${showGreeting ? '-mt-2' : '-mt-4'}`}
+        className={`text-[9px] uppercase tracking-[0.55em] font-semibold text-white/80 select-none ${showGreeting ? '-mt-1' : '-mt-2.5'}`}
       >
         Listen Deeper
       </motion.p>

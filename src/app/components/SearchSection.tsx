@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Search, ChevronRight, Music, X } from 'lucide-react';
 import { SearchResult, VerifiedArtist } from '../types';
 import { ARTIST_PROFILE_BADGE, ARTIST_SEARCH_CARD_HINT } from '../constants/artistUi';
-import { ThemeColors } from './themeUtils';
+import { ThemeColors, AccentColor } from './themeUtils';
 import { shouldShowArtistCard } from '../utils/apiUtils';
 import { LandingRecents } from './LandingRecents';
 import { SongRowOptions } from './SongRowOptions';
@@ -40,6 +40,7 @@ interface SearchSectionProps {
   theme: ThemeColors;
   isFirstVisit: boolean;
   hasSelectedArtist: boolean;
+  accentColor: AccentColor;
 }
 
 function SearchArtistCard({
@@ -166,6 +167,7 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
   theme,
   isFirstVisit,
   hasSelectedArtist,
+  accentColor,
 }) => {
   const [localQuery, setLocalQuery] = useState(searchQuery);
   const [showSearchTips, setShowSearchTips] = useState(false);
@@ -236,54 +238,69 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
       animate="animate"
       className={`w-full max-w-2xl px-6 ${panelPhase === 'results' ? 'space-y-3' : 'space-y-4'}`}
     >
-      <div className="relative group">
-        <div className="relative">
-          <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-white/30 group-focus-within:text-white/50 transition-colors duration-300" />
-          <input
-            id="search-input"
-            type="text"
-            value={localQuery}
-            onChange={(e) => {
-              const val = e.target.value;
-              setLocalQuery(val);
-              debounceSetSearchQuery(val);
+      <div className="relative group w-full">
+        {/* Border Gradient & Ambient Glow wrapper */}
+        <div 
+          className="relative rounded-3xl p-[1.5px] bg-gradient-to-b from-white/12 via-white/[0.04] to-white/[0.01] transition-all duration-500 shadow-[0_20px_50px_rgba(0,0,0,0.65),inset_0_1px_1px_rgba(255,255,255,0.06)] focus-within:from-[color:var(--elva-accent)]/40 focus-within:via-[color:var(--elva-accent-glow)]/15 focus-within:to-transparent focus-within:shadow-[0_0_40px_rgba(var(--elva-accent-rgb),0.18)]"
+        >
+          {/* Glass + Noise backdrop layer */}
+          <div 
+            className="absolute inset-0 rounded-3xl pointer-events-none opacity-[0.06]" 
+            style={{
+              backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.80' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
+              backgroundBlendMode: 'overlay',
             }}
-            onKeyPress={(e) => {
-              if (e.key === 'Enter') {
-                if (debounceTimeoutRef.current) {
-                  clearTimeout(debounceTimeoutRef.current);
-                }
-                setSearchQuery(localQuery);
-
-                if (localQuery.match(/^https?:\/\//)) {
-                  handleUrlSubmit(localQuery);
-                } else {
-                  handleSearch(localQuery);
-                }
-              }
-            }}
-            placeholder="Search or paste a link..."
-            autoFocus
-            autoComplete="off"
-            autoCorrect="off"
-            autoCapitalize="off"
-            spellCheck="false"
-            className="w-full pl-16 pr-12 py-5 rounded-3xl border-0 bg-white/[0.05] text-white/90 placeholder-white/25 text-base font-light tracking-wide elva-focus-ring transition-colors duration-300 focus-visible:bg-white/[0.07]"
           />
-          {localQuery && (
-            <button
-              type="button"
-              onClick={() => {
-                setLocalQuery('');
-                setSearchQuery('');
-                document.getElementById('search-input')?.focus();
+          <div className="absolute inset-0 bg-[#0c0d10]/40 backdrop-blur-3xl rounded-3xl pointer-events-none" />
+
+          <div className="relative flex items-center w-full">
+            <Search className="absolute left-7 w-6 h-6 text-white/30 group-focus-within:text-[color:var(--elva-accent)] transition-colors duration-300" />
+            <input
+              id="search-input"
+              type="text"
+              value={localQuery}
+              onChange={(e) => {
+                const val = e.target.value;
+                setLocalQuery(val);
+                debounceSetSearchQuery(val);
               }}
-              className="absolute right-6 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors cursor-pointer p-1 rounded-lg hover:bg-white/5"
-              title="Clear search"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          )}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') {
+                  if (debounceTimeoutRef.current) {
+                    clearTimeout(debounceTimeoutRef.current);
+                  }
+                  setSearchQuery(localQuery);
+
+                  if (localQuery.match(/^https?:\/\//)) {
+                    handleUrlSubmit(localQuery);
+                  } else {
+                    handleSearch(localQuery);
+                  }
+                }
+              }}
+              placeholder="Search music, artists, moods..."
+              autoFocus
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck="false"
+              className="w-full pl-18 pr-14 py-6 rounded-3xl border-0 bg-transparent text-white/95 placeholder-white/30 text-lg font-light tracking-wide focus:outline-none focus:ring-0 transition-colors duration-300"
+            />
+            {localQuery && (
+              <button
+                type="button"
+                onClick={() => {
+                  setLocalQuery('');
+                  setSearchQuery('');
+                  document.getElementById('search-input')?.focus();
+                }}
+                className="absolute right-6 text-white/30 hover:text-white/60 transition-colors cursor-pointer p-1.5 rounded-lg hover:bg-white/5 z-20"
+                title="Clear search"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -302,6 +319,7 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
                 onPlaySong={handleSelectSong}
                 onViewArtist={handleViewArtistProfile}
                 loadingSongId={loadingSongId}
+                accentColor={accentColor}
               />
             </motion.div>
           )}

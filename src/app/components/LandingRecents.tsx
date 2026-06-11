@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Play } from 'lucide-react';
 import { SearchResult, VerifiedArtist } from '../types';
+import { AccentColor, ACCENT_THEMES } from './themeUtils';
 
 interface LandingRecentsProps {
   recentlyPlayed: SearchResult[];
@@ -9,9 +10,8 @@ interface LandingRecentsProps {
   onPlaySong: (song: SearchResult) => void;
   onViewArtist: (artist: VerifiedArtist) => void;
   loadingSongId: string | null;
+  accentColor: AccentColor;
 }
-
-import { useCallback, useRef } from 'react';
 
 export const LandingRecents: React.FC<LandingRecentsProps> = ({
   recentlyPlayed,
@@ -19,6 +19,7 @@ export const LandingRecents: React.FC<LandingRecentsProps> = ({
   onPlaySong,
   onViewArtist,
   loadingSongId,
+  accentColor,
 }) => {
   const hasSongs = recentlyPlayed.length > 0;
   const hasArtists = recentArtists.length > 0;
@@ -29,6 +30,8 @@ export const LandingRecents: React.FC<LandingRecentsProps> = ({
 
   const songsRef = useRef<HTMLDivElement | null>(null);
   const artistsRef = useRef<HTMLDivElement | null>(null);
+
+  const themeAccent = ACCENT_THEMES[accentColor];
 
   const getMaskStyle = (state: { canScrollLeft: boolean; canScrollRight: boolean }) => {
     const { canScrollLeft, canScrollRight } = state;
@@ -49,7 +52,6 @@ export const LandingRecents: React.FC<LandingRecentsProps> = ({
     if (!node) return;
 
     const handleScroll = () => {
-      // Threshold is 10 to prevent subpixel issues and offset snap issues (scroll-padding keeps it at 0 when snapped left)
       const canLeft = node.scrollLeft > 10;
       const canRight = node.scrollLeft + node.clientWidth < node.scrollWidth - 10;
       setSongsScrollState(prev => {
@@ -58,7 +60,6 @@ export const LandingRecents: React.FC<LandingRecentsProps> = ({
       });
     };
 
-    // Run measurement after layout/animations
     const id = requestAnimationFrame(() => {
       handleScroll();
     });
@@ -183,9 +184,13 @@ export const LandingRecents: React.FC<LandingRecentsProps> = ({
                 return (
                   <motion.div
                     key={song.id}
-                    whileHover={{ y: -4 }}
                     onClick={() => onPlaySong(song)}
-                    className="group snap-start flex-shrink-0 w-[168px] flex flex-col gap-3 p-3.5 rounded-2xl bg-white/[0.04] hover:bg-white/[0.06] transition-colors duration-300 cursor-pointer overflow-hidden"
+                    whileHover={{ 
+                      scale: 1.03,
+                      boxShadow: `0 12px 30px rgba(0, 0, 0, 0.65), 0 0 15px ${themeAccent.shadowHex}20`,
+                      borderColor: 'rgba(255, 255, 255, 0.12)',
+                    }}
+                    className="group snap-start flex-shrink-0 w-[154px] flex flex-col gap-3.5 p-3.5 rounded-2xl bg-white/[0.03] border border-white/[0.04] transition-all duration-300 cursor-pointer overflow-hidden"
                   >
                     <div className="relative aspect-square w-full rounded-xl overflow-hidden bg-neutral-950">
                       <img
@@ -231,22 +236,26 @@ export const LandingRecents: React.FC<LandingRecentsProps> = ({
               {recentArtists.map((artist) => (
                 <motion.div
                   key={artist.name}
-                  whileHover={{ y: -4 }}
                   onClick={() => onViewArtist(artist)}
-                  className="group snap-start flex-shrink-0 w-[140px] flex flex-col items-center gap-3 p-3.5 rounded-2xl bg-white/[0.04] hover:bg-white/[0.06] transition-colors duration-300 cursor-pointer overflow-hidden"
+                  whileHover={{ 
+                    scale: 1.03,
+                    boxShadow: `0 12px 30px rgba(0, 0, 0, 0.65), 0 0 15px ${themeAccent.shadowHex}20`,
+                    borderColor: 'rgba(255, 255, 255, 0.12)',
+                  }}
+                  className="group snap-start flex-shrink-0 w-[154px] flex flex-col gap-3.5 p-3.5 rounded-2xl bg-white/[0.03] border border-white/[0.04] transition-all duration-300 cursor-pointer overflow-hidden"
                 >
-                  <div className="relative w-24 h-24 rounded-full overflow-hidden bg-neutral-950">
+                  <div className="relative aspect-square w-full rounded-full overflow-hidden bg-neutral-950">
                     <img
                       src={artist.thumbnail}
                       alt={artist.name}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
                   </div>
-                  <div className="flex flex-col items-center text-center min-w-0 w-full space-y-0.5">
-                    <span className="text-xs font-semibold text-white/80 group-hover:text-white transition-colors truncate w-full px-1">
+                  <div className="flex flex-col text-left min-w-0 w-full space-y-0.5">
+                    <span className="text-sm font-semibold text-white/80 group-hover:text-white transition-colors truncate w-full">
                       {artist.name}
                     </span>
-                    <span className="text-[10px] text-white/35 truncate w-full px-1">
+                    <span className="text-xs text-white/35 truncate w-full">
                       {artist.disambiguation?.split(' • ')[0] || artist.country || 'Artist'}
                     </span>
                   </div>

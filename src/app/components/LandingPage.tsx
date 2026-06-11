@@ -184,6 +184,7 @@ export function LandingPage({
           theme={theme}
           isFirstVisit={isFirstVisit}
           hasSelectedArtist={hasSelectedArtistOnce}
+          accentColor={accentColor}
         />
       </div>
     </>
