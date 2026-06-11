@@ -239,67 +239,65 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
       className={`w-full max-w-2xl px-6 ${panelPhase === 'results' ? 'space-y-3' : 'space-y-4'}`}
     >
       <div className="relative group w-full">
-        {/* Border Gradient & Ambient Glow wrapper */}
+        {/* Glow backdrop layer (positioned absolutely behind the main bar) */}
         <div 
-          className="relative rounded-full p-[1.5px] bg-gradient-to-b from-white/12 via-white/[0.04] to-white/[0.01] transition-all duration-500 shadow-[0_20px_50px_rgba(0,0,0,0.65),inset_0_1px_1px_rgba(255,255,255,0.06)] focus-within:from-[color:var(--elva-accent)]/45 focus-within:via-[color:var(--elva-accent-glow)]/15 focus-within:to-transparent focus-within:shadow-[0_0_40px_rgba(var(--elva-accent-rgb),0.18)]"
+          className="absolute inset-0 rounded-full transition-all duration-500 opacity-0 group-focus-within:opacity-100 pointer-events-none"
+          style={{
+            boxShadow: `0 0 35px rgba(var(--elva-accent-rgb), 0.12)`,
+          }}
+        />
+
+        <div 
+          className="relative flex items-center w-full rounded-full border border-white/[0.06] bg-[#0c0d10]/45 backdrop-blur-2xl shadow-[0_12px_40px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.05)] transition-all duration-300 focus-within:border-[color:var(--elva-accent)]/30"
         >
-          {/* Glass + Noise backdrop layer */}
-          <div 
-            className="absolute inset-0 rounded-full pointer-events-none opacity-[0.05]" 
-            style={{
-              backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.80' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
+          <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-white/30 group-focus-within:text-[color:var(--elva-accent)] transition-colors duration-300" />
+          
+          <input
+            id="search-input"
+            type="text"
+            value={localQuery}
+            onChange={(e) => {
+              const val = e.target.value;
+              setLocalQuery(val);
+              debounceSetSearchQuery(val);
             }}
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-[#111216]/50 to-[#08090c]/35 backdrop-blur-3xl rounded-full pointer-events-none" />
-
-          <div className="relative flex items-center w-full">
-            <Search className="absolute left-7 top-1/2 -translate-y-1/2 w-5.5 h-5.5 text-white/30 group-focus-within:text-[color:var(--elva-accent)] transition-colors duration-300" />
-            <input
-              id="search-input"
-              type="text"
-              value={localQuery}
-              onChange={(e) => {
-                const val = e.target.value;
-                setLocalQuery(val);
-                debounceSetSearchQuery(val);
-              }}
-              onKeyPress={(e) => {
-                if (e.key === 'Enter') {
-                  if (debounceTimeoutRef.current) {
-                    clearTimeout(debounceTimeoutRef.current);
-                  }
-                  setSearchQuery(localQuery);
-
-                  if (localQuery.match(/^https?:\/\//)) {
-                    handleUrlSubmit(localQuery);
-                  } else {
-                    handleSearch(localQuery);
-                  }
+            onKeyPress={(e) => {
+              if (e.key === 'Enter') {
+                if (debounceTimeoutRef.current) {
+                  clearTimeout(debounceTimeoutRef.current);
                 }
+                setSearchQuery(localQuery);
+
+                if (localQuery.match(/^https?:\/\//)) {
+                  handleUrlSubmit(localQuery);
+                } else {
+                  handleSearch(localQuery);
+                }
+              }
+            }}
+            placeholder="Search music, artists, moods..."
+            autoFocus
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck="false"
+            className="w-full pl-15 pr-12 py-4.5 rounded-full border-0 bg-transparent text-white/90 placeholder-white/25 text-sm md:text-base font-light tracking-wide focus:outline-none focus:ring-0 transition-colors duration-300"
+          />
+
+          {localQuery && (
+            <button
+              type="button"
+              onClick={() => {
+                setLocalQuery('');
+                setSearchQuery('');
+                document.getElementById('search-input')?.focus();
               }}
-              placeholder="Search music, artists, moods..."
-              autoFocus
-              autoComplete="off"
-              autoCorrect="off"
-              autoCapitalize="off"
-              spellCheck="false"
-              className="w-full pl-18 pr-14 py-6 rounded-full border-0 bg-transparent text-white/95 placeholder-white/30 text-lg font-light tracking-wide focus:outline-none focus:ring-0 transition-colors duration-300"
-            />
-            {localQuery && (
-              <button
-                type="button"
-                onClick={() => {
-                  setLocalQuery('');
-                  setSearchQuery('');
-                  document.getElementById('search-input')?.focus();
-                }}
-                className="absolute right-6 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors cursor-pointer p-1.5 rounded-lg hover:bg-white/5 z-20"
-                title="Clear search"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
-          </div>
+              className="absolute right-5 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors cursor-pointer p-1 rounded-lg hover:bg-white/5 z-20"
+              title="Clear search"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
 
