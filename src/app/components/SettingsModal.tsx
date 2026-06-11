@@ -26,6 +26,11 @@ interface SettingsModalProps {
   onShowVisualizerChange?: (show: boolean) => void;
   volume?: number;
   onVolumeChange?: (v: number) => void;
+
+  navMode?: 'tabs' | 'scroll';
+  onNavModeChange?: (mode: 'tabs' | 'scroll') => void;
+  navPosition?: 'bottom' | 'top' | 'right';
+  onNavPositionChange?: (pos: 'bottom' | 'top' | 'right') => void;
 }
 
 function QuickToggle({ 
@@ -79,7 +84,11 @@ export function SettingsModal({
   showVisualizer = false,
   onShowVisualizerChange,
   volume,
-  onVolumeChange
+  onVolumeChange,
+  navMode = 'tabs',
+  onNavModeChange,
+  navPosition = 'bottom',
+  onNavPositionChange
 }: SettingsModalProps) {
   const [localVolume, setLocalVolume] = useState(() => {
     const saved = localStorage.getItem('elva_player_volume');
@@ -248,6 +257,55 @@ export function SettingsModal({
                 </button>
               );
             })}
+          </div>
+        </div>
+
+        {/* Navigation settings card */}
+        <div className="bg-white/[0.015] border border-white/[0.03] rounded-2xl p-4 flex flex-col gap-3 text-left">
+          <span className="text-[10px] text-white/35 font-bold uppercase tracking-wider select-none">Navigation Layout</span>
+          
+          <div className="flex flex-col gap-2.5">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-white/70 font-light select-none">Mode</span>
+              <div className="flex items-center gap-1 bg-white/[0.02] border border-white/[0.04] rounded-lg p-0.5">
+                {(['tabs', 'scroll'] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => onNavModeChange?.(mode)}
+                    className={`px-2.5 py-1 rounded text-[8px] uppercase tracking-wider font-extrabold transition-all cursor-pointer ${
+                      navMode === mode
+                        ? 'bg-white/10 text-white border border-white/5 shadow-sm'
+                        : 'text-white/30 hover:text-white/60'
+                    }`}
+                  >
+                    {mode === 'tabs' ? 'Tabs' : 'Scroll'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-white/70 font-light select-none">Position</span>
+              <div className="flex items-center gap-1 bg-white/[0.02] border border-white/[0.04] rounded-lg p-0.5">
+                {([
+                  { value: 'bottom', label: 'Bottom' },
+                  { value: 'top', label: 'Top' },
+                  ...(navMode === 'scroll' ? [{ value: 'right', label: 'Right' }] : [])
+                ]).map((pos) => (
+                  <button
+                    key={pos.value}
+                    onClick={() => onNavPositionChange?.(pos.value)}
+                    className={`px-2 py-1 rounded text-[8px] uppercase tracking-wider font-extrabold transition-all cursor-pointer ${
+                      navPosition === pos.value
+                        ? 'bg-white/10 text-white border border-white/5 shadow-sm'
+                        : 'text-white/30 hover:text-white/60'
+                    }`}
+                  >
+                    {pos.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
 

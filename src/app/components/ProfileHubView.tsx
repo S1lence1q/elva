@@ -58,6 +58,11 @@ interface ProfileHubViewProps {
   onPeekProgressStyleChange: (style: 'none' | 'line' | 'border') => void;
   showVisualizer: boolean;
   onShowVisualizerChange: (show: boolean) => void;
+
+  navMode?: 'tabs' | 'scroll';
+  onNavModeChange?: (mode: 'tabs' | 'scroll') => void;
+  navPosition?: 'bottom' | 'top' | 'right';
+  onNavPositionChange?: (pos: 'bottom' | 'top' | 'right') => void;
 }
 
 
@@ -95,14 +100,21 @@ export const ProfileHubView: React.FC<ProfileHubViewProps> = ({
   peekProgressStyle,
   onPeekProgressStyleChange,
   showVisualizer,
-  onShowVisualizerChange
+  onShowVisualizerChange,
+  navMode = 'tabs',
+  onNavModeChange,
+  navPosition = 'bottom',
+  onNavPositionChange
 }) => {
   const theme = ACCENT_THEMES[accentColor];
-  const [activeTab, setActiveTab] = useState<'overview' | 'favorites' | 'playlists' | 'settings'>(() => {
-    const stored = sessionStorage.getItem('elva_hub_active_tab') || 'overview';
-    sessionStorage.removeItem('elva_hub_active_tab');
-    return stored as any;
+  const [activeTab, setActiveTabState] = useState<'overview' | 'favorites' | 'playlists' | 'settings'>(() => {
+    return (sessionStorage.getItem('elva_hub_active_tab') as any) || 'overview';
   });
+
+  const setActiveTab = (tab: 'overview' | 'favorites' | 'playlists' | 'settings') => {
+    setActiveTabState(tab);
+    sessionStorage.setItem('elva_hub_active_tab', tab);
+  };
 
   useEffect(() => {
     const handleScrollToHub = (e: Event) => {
@@ -317,7 +329,7 @@ export const ProfileHubView: React.FC<ProfileHubViewProps> = ({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 10 }}
       transition={{ duration: 0.45 }}
-      className="w-full max-w-[898px] relative z-10 flex flex-col gap-8 px-6 pt-4 pb-24 cursor-default"
+      className="w-full max-w-[898px] mx-auto relative z-10 flex flex-col gap-8 px-6 pt-4 pb-24 cursor-default"
     >
       {/* 1. HIGH-FOCUS GLASSMORPHIC TABS SWITCHER (Always on top) */}
       <div className="flex items-center gap-1.5 p-1.5 rounded-2xl elva-glass-chrome w-full shrink-0 select-none">
@@ -432,6 +444,10 @@ export const ProfileHubView: React.FC<ProfileHubViewProps> = ({
               onPeekProgressStyleChange={onPeekProgressStyleChange}
               showVisualizer={showVisualizer}
               onShowVisualizerChange={onShowVisualizerChange}
+              navMode={navMode}
+              onNavModeChange={onNavModeChange}
+              navPosition={navPosition}
+              onNavPositionChange={onNavPositionChange}
             />
           )}
         </AnimatePresence>

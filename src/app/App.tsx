@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Toaster, toast } from 'sonner';
 import 'sonner/dist/styles.css';
@@ -27,6 +27,7 @@ import { useBackgroundColors } from './hooks/useBackgroundColors';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useSearchLogic } from './hooks/useSearchLogic';
 import { LandingPage } from './components/LandingPage';
+import { LandingTabNav } from './components/LandingTabNav';
 import { Playlist } from './components/PlaylistDetailsView';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { GlobalVolumeHUD } from './components/app/GlobalVolumeHUD';
@@ -38,6 +39,39 @@ type AppState = 'landing' | 'processing' | 'ready';
 export default function App() {
   const [appState, setAppState] = useState<AppState>('landing');
   const [showSettings, setShowSettings] = useState(false);
+
+  const [navMode, setNavMode] = useState<'tabs' | 'scroll'>(() => {
+    return (localStorage.getItem('elva_nav_mode') as 'tabs' | 'scroll') || 'tabs';
+  });
+  const [navPosition, setNavPosition] = useState<'bottom' | 'top' | 'right'>(() => {
+    return (localStorage.getItem('elva_nav_position') as 'bottom' | 'top' | 'right') || 'bottom';
+  });
+
+  const handleSetNavMode = (mode: 'tabs' | 'scroll') => {
+    if (mode === 'scroll') {
+      isAutoScrollingRef.current = true;
+      if (autoScrollTimeoutRef.current) clearTimeout(autoScrollTimeoutRef.current);
+      
+      setNavMode(mode);
+      
+      setTimeout(() => {
+        const container = scrollContainerRef.current;
+        if (container) {
+          const index = activeTab === 'search' ? 0 : activeTab === 'discover' ? 1 : 2;
+          const height = container.clientHeight || window.innerHeight;
+          container.scrollTop = index * height;
+        }
+        isAutoScrollingRef.current = false;
+      }, 50);
+    } else {
+      setNavMode(mode);
+      if (navPosition === 'right') {
+        setNavPosition('bottom');
+      }
+    }
+  };
+
+  const [activeTab, setActiveTabState] = useState<'search' | 'discover' | 'myhub'>('search');
   const [isMiniPlaying, setIsMiniPlaying] = useState(true);
 
   const { globalVolume, showGlobalVolumeHUD } = useGlobalVolumeHUD();
@@ -46,7 +80,62 @@ export default function App() {
   const containerRef = useRef<HTMLDivElement>(null);
 
   // 1. Scroll Tracking Hook
-  const { scrollProgress, scrollVelocity, handleScroll } = useScrollTracking(scrollContainerRef);
+  const { scrollProgress, scrollVelocity, handleScroll } = useScrollTracking(activeTab, navMode, scrollContainerRef);
+
+  // Synchronize scroll container position before paint when switching to scroll mode
+  useLayoutEffect(() => {
+    if (navMode === 'scroll') {
+      const container = scrollContainerRef.current;
+      if (container) {
+        const index = activeTab === 'search' ? 0 : activeTab === 'discover' ? 1 : 2;
+        const height = container.clientHeight || window.innerHeight;
+        container.scrollTop = index * height;
+      }
+    }
+  }, [navMode]);
+
+  const isAutoScrollingRef = useRef(false);
+  const autoScrollTimeoutRef = useRef<any>(null);
+
+  const setActiveTab = (tab: 'search' | 'discover' | 'myhub') => {
+    setActiveTabState(tab);
+    if (navMode === 'scroll') {
+      const container = scrollContainerRef.current;
+      if (container) {
+        isAutoScrollingRef.current = true;
+        if (autoScrollTimeoutRef.current) clearTimeout(autoScrollTimeoutRef.current);
+        
+        const index = tab === 'search' ? 0 : tab === 'discover' ? 1 : 2;
+        container.scrollTo({
+          top: index * container.clientHeight,
+          behavior: 'smooth',
+        });
+        
+        autoScrollTimeoutRef.current = setTimeout(() => {
+          isAutoScrollingRef.current = false;
+        }, 800);
+      }
+    }
+  };
+
+  // Scroll spy for scroll-snap mode
+  useEffect(() => {
+    if (navMode !== 'scroll') return;
+    if (isAutoScrollingRef.current) return;
+
+    let targetTab: 'search' | 'discover' | 'myhub' = 'search';
+    if (scrollProgress < 0.25) {
+      targetTab = 'search';
+    } else if (scrollProgress >= 0.25 && scrollProgress <= 0.75) {
+      targetTab = 'discover';
+    } else {
+      targetTab = 'myhub';
+    }
+
+    if (activeTab !== targetTab) {
+      setActiveTabState(targetTab);
+    }
+  }, [scrollProgress, navMode, activeTab]);
 
   const [favorites, setFavorites] = useState<SearchResult[]>(() => {
     try {
@@ -190,6 +279,14 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('elva_peek_progress_style', peekProgressStyle);
   }, [peekProgressStyle]);
+
+  useEffect(() => {
+    localStorage.setItem('elva_nav_mode', navMode);
+  }, [navMode]);
+
+  useEffect(() => {
+    localStorage.setItem('elva_nav_position', navPosition);
+  }, [navPosition]);
 
 
   // Onboarding Tour State
@@ -671,16 +768,7 @@ export default function App() {
       setAppState('landing');
       searchLogic.setSelectedArtist(null);
       setSelectedPlaylist(null);
-      
-      setTimeout(() => {
-        const container = scrollContainerRef.current;
-        if (container) {
-          container.scrollTo({
-            top: 2 * container.clientHeight,
-            behavior: 'smooth'
-          });
-        }
-      }, 150);
+      setActiveTab('myhub');
     };
     window.addEventListener('elva-scroll-to-hub', handleScrollToHub);
     return () => window.removeEventListener('elva-scroll-to-hub', handleScrollToHub);
@@ -691,16 +779,7 @@ export default function App() {
       setAppState('landing');
       searchLogic.setSelectedArtist(null);
       setSelectedPlaylist(null);
-
-      setTimeout(() => {
-        const container = scrollContainerRef.current;
-        if (container) {
-          container.scrollTo({
-            top: container.clientHeight,
-            behavior: 'smooth',
-          });
-        }
-      }, 150);
+      setActiveTab('discover');
     };
     window.addEventListener('elva-scroll-to-discover', handleScrollToDiscover);
     return () => window.removeEventListener('elva-scroll-to-discover', handleScrollToDiscover);
@@ -727,13 +806,8 @@ export default function App() {
   }, []);
 
   const scrollToLandingSection = (index: number) => {
-    const container = scrollContainerRef.current;
-    if (container) {
-      container.scrollTo({
-        top: index * container.clientHeight,
-        behavior: 'smooth',
-      });
-    }
+    const tab = index === 0 ? 'search' : index === 1 ? 'discover' : 'myhub';
+    setActiveTab(tab);
   };
 
   const startTour = () => {
@@ -749,13 +823,10 @@ export default function App() {
   };
 
   const tourScrollToSection = async (index: number) => {
-    const container = scrollContainerRef.current;
-    if (!container) return;
-    container.scrollTo({
-      top: index * container.clientHeight,
-      behavior: 'smooth',
-    });
-    await waitForScrollEnd(container);
+    const tab = index === 0 ? 'search' : index === 1 ? 'discover' : 'myhub';
+    setActiveTab(tab);
+    const waitTime = navMode === 'scroll' ? 850 : 300;
+    await new Promise((resolve) => setTimeout(resolve, waitTime));
   };
 
   const dismissTour = () => {
@@ -1030,69 +1101,87 @@ export default function App() {
 
       <AnimatePresence>
         {appState === 'landing' && (
-          <ErrorBoundary>
-          <LandingPage
-            isIntroActive={isIntroActive}
-            scrollProgress={scrollProgress}
-            scrollContainerRef={scrollContainerRef}
-            onScroll={handleScroll}
-            selectedArtist={selectedArtist}
-            setSelectedArtist={searchLogic.setSelectedArtist}
-            selectedPlaylist={selectedPlaylist}
-            setSelectedPlaylist={setSelectedPlaylist}
-            accentColor={accentColor}
-            theme={theme}
-            hasSeenTour={hasSeenTour}
-            tourType={tourType}
-            startTour={startTour}
-            isFirstVisit={isFirstVisit}
-            hasSelectedArtistOnce={hasSelectedArtistOnce.current}
-            searchQuery={searchLogic.searchQuery}
-            setSearchQuery={searchLogic.setSearchQuery}
-            lastSearchedQuery={searchLogic.lastSearchedQuery}
-            isSearching={searchLogic.isSearching}
-            searchResults={searchLogic.searchResults}
-            recentArtists={searchLogic.recentArtists}
-            recentlyPlayed={recentlyPlayed}
-            verifiedArtist={verifiedArtist}
-            focusedResultIndex={focusedResultIndex}
-            loadingSongId={loadingSongId}
-            artistColors={selectedArtist ? ACCENT_THEMES[accentColor] : null}
-            artistTracks={artistTracks}
-            isLoadingArtist={isLoadingArtist}
-            favorites={favorites}
-            handleSelectSong={handleSelectSong}
-            handleAddToQueue={handleAddToQueue}
-            handlePlayPlaylist={handlePlayPlaylist}
-            handlePlayNext={handlePlayNext}
-            handleToggleFavorite={handleToggleFavorite}
-            handleViewArtistProfile={searchLogic.handleViewArtistProfile}
-            handleViewArtistByName={searchLogic.handleViewArtistByName}
-            handleUrlSubmit={searchLogic.handleUrlSubmit}
-            handleFileSelect={handleFileSelect}
-            handleSearch={searchLogic.handleSearch}
-            setArtistTracks={searchLogic.setArtistTracks}
-            onAccentColorChange={setAccentColor}
-            textureStyle={textureStyle}
-            onTextureStyleChange={setTextureStyle}
-            backgroundStyle={backgroundStyle}
-            onBackgroundStyleChange={setBackgroundStyle}
-            zenMode={zenMode}
-            onZenModeChange={setZenMode}
-            showVolumeSlider={showVolumeSlider}
-            onShowVolumeSliderChange={setShowVolumeSlider}
-            enable3DTilt={enable3DTilt}
-            onEnable3DTiltChange={setEnable3DTilt}
-            showSettingsButton={showSettingsButton}
-            onShowSettingsButtonChange={setShowSettingsButton}
-            enableCustomLyrics={enableCustomLyrics}
-            onEnableCustomLyricsChange={setEnableCustomLyrics}
-            peekProgressStyle={peekProgressStyle}
-            onPeekProgressStyleChange={setPeekProgressStyle}
-            showVisualizer={showVisualizer}
-            onShowVisualizerChange={setShowVisualizer}
-          />
-          </ErrorBoundary>
+          <>
+            <ErrorBoundary>
+            <LandingPage
+              isIntroActive={isIntroActive}
+              scrollProgress={scrollProgress}
+              scrollContainerRef={scrollContainerRef}
+              onScroll={handleScroll}
+              activeTab={activeTab}
+              setActiveTab={setActiveTab}
+              selectedArtist={selectedArtist}
+              setSelectedArtist={searchLogic.setSelectedArtist}
+              selectedPlaylist={selectedPlaylist}
+              setSelectedPlaylist={setSelectedPlaylist}
+              accentColor={accentColor}
+              theme={theme}
+              hasSeenTour={hasSeenTour}
+              tourType={tourType}
+              startTour={startTour}
+              isFirstVisit={isFirstVisit}
+              hasSelectedArtistOnce={hasSelectedArtistOnce.current}
+              searchQuery={searchLogic.searchQuery}
+              setSearchQuery={searchLogic.setSearchQuery}
+              lastSearchedQuery={searchLogic.lastSearchedQuery}
+              isSearching={searchLogic.isSearching}
+              searchResults={searchLogic.searchResults}
+              recentArtists={searchLogic.recentArtists}
+              recentlyPlayed={recentlyPlayed}
+              verifiedArtist={verifiedArtist}
+              focusedResultIndex={focusedResultIndex}
+              loadingSongId={loadingSongId}
+              artistColors={selectedArtist ? ACCENT_THEMES[accentColor] : null}
+              artistTracks={artistTracks}
+              isLoadingArtist={isLoadingArtist}
+              favorites={favorites}
+              handleSelectSong={handleSelectSong}
+              handleAddToQueue={handleAddToQueue}
+              handlePlayPlaylist={handlePlayPlaylist}
+              handlePlayNext={handlePlayNext}
+              handleToggleFavorite={handleToggleFavorite}
+              handleViewArtistProfile={searchLogic.handleViewArtistProfile}
+              handleViewArtistByName={searchLogic.handleViewArtistByName}
+              handleUrlSubmit={searchLogic.handleUrlSubmit}
+              handleFileSelect={handleFileSelect}
+              handleSearch={searchLogic.handleSearch}
+              setArtistTracks={searchLogic.setArtistTracks}
+              onAccentColorChange={setAccentColor}
+              textureStyle={textureStyle}
+              onTextureStyleChange={setTextureStyle}
+              backgroundStyle={backgroundStyle}
+              onBackgroundStyleChange={setBackgroundStyle}
+              zenMode={zenMode}
+              onZenModeChange={setZenMode}
+              showVolumeSlider={showVolumeSlider}
+              onShowVolumeSliderChange={setShowVolumeSlider}
+              enable3DTilt={enable3DTilt}
+              onEnable3DTiltChange={setEnable3DTilt}
+              showSettingsButton={showSettingsButton}
+              onShowSettingsButtonChange={setShowSettingsButton}
+              enableCustomLyrics={enableCustomLyrics}
+              onEnableCustomLyricsChange={setEnableCustomLyrics}
+              peekProgressStyle={peekProgressStyle}
+              onPeekProgressStyleChange={setPeekProgressStyle}
+              showVisualizer={showVisualizer}
+              onShowVisualizerChange={setShowVisualizer}
+              navMode={navMode}
+              onNavModeChange={handleSetNavMode}
+              navPosition={navPosition}
+              onNavPositionChange={setNavPosition}
+            />
+            </ErrorBoundary>
+
+            {selectedArtist === null && selectedPlaylist === null && (
+              <LandingTabNav
+                activeTab={activeTab}
+                setActiveTab={setActiveTab}
+                accentColor={accentColor}
+                hasActiveSong={!!songData}
+                navPosition={navPosition}
+              />
+            )}
+          </>
         )}
 
         {appState === 'processing' && !songData && (
@@ -1245,6 +1334,10 @@ export default function App() {
             onEnableCustomLyricsChange={setEnableCustomLyrics}
             peekProgressStyle={peekProgressStyle}
             onPeekProgressStyleChange={setPeekProgressStyle}
+            navMode={navMode}
+            onNavModeChange={handleSetNavMode}
+            navPosition={navPosition}
+            onNavPositionChange={setNavPosition}
           />
         )}
       </AnimatePresence>

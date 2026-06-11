@@ -38,13 +38,30 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
   const [activeCountry, setActiveCountry] = useState(() => {
     return localStorage.getItem('elva_profile_country') || 'dk';
   });
-  const [localHits, setLocalHits] = useState<SearchResult[]>([]);
-  const [globalHits, setGlobalHits] = useState<SearchResult[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+
+  // Helper to read cache synchronously on initial render
+  const readCacheSync = (country: string): SearchResult[] => {
+    try {
+      const raw = localStorage.getItem(`elva_apple_chart_${country}_v2`);
+      if (raw) {
+        const entry = JSON.parse(raw);
+        if (entry?.tracks?.length) {
+          return entry.tracks;
+        }
+      }
+    } catch {}
+    return [];
+  };
+
+  const [localHits, setLocalHits] = useState<SearchResult[]>(() => readCacheSync(activeCountry));
+  const [globalHits, setGlobalHits] = useState<SearchResult[]>(() => readCacheSync('us'));
+  const [isLoading, setIsLoading] = useState(() => {
+    return readCacheSync(activeCountry).length === 0 || readCacheSync('us').length === 0;
+  });
   const [localError, setLocalError] = useState<string | null>(null);
   const [globalError, setGlobalError] = useState<string | null>(null);
-  const [localFromCache, setLocalFromCache] = useState(false);
-  const [globalFromCache, setGlobalFromCache] = useState(false);
+  const [localFromCache, setLocalFromCache] = useState(() => readCacheSync(activeCountry).length > 0);
+  const [globalFromCache, setGlobalFromCache] = useState(() => readCacheSync('us').length > 0);
 
   useEffect(() => {
     const handleProfileUpdate = () => {
@@ -58,7 +75,10 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
   }, []);
 
   const loadCharts = useCallback(async () => {
-    setIsLoading(true);
+    const hasCache = localHits.length > 0 && globalHits.length > 0;
+    if (!hasCache) {
+      setIsLoading(true);
+    }
     const [local, global] = await Promise.all([
       fetchAppleMusicChart(activeCountry),
       fetchAppleMusicChart('us'),
@@ -70,7 +90,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
     setLocalFromCache(local.fromCache);
     setGlobalFromCache(global.fromCache);
     setIsLoading(false);
-  }, [activeCountry]);
+  }, [activeCountry, localHits.length, globalHits.length]);
 
   useEffect(() => {
     void loadCharts();
@@ -140,7 +160,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 10 }}
       transition={{ duration: 0.45 }}
-      className="w-full max-w-[898px] relative z-10 flex flex-col gap-10 px-6 pt-4 pb-24"
+      className="w-full max-w-[898px] mx-auto relative z-10 flex flex-col gap-10 px-6 pt-4 pb-24"
     >
       <section className="flex flex-col gap-4">
         <div className="flex items-center justify-between mb-2">
@@ -150,9 +170,6 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
               Featured Charts
             </h3>
           </div>
-          {!isLoading && (localFromCache || globalFromCache) && (
-            <span className="text-[9px] uppercase tracking-wider text-white/35">Cached chart data</span>
-          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-10">

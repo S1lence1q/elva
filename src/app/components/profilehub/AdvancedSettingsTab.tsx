@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { Sliders, Layers, Maximize2, Settings, RefreshCw, Keyboard } from 'lucide-react';
+import { Sliders, Layers, Maximize2, Settings, RefreshCw, Keyboard, Compass } from 'lucide-react';
 import * as Slider from '@radix-ui/react-slider';
 import { AccentColor, ACCENT_THEMES, ACCENT_SWATCH } from '../themeUtils';
 import { showMiniHUD } from '../../utils/hudUtils';
@@ -26,6 +26,11 @@ interface AdvancedSettingsTabProps {
   onPeekProgressStyleChange: (style: 'none' | 'line' | 'border') => void;
   showVisualizer: boolean;
   onShowVisualizerChange?: (show: boolean) => void;
+
+  navMode: 'tabs' | 'scroll';
+  onNavModeChange?: (mode: 'tabs' | 'scroll') => void;
+  navPosition: 'bottom' | 'top' | 'right';
+  onNavPositionChange?: (pos: 'bottom' | 'top' | 'right') => void;
 }
 
 function SettingsToggle({
@@ -83,6 +88,10 @@ export const AdvancedSettingsTab: React.FC<AdvancedSettingsTabProps> = ({
   onEnableCustomLyricsChange,
   peekProgressStyle,
   onPeekProgressStyleChange,
+  navMode,
+  onNavModeChange,
+  navPosition,
+  onNavPositionChange,
 }) => {
   const theme = ACCENT_THEMES[accentColor];
 
@@ -105,6 +114,67 @@ export const AdvancedSettingsTab: React.FC<AdvancedSettingsTabProps> = ({
       className="grid grid-cols-1 md:grid-cols-2 gap-8 text-left"
     >
       <div className="space-y-8">
+        <div className="rounded-3xl elva-glass-elevated p-6 space-y-4">
+          <div className="flex items-center gap-2.5 mb-2 select-none">
+            <Compass className={`w-4 h-4 ${theme.text}`} />
+            <h3 className="text-[10px] uppercase tracking-[0.2em] font-bold text-white/50">Navigation Layout</h3>
+          </div>
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between p-4 elva-hub-row select-none">
+              <div className="text-left pr-4">
+                <span className="text-xs font-semibold text-white/90 block">Navigation Mode</span>
+                <span className="text-[10px] text-white/40 font-light mt-1 block leading-normal">
+                  Choose between modern tabs or smooth vertical snap-scrolling.
+                </span>
+              </div>
+              <div className="flex items-center gap-1 bg-white/[0.02] border border-white/[0.04] rounded-xl p-1 shrink-0">
+                {(['tabs', 'scroll'] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => onNavModeChange?.(mode)}
+                    className={`px-3 py-1.5 rounded-lg text-[9px] uppercase tracking-wider font-extrabold transition-all cursor-pointer ${
+                      navMode === mode
+                        ? 'bg-white/10 text-white border border-white/10 shadow-sm'
+                        : 'text-white/30 hover:text-white/60 border border-transparent'
+                    }`}
+                  >
+                    {mode === 'tabs' ? 'Tabs' : 'Scroll'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between p-4 elva-hub-row select-none">
+              <div className="text-left pr-4">
+                <span className="text-xs font-semibold text-white/90 block">Pill Position</span>
+                <span className="text-[10px] text-white/40 font-light mt-1 block leading-normal">
+                  Adjust where the top-level navigation pill is positioned.
+                </span>
+              </div>
+              <div className="flex items-center gap-1 bg-white/[0.02] border border-white/[0.04] rounded-xl p-1 shrink-0">
+                {([
+                  { value: 'bottom', label: 'Bottom' },
+                  { value: 'top', label: 'Top' },
+                  ...(navMode === 'scroll' ? [{ value: 'right', label: 'Right' }] : [])
+                ]).map((pos) => (
+                  <button
+                    key={pos.value}
+                    onClick={() => onNavPositionChange?.(pos.value)}
+                    className={`px-3 py-1.5 rounded-lg text-[9px] uppercase tracking-wider font-extrabold transition-all cursor-pointer ${
+                      navPosition === pos.value
+                        ? 'bg-white/10 text-white border border-white/10 shadow-sm'
+                        : 'text-white/30 hover:text-white/60 border border-transparent'
+                    }`}
+                  >
+                    {pos.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div className="rounded-3xl elva-hub-card p-6 space-y-4">
           <div className="flex items-center gap-2.5 mb-2 select-none">
             <Sliders className={`w-4 h-4 ${theme.text}`} />

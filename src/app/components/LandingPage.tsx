@@ -9,7 +9,6 @@ import { ProfileHubView } from './ProfileHubView';
 import { ArtistProfileView } from './ArtistProfileView';
 import { PlaylistDetailsView } from './PlaylistDetailsView';
 import { DetailOverlay } from './DetailOverlay';
-import { LandingSectionNav } from './LandingSectionNav';
 
 interface LandingPageProps {
   isIntroActive: boolean;
@@ -72,6 +71,14 @@ interface LandingPageProps {
   onPeekProgressStyleChange: (style: 'none' | 'line' | 'border') => void;
   showVisualizer: boolean;
   onShowVisualizerChange: (show: boolean) => void;
+
+  activeTab: 'search' | 'discover' | 'myhub';
+  setActiveTab: (tab: 'search' | 'discover' | 'myhub') => void;
+
+  navMode: 'tabs' | 'scroll';
+  onNavModeChange: (mode: 'tabs' | 'scroll') => void;
+  navPosition: 'bottom' | 'top' | 'right';
+  onNavPositionChange: (pos: 'bottom' | 'top' | 'right') => void;
 }
 
 export function LandingPage({
@@ -133,8 +140,124 @@ export function LandingPage({
   peekProgressStyle,
   onPeekProgressStyleChange,
   showVisualizer,
-  onShowVisualizerChange
+  onShowVisualizerChange,
+  activeTab,
+  setActiveTab,
+  navMode,
+  onNavModeChange,
+  navPosition,
+  onNavPositionChange
 }: LandingPageProps) {
+  const renderSearchContent = () => (
+    <>
+      <div className="w-full flex flex-col items-center shrink-0">
+        <div className="h-6 md:h-10 shrink-0 w-full" />
+        <BrandingHeader
+          accentColor={accentColor}
+          hasSeenTour={hasSeenTour}
+          tourType={tourType}
+          startTour={startTour}
+          isFirstVisit={isFirstVisit}
+          hasSelectedArtist={hasSelectedArtistOnce}
+        />
+      </div>
+      
+      <div className="w-full flex flex-col items-center justify-start mt-6">
+        <SearchSection
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          lastSearchedQuery={lastSearchedQuery}
+          isSearching={isSearching}
+          searchResults={searchResults}
+          recentArtists={recentArtists}
+          recentlyPlayed={recentlyPlayed}
+          verifiedArtist={verifiedArtist}
+          focusedResultIndex={focusedResultIndex}
+          loadingSongId={loadingSongId}
+          handleViewArtistProfile={handleViewArtistProfile}
+          handleUrlSubmit={handleUrlSubmit}
+          handleSearch={handleSearch}
+          handleSelectSong={handleSelectSong}
+          handleAddToQueue={handleAddToQueue}
+          handlePlayNext={handlePlayNext}
+          handleFileSelect={handleFileSelect}
+          theme={theme}
+          isFirstVisit={isFirstVisit}
+          hasSelectedArtist={hasSelectedArtistOnce}
+        />
+      </div>
+    </>
+  );
+
+  const renderDiscoverContent = () => (
+    <>
+      <div id="tour-discover-section" className="w-full max-w-[898px] mx-auto px-6 mb-4 flex items-center justify-between shrink-0 select-none">
+        <h2 className="text-2xl font-normal tracking-[0.08em] bg-clip-text text-transparent bg-gradient-to-r from-white via-white/80 to-white/60" style={{ fontFamily: '"Kaobe", serif' }}>
+          Discover
+        </h2>
+        <span className="elva-section-label">Live Charts</span>
+      </div>
+
+      <DiscoverView
+        onSelectSong={handleSelectSong}
+        onAddToQueue={handleAddToQueue}
+        onPlayPlaylist={handlePlayPlaylist}
+        onPlayNext={handlePlayNext}
+        accentColor={accentColor}
+        favorites={favorites}
+        onToggleFavorite={handleToggleFavorite}
+        onSelectPlaylist={setSelectedPlaylist}
+      />
+    </>
+  );
+
+  const renderMyHubContent = () => (
+    <>
+      <div className="w-full max-w-[898px] mx-auto px-6 mb-4 flex items-center justify-between shrink-0 select-none">
+        <h2 className="text-2xl font-normal tracking-[0.08em] bg-clip-text text-transparent bg-gradient-to-r from-white via-white/80 to-white/60" style={{ fontFamily: '"Kaobe", serif' }}>
+          My Hub
+        </h2>
+        <span className="elva-section-label">Your Personal Vibe</span>
+      </div>
+
+      <ProfileHubView
+        favorites={favorites}
+        onToggleFavorite={handleToggleFavorite}
+        onSelectSong={handleSelectSong}
+        onAddToQueue={handleAddToQueue}
+        onPlayPlaylist={handlePlayPlaylist}
+        accentColor={accentColor}
+        onSelectArtist={handleViewArtistProfile}
+        onPlayNext={handlePlayNext}
+        onAccentColorChange={onAccentColorChange}
+        textureStyle={textureStyle}
+        onTextureStyleChange={onTextureStyleChange}
+        backgroundStyle={backgroundStyle}
+        onBackgroundStyleChange={onBackgroundStyleChange}
+        zenMode={zenMode}
+        onZenModeChange={onZenModeChange}
+        showVolumeSlider={showVolumeSlider}
+        onShowVolumeSliderChange={onShowVolumeSliderChange}
+        enable3DTilt={enable3DTilt}
+        onEnable3DTiltChange={onEnable3DTiltChange}
+        showSettingsButton={showSettingsButton}
+        onShowSettingsButtonChange={onShowSettingsButtonChange}
+        enableCustomLyrics={enableCustomLyrics}
+        onEnableCustomLyricsChange={onEnableCustomLyricsChange}
+        peekProgressStyle={peekProgressStyle}
+        onPeekProgressStyleChange={onPeekProgressStyleChange}
+        showVisualizer={showVisualizer}
+        onShowVisualizerChange={onShowVisualizerChange}
+        navMode={navMode}
+        onNavModeChange={onNavModeChange}
+        navPosition={navPosition}
+        onNavPositionChange={onNavPositionChange}
+      />
+    </>
+  );
+
+  const isScrollMode = navMode === 'scroll';
+
   return (
     <motion.div
       key="landing"
@@ -163,45 +286,6 @@ export function LandingPage({
             background: 'radial-gradient(circle at center, rgba(0, 0, 0, 0.72) 0%, rgba(0, 0, 0, 0.45) 45%, rgba(0,0,0,0) 80%)',
             filter: 'blur(35px)'
           }}
-        />
-      )}
-
-      {/* Fixed Branding Tag */}
-      {selectedArtist === null && selectedPlaylist === null && (
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ 
-            opacity: scrollProgress > 0.15 ? 1 : 0, 
-            y: scrollProgress > 0.15 ? 0 : -10 
-          }}
-          transition={{ duration: 0.35, ease: 'easeOut' }}
-          className="fixed top-6 left-6 z-40 select-none"
-          style={{ pointerEvents: scrollProgress > 0.15 ? 'auto' : 'none' }}
-        >
-          <button
-            onClick={() => {
-              const container = scrollContainerRef.current;
-              if (container) {
-                container.scrollTo({
-                  top: 0,
-                  behavior: 'smooth'
-                });
-              }
-            }}
-            className="text-2xl font-normal tracking-[0.08em] bg-clip-text text-transparent bg-gradient-to-r from-white via-white/80 to-white/60 hover:opacity-80 cursor-pointer transition-all focus:outline-none"
-            style={{ fontFamily: '"Kaobe", serif' }}
-          >
-            Elva
-          </button>
-        </motion.div>
-      )}
-
-      {selectedArtist === null && selectedPlaylist === null && (
-        <LandingSectionNav
-          scrollProgress={scrollProgress}
-          scrollContainerRef={scrollContainerRef}
-          accentColor={accentColor}
-          isFirstVisit={isFirstVisit}
         />
       )}
 
@@ -246,10 +330,10 @@ export function LandingPage({
         )}
       </AnimatePresence>
 
-      {/* Main Stack Viewport Snap-Scrolling Container */}
+      {/* Main Viewport Container */}
       <motion.div
         ref={scrollContainerRef}
-        onScroll={onScroll}
+        onScroll={isScrollMode ? onScroll : undefined}
         animate={{
           opacity: (selectedArtist !== null || selectedPlaylist !== null) ? 0 : 1,
           scale: (selectedArtist !== null || selectedPlaylist !== null) ? 0.96 : 1,
@@ -257,113 +341,70 @@ export function LandingPage({
           filter: (selectedArtist !== null || selectedPlaylist !== null) ? 'blur(4px)' : 'blur(0px)'
         }}
         transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
-        id="landing-scroll-container"
-        className="w-full h-full overflow-y-auto snap-y snap-mandatory scroll-smooth scrollbar-none flex flex-col relative z-10"
+        id={isScrollMode ? "landing-scroll-container" : "landing-content-container"}
+        className={`w-full h-full relative z-10 ${
+          isScrollMode 
+            ? "overflow-y-auto snap-y snap-mandatory scrollbar-none flex flex-col" 
+            : "overflow-hidden"
+        }`}
         style={{
           pointerEvents: (selectedArtist !== null || selectedPlaylist !== null) ? 'none' : 'auto'
         }}
       >
-        {/* SECTION 1: Search & Home */}
-        <section className="w-full h-full snap-start shrink-0 flex flex-col items-center justify-start relative px-0 pt-16 pb-24 overflow-y-auto scrollbar-none">
-          <div className="w-full flex flex-col items-center shrink-0">
-            <div className="h-6 md:h-10 shrink-0 w-full" />
-            <BrandingHeader
-              accentColor={accentColor}
-              hasSeenTour={hasSeenTour}
-              tourType={tourType}
-              startTour={startTour}
-              isFirstVisit={isFirstVisit}
-              hasSelectedArtist={hasSelectedArtistOnce}
-            />
-          </div>
-          
-          <div className="w-full flex flex-col items-center justify-start mt-6">
-            <SearchSection
-              searchQuery={searchQuery}
-              setSearchQuery={setSearchQuery}
-              lastSearchedQuery={lastSearchedQuery}
-              isSearching={isSearching}
-              searchResults={searchResults}
-              recentArtists={recentArtists}
-              recentlyPlayed={recentlyPlayed}
-              verifiedArtist={verifiedArtist}
-              focusedResultIndex={focusedResultIndex}
-              loadingSongId={loadingSongId}
-              handleViewArtistProfile={handleViewArtistProfile}
-              handleUrlSubmit={handleUrlSubmit}
-              handleSearch={handleSearch}
-              handleSelectSong={handleSelectSong}
-              handleAddToQueue={handleAddToQueue}
-              handlePlayNext={handlePlayNext}
-              handleFileSelect={handleFileSelect}
-              theme={theme}
-              isFirstVisit={isFirstVisit}
-              hasSelectedArtist={hasSelectedArtistOnce}
-            />
-          </div>
-        </section>
+        {isScrollMode ? (
+          <>
+            <section className="w-full h-full snap-start shrink-0 flex flex-col items-center justify-start relative px-0 pt-16 pb-24 overflow-y-auto scrollbar-none">
+              {renderSearchContent()}
+            </section>
+            <section className="w-full h-full snap-start shrink-0 flex flex-col items-center justify-start relative px-0 pt-16 pb-24 overflow-y-auto scrollbar-none">
+              {renderDiscoverContent()}
+            </section>
+            <section className="w-full h-full snap-start shrink-0 flex flex-col items-center justify-start relative px-0 pt-16 pb-24 overflow-y-auto scrollbar-none">
+              {renderMyHubContent()}
+            </section>
+          </>
+        ) : (
+          <AnimatePresence mode="wait">
+            {activeTab === 'search' && (
+              <motion.div
+                key="tab-search"
+                initial={{ opacity: 0, scale: 0.985, filter: 'blur(4px)' }}
+                animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+                exit={{ opacity: 0, scale: 0.985, filter: 'blur(4px)' }}
+                transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+                className="w-full h-full overflow-y-auto scrollbar-none flex flex-col pt-16 pb-24 px-0"
+              >
+                {renderSearchContent()}
+              </motion.div>
+            )}
 
-        {/* SECTION 2: Discover */}
-        <section className="w-full h-full snap-start shrink-0 flex flex-col items-center justify-start relative px-0 pt-16 pb-24 overflow-y-auto scrollbar-none">
-          {/* Custom Section Header */}
-          <div id="tour-discover-section" className="w-full max-w-[898px] px-6 mb-4 flex items-center justify-between shrink-0 select-none">
-            <h2 className="text-2xl font-normal tracking-[0.08em] bg-clip-text text-transparent bg-gradient-to-r from-white via-white/80 to-white/60" style={{ fontFamily: '"Kaobe", serif' }}>
-              Discover
-            </h2>
-          </div>
+            {activeTab === 'discover' && (
+              <motion.div
+                key="tab-discover"
+                initial={{ opacity: 0, scale: 0.985, filter: 'blur(4px)' }}
+                animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+                exit={{ opacity: 0, scale: 0.985, filter: 'blur(4px)' }}
+                transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+                className="w-full h-full overflow-y-auto scrollbar-none flex flex-col pt-16 pb-24 px-0"
+              >
+                {renderDiscoverContent()}
+              </motion.div>
+            )}
 
-          <DiscoverView
-            onSelectSong={handleSelectSong}
-            onAddToQueue={handleAddToQueue}
-            onPlayPlaylist={handlePlayPlaylist}
-            onPlayNext={handlePlayNext}
-            accentColor={accentColor}
-            favorites={favorites}
-            onToggleFavorite={handleToggleFavorite}
-            onSelectPlaylist={setSelectedPlaylist}
-          />
-        </section>
-
-        {/* SECTION 3: My Hub */}
-        <section className="w-full h-full snap-start shrink-0 flex flex-col items-center justify-start relative px-0 pt-16 pb-24 overflow-y-auto scrollbar-none">
-          {/* Custom Section Header */}
-          <div className="w-full max-w-[898px] px-6 mb-4 flex items-center justify-between shrink-0 select-none">
-            <h2 className="text-2xl font-normal tracking-[0.08em] bg-clip-text text-transparent bg-gradient-to-r from-white via-white/80 to-white/60" style={{ fontFamily: '"Kaobe", serif' }}>
-              My Hub
-            </h2>
-            <span className="elva-section-label">Your Personal Vibe</span>
-          </div>
-
-          <ProfileHubView
-            favorites={favorites}
-            onToggleFavorite={handleToggleFavorite}
-            onSelectSong={handleSelectSong}
-            onAddToQueue={handleAddToQueue}
-            onPlayPlaylist={handlePlayPlaylist}
-            accentColor={accentColor}
-            onSelectArtist={handleViewArtistProfile}
-            onPlayNext={handlePlayNext}
-            onAccentColorChange={onAccentColorChange}
-            textureStyle={textureStyle}
-            onTextureStyleChange={onTextureStyleChange}
-            backgroundStyle={backgroundStyle}
-            onBackgroundStyleChange={onBackgroundStyleChange}
-            zenMode={zenMode}
-            onZenModeChange={onZenModeChange}
-            showVolumeSlider={showVolumeSlider}
-            onShowVolumeSliderChange={onShowVolumeSliderChange}
-            enable3DTilt={enable3DTilt}
-            onEnable3DTiltChange={onEnable3DTiltChange}
-            showSettingsButton={showSettingsButton}
-            onShowSettingsButtonChange={onShowSettingsButtonChange}
-            enableCustomLyrics={enableCustomLyrics}
-            onEnableCustomLyricsChange={onEnableCustomLyricsChange}
-            peekProgressStyle={peekProgressStyle}
-            onPeekProgressStyleChange={onPeekProgressStyleChange}
-            showVisualizer={showVisualizer}
-            onShowVisualizerChange={onShowVisualizerChange}
-          />
-        </section>
+            {activeTab === 'myhub' && (
+              <motion.div
+                key="tab-myhub"
+                initial={{ opacity: 0, scale: 0.985, filter: 'blur(4px)' }}
+                animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+                exit={{ opacity: 0, scale: 0.985, filter: 'blur(4px)' }}
+                transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+                className="w-full h-full overflow-y-auto scrollbar-none flex flex-col pt-16 pb-24 px-0"
+              >
+                {renderMyHubContent()}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        )}
       </motion.div>
 
       {/* Subtle grid overlay for depth */}

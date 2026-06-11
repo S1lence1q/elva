@@ -1,15 +1,43 @@
 import { useState, useEffect, useRef } from 'react';
 
-export function useScrollTracking(scrollContainerRef: React.RefObject<HTMLDivElement | null>) {
+export function useScrollTracking(
+  activeTab: 'search' | 'discover' | 'myhub',
+  navMode: 'tabs' | 'scroll',
+  scrollContainerRef: React.RefObject<HTMLDivElement | null>
+) {
   const [scrollProgress, setScrollProgress] = useState(0);
   const [scrollVelocity, setScrollVelocity] = useState(0);
 
+  // For scroll mode
   const lastScrollTop = useRef(0);
   const lastScrollTime = useRef(Date.now());
+
+  // For tabs mode LERPing
+  const targetProgress = useRef(0);
+  const currentProgress = useRef(0);
   const targetVelocity = useRef(0);
+  const lastTab = useRef(activeTab);
   const rafRef = useRef<number | null>(null);
 
+  // Set target progress based on active tab (tabs mode only)
+  useEffect(() => {
+    if (navMode === 'tabs') {
+      if (activeTab === 'search') targetProgress.current = 0;
+      else if (activeTab === 'discover') targetProgress.current = 0.5;
+      else if (activeTab === 'myhub') targetProgress.current = 1.0;
+
+      // Trigger velocity spike when changing tabs for fluid background animation
+      if (activeTab !== lastTab.current) {
+        targetVelocity.current = 0.8;
+        lastTab.current = activeTab;
+      }
+    }
+  }, [activeTab, navMode]);
+
+  // HandleScroll is called on the container scroll event in scroll mode
   const handleScroll = () => {
+    if (navMode !== 'scroll') return;
+
     const container = scrollContainerRef.current;
     if (!container) return;
 
@@ -20,11 +48,11 @@ export function useScrollTracking(scrollContainerRef: React.RefObject<HTMLDivEle
 
     const progress = scrollTop / scrollHeight;
     setScrollProgress(progress);
+    currentProgress.current = progress; // sync currentProgress
 
     const now = Date.now();
     let timeDiff = now - lastScrollTime.current;
     
-    // If the last scroll event was more than 100ms ago, treat this as a fresh start to avoid time division anomalies
     if (timeDiff > 100) {
       timeDiff = 16;
     }
@@ -32,7 +60,7 @@ export function useScrollTracking(scrollContainerRef: React.RefObject<HTMLDivEle
     const distDiff = Math.abs(scrollTop - lastScrollTop.current);
     const rawVelocity = distDiff / Math.max(1, timeDiff);
 
-    // Limit maximum instantaneous target velocity to prevent erratic multiplier spikes
+    // Limit maximum instantaneous target velocity
     targetVelocity.current = Math.min(1.2, rawVelocity);
 
     lastScrollTop.current = scrollTop;
@@ -42,16 +70,26 @@ export function useScrollTracking(scrollContainerRef: React.RefObject<HTMLDivEle
   useEffect(() => {
     let active = true;
 
-    const updateVelocity = () => {
+    const animate = () => {
       if (!active) return;
 
-      // Slow, steady physical decay representing viscosity/friction
+      if (navMode === 'tabs') {
+        // Smoothly interpolate scrollProgress to targetProgress
+        const progressDiff = targetProgress.current - currentProgress.current;
+        if (Math.abs(progressDiff) > 0.0001) {
+          currentProgress.current += progressDiff * 0.08;
+        } else {
+          currentProgress.current = targetProgress.current;
+        }
+        setScrollProgress(currentProgress.current);
+      }
+
+      // Decaying velocity spike
       targetVelocity.current *= 0.92;
       if (targetVelocity.current < 0.001) {
         targetVelocity.current = 0;
       }
 
-      // Butter-smooth linear interpolation towards target
       setScrollVelocity((prev) => {
         if (targetVelocity.current === 0 && prev === 0) {
           return 0;
@@ -60,13 +98,13 @@ export function useScrollTracking(scrollContainerRef: React.RefObject<HTMLDivEle
         if (Math.abs(diff) < 0.001) {
           return targetVelocity.current;
         }
-        return prev + diff * 0.06; // Fine-tuned damping factor (0.06) for organic responsiveness
+        return prev + diff * 0.06;
       });
 
-      rafRef.current = requestAnimationFrame(updateVelocity);
+      rafRef.current = requestAnimationFrame(animate);
     };
 
-    rafRef.current = requestAnimationFrame(updateVelocity);
+    rafRef.current = requestAnimationFrame(animate);
 
     return () => {
       active = false;
@@ -74,7 +112,7 @@ export function useScrollTracking(scrollContainerRef: React.RefObject<HTMLDivEle
         cancelAnimationFrame(rafRef.current);
       }
     };
-  }, []);
+  }, [navMode]);
 
   return {
     scrollProgress,

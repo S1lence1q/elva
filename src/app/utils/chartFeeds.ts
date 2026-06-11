@@ -101,6 +101,12 @@ export async function fetchAppleMusicChart(
 ): Promise<{ tracks: SearchResult[]; fromCache: boolean; error?: string }> {
   const idPrefix = `apple_${storefront}`;
 
+  // Check cache first (if not expired)
+  const cached = readChartCache(storefront, false);
+  if (cached?.length) {
+    return { tracks: cached, fromCache: true };
+  }
+
   const fetchOnce = async (): Promise<SearchResult[]> => {
     const url = resolveChartUrl(storefront);
     const response = import.meta.env.DEV
