@@ -64,7 +64,7 @@ export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({
             <div className="space-y-4 text-xs">
               {[
                 { keys: ['Space'], desc: 'Play / Pause music' },
-                { keys: ['↑', '↓'], desc: 'Adjust volume (Premium HUD)' },
+                { keys: ['↑', '↓'], desc: 'Adjust volume' },
                 { keys: ['M'], desc: 'Mute / Unmute audio' },
                 { keys: ['←', '→'], desc: 'Seek 5s backward / forward' },
                 { keys: ['L'], desc: 'Flip artwork / toggle live lyrics' },

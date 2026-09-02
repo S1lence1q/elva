@@ -15,7 +15,6 @@ import { useLyrics } from '../hooks/useLyrics';
 import { usePlayStats } from '../hooks/usePlayStats';
 import { ArtworkCard } from './musicplayer/ArtworkCard';
 import { BottomBarControls } from './musicplayer/BottomBarControls';
-import { VisualizerCanvas } from './VisualizerCanvas';
 
 declare global {
   interface Window {
@@ -602,16 +601,6 @@ export function MusicPlayer({
         style={{ maxWidth: 1152 }}
       >
         <div className={isLargeScreen ? 'relative w-full h-[550px] flex items-center justify-center' : 'flex flex-col items-center justify-center w-full pb-20 relative'}>
-          {/* Background Oscilloscope Visualizer */}
-          <VisualizerCanvas
-            showVisualizer={showVisualizer}
-            isPlaying={isPlaying}
-            videoId={songData.videoId}
-            analyser={analyserRef.current}
-            colors={dominantColors}
-            volume={volume}
-          />
-
           {/* Extracted 3D Artwork Card */}
           <ArtworkCard
             songData={songData}

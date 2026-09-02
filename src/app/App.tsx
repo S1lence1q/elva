@@ -19,7 +19,7 @@ import { prefetchChartTracks } from './utils/chartPrefetch';
 import { parseLocalMetadata } from './utils/metadataParser';
 import { getPlaybackSongKey } from './utils/playbackSongKey';
 import { strings } from './constants/strings';
-import { waitForScrollEnd } from './utils/scrollUtils';
+import { waitForYouTubeApi } from './utils/youtubeApiReady';
 
 // Import newly extracted hooks and components
 import { useScrollTracking } from './hooks/useScrollTracking';
@@ -305,7 +305,13 @@ export default function App() {
   const [recentlyPlayed, setRecentlyPlayed] = useState<SearchResult[]>(() => {
     try {
       const stored = localStorage.getItem('elva_recently_played');
-      return stored ? JSON.parse(stored) : [];
+      const list: SearchResult[] = stored ? JSON.parse(stored) : [];
+      const resolvedRaw = localStorage.getItem('elva_resolved_video_ids');
+      const resolved: Record<string, string> = resolvedRaw ? JSON.parse(resolvedRaw) : {};
+      return list.map((item) => ({
+        ...item,
+        videoId: item.videoId || resolved[item.id] || '',
+      }));
     } catch (e) {
       console.warn('Failed to load recently played tracks:', e);
       return [];
@@ -315,6 +321,10 @@ export default function App() {
   const [isFirstVisit, setIsFirstVisit] = useState(() => !sessionStorage.getItem('elva_intro_seen'));
   const hasSelectedArtistOnce = useRef(false);
   const latestSelectedSongIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    void waitForYouTubeApi();
+  }, []);
 
   // 2. Background Colors Hook
   const bgColors = useBackgroundColors(songColors, appState, colorsSongData, scrollProgress);
@@ -373,23 +383,7 @@ export default function App() {
     }
   };
 
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setAppState('processing');
-    const meta = await parseLocalMetadata(file);
-
-    setTimeout(() => {
-      setSongData({
-        title: meta.title,
-        artist: meta.artist,
-        artworkUrl: meta.artworkUrl,
-        audioUrl: URL.createObjectURL(file)
-      });
-      setAppState('ready');
-    }, 1200);
-  };
+  const handleFileSelectRef = useRef<(e: React.ChangeEvent<HTMLInputElement>) => void>(() => {});
 
   const persistResolvedVideoId = (trackId: string, videoId: string, thumbnail?: string) => {
     setResolvedVideoIds((prev) => {
@@ -465,7 +459,7 @@ export default function App() {
       !isLocal && !!finalVideoId && isLikelyMusicVideoStream(result);
 
     // Crossfade path: metadata/colors only — playback stays on dual-engine crossfader
-    if (isCrossfade && startingAppState === 'ready') {
+    if (isCrossfade && (startingAppState === 'ready' || startingAppState === 'landing')) {
       if (!isLocal && !finalVideoId) {
         console.warn('Crossfade skipped: missing videoId for', result.title);
         return;
@@ -482,11 +476,6 @@ export default function App() {
       }, crossfadeWindow * 1000);
 
       const fallbacks = getDynamicFallbackColors(result.title, result.artist);
-      setSongColors({
-        primary: fallbacks.primary,
-        secondary: fallbacks.secondary,
-        accent: fallbacks.accent,
-      });
 
       setSongData({
         title: result.title,
@@ -514,7 +503,15 @@ export default function App() {
         const extracted = extractColorsFromImage(img, result.title, result.artist);
         setSongColors(extracted);
       };
+      img.onerror = () => {
+        if (latestSelectedSongIdRef.current !== latestId) return;
+        setSongColors(fallbacks);
+      };
       return;
+    }
+
+    if (!isLocal) {
+      await waitForYouTubeApi();
     }
 
     if (!isLocal && (neededResolve || needsAudioSwap)) {
@@ -578,15 +575,6 @@ export default function App() {
       }
     }
 
-    const fallbacks = getDynamicFallbackColors(result.title, result.artist);
-    if (startingAppState !== 'ready') {
-      setSongColors({
-        primary: fallbacks.primary,
-        secondary: fallbacks.secondary,
-        accent: fallbacks.accent
-      });
-    }
-
     if (startingAppState === 'ready') {
       setSongData({
         title: result.title,
@@ -613,7 +601,7 @@ export default function App() {
       };
       img.onerror = () => {
         if (latestSelectedSongIdRef.current !== latestId) return;
-        setSongColors(fallbacks);
+        setSongColors(getDynamicFallbackColors(result.title, result.artist));
       };
 
       return;
@@ -624,6 +612,7 @@ export default function App() {
 
     const startTime = Date.now();
     const minDisplayTime = neededResolve || needsAudioSwap || hadCachedVideoId ? 0 : 500;
+    const fallbacks = getDynamicFallbackColors(result.title, result.artist);
 
     const img = new Image();
     img.crossOrigin = 'anonymous';
@@ -635,7 +624,9 @@ export default function App() {
 
     const proceedToReady = () => {
       if (latestSelectedSongIdRef.current !== latestId) return;
-      const extracted = extractColorsFromImage(img, result.title, result.artist);
+      const extracted = img.complete && img.naturalWidth > 0
+        ? extractColorsFromImage(img, result.title, result.artist)
+        : fallbacks;
       setSongColors(extracted);
 
       const elapsedTime = Date.now() - startTime;
@@ -658,6 +649,30 @@ export default function App() {
 
     img.onload = proceedToReady;
     img.onerror = proceedToReady;
+  };
+
+  const playLocalFile = async (file: File) => {
+    const meta = await parseLocalMetadata(file);
+    const fileResult: SearchResult = {
+      id: 'local_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9),
+      title: meta.title,
+      artist: meta.artist,
+      thumbnail: meta.artworkUrl,
+      audioUrl: URL.createObjectURL(file),
+      videoId: '',
+    };
+    await handleSelectSong(fileResult);
+  };
+
+  handleFileSelectRef.current = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    await playLocalFile(file);
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    void handleFileSelectRef.current(e);
   };
 
   const handleAddToQueue = (result: SearchResult, options?: { silent?: boolean }) => {
@@ -1273,25 +1288,7 @@ export default function App() {
               peekProgressStyle={peekProgressStyle}
               onPeekProgressStyleChange={setPeekProgressStyle}
               onFileSelect={(file) => {
-                if (appState === 'ready') {
-                  setSongData({
-                    title: file.name.replace(/\.[^/.]+$/, ''),
-                    artist: 'Unknown Artist',
-                    artworkUrl: 'https://images.unsplash.com/photo-1676068368612-1c8b3e2afed0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxhbGJ1bSUyMGNvdmVyJTIwbXVzaWMlMjBhYnN0cmFjdCUyMGFydCUyMGNvbG9yZnVsfGVufDF8fHx8MTc3ODk2NjA3OHww&ixlib=rb-4.1.0&q=80&w=1080',
-                    audioUrl: URL.createObjectURL(file)
-                  });
-                  return;
-                }
-                setAppState('processing');
-                setTimeout(() => {
-                  setSongData({
-                    title: file.name.replace(/\.[^/.]+$/, ''),
-                    artist: 'Unknown Artist',
-                    artworkUrl: 'https://images.unsplash.com/photo-1676068368612-1c8b3e2afed0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxhbGJ1bSUyMGNvdmVyJTIwbXVzaWMlMjBhYnN0cmFjdCUyMGFydCUyMGNvbG9yZnVsfGVufDF8fHx8MTc3ODk2NjA3OHww&ixlib=rb-4.1.0&q=80&w=1080',
-                    audioUrl: URL.createObjectURL(file)
-                  });
-                  setAppState('ready');
-                }, 1500);
+                void playLocalFile(file);
               }}
               onUrlSubmit={searchLogic.handleUrlSubmit}
               onBackToHome={() => {
